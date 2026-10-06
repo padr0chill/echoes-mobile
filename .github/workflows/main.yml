@@ -1,0 +1,61 @@
+# Сборка IPA на бесплатном облачном Mac GitHub Actions.
+# Результат — неподписанный ECHOES.ipa во вкладке Actions → последний запуск → Artifacts.
+# Ставится на iPhone через Sideloadly / AltStore (они подписывают его вашим Apple ID).
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: iOS project (generated, not stored in the repo)
+        run: |
+          flutter create --platforms=ios --org com.echoes --project-name echoes_mobile .
+          rm -f test/widget_test.dart
+
+      - name: Dependencies and icon
+        run: |
+          flutter pub get
+          dart run flutter_launcher_icons
+
+      - name: iOS settings — background audio, name, iOS 13+
+        run: |
+          P=ios/Runner/Info.plist
+          /usr/libexec/PlistBuddy -c "Delete :UIBackgroundModes" "$P" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$P"
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" "$P"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ECHOES" "$P" || \
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ECHOES" "$P"
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$P" || true
+          sed -i '' "s/^# platform :ios.*/platform :ios, '13.0'/" ios/Podfile || true
+
+      - name: Tests
+        run: flutter test test/layout_test.dart
+
+      - name: Build (no codesign)
+        run: flutter build ios --release --no-codesign --obfuscate --split-debug-info=build/symbols
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry ECHOES.ipa Payload
+          ls -lh ECHOES.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ECHOES-ipa
+          path: ECHOES.ipa
+          retention-days: 30
