@@ -88,6 +88,25 @@ class _ShellState extends State<Shell> {
   int _tab = 0;
   static const _pages = [WaveScreen(), SearchScreen(), ForYouScreen(), LibraryScreen(), ProfileScreen()];
 
+  /// У каждой вкладки свой стек экранов (как в Spotify / Apple Music): плейлист, исполнитель, альбом
+  /// открываются ВНУТРИ вкладки — мини-плеер и панель вкладок остаются видны. Плеер, окна и шторки —
+  /// поверх всего (корневой навигатор).
+  final _navs = List.generate(_pages.length, (_) => GlobalKey<NavigatorState>());
+
+  /// Нажатие на вкладку: другая — переключиться; та же — вернуться к её началу.
+  void _selectTab(int i) {
+    if (i == _tab) {
+      _navs[i].currentState?.popUntil((r) => r.isFirst);
+    } else {
+      setState(() => _tab = i);
+    }
+  }
+
+  Widget _tabNavigator(int i) => Navigator(
+        key: _navs[i],
+        onGenerateRoute: (s) => MaterialPageRoute(settings: s, builder: (_) => _pages[i]),
+      );
+
   @override
   void initState() {
     super.initState();
@@ -134,9 +153,22 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     // скрытые вкладки не анимируются (волна не крутит шейдер, пока вы в поиске)
-    final body = IndexedStack(index: _tab, children: [
-      for (var i = 0; i < _pages.length; i++) TickerMode(enabled: i == _tab, child: _pages[i]),
-    ]);
+    final body = PopScope(
+      // «назад» (Android, жест) — сначала закрываем экраны внутри вкладки
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final nav = _navs[_tab].currentState;
+        if (nav != null && nav.canPop()) {
+          nav.pop();
+        } else if (_tab != 0) {
+          setState(() => _tab = 0);
+        }
+      },
+      child: IndexedStack(index: _tab, children: [
+        for (var i = 0; i < _pages.length; i++) TickerMode(enabled: i == _tab, child: _tabNavigator(i)),
+      ]),
+    );
     final mini = MiniPlayer(onOpen: _openPlayer);
     const items = [
       (Icons.waves_rounded, 'Волна'),
@@ -162,7 +194,7 @@ class _ShellState extends State<Shell> {
                   child: NavigationRail(
                     backgroundColor: Colors.transparent,
                     selectedIndex: _tab,
-                    onDestinationSelected: (i) => setState(() => _tab = i),
+                    onDestinationSelected: _selectTab,
                     labelType: low ? NavigationRailLabelType.none : NavigationRailLabelType.all,
                     leading: low
                         ? null
@@ -206,7 +238,7 @@ class _ShellState extends State<Shell> {
             bottom: 0,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               mini,
-              GlassTabBar(items: items, index: _tab, onTap: (i) => setState(() => _tab = i)),
+              GlassTabBar(items: items, index: _tab, onTap: _selectTab),
             ]),
           ),
         ])),

@@ -107,7 +107,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
     final topN = _topMore ? 10 : 5;
     final sub = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.65);
     return ListView(
-      padding: EdgeInsets.only(bottom: context.u(140)),
+      padding: EdgeInsets.only(bottom: context.u(200)), // место под мини-плеер и вкладки
       children: [
         SizedBox(height: MediaQuery.paddingOf(context).top + context.u(36)),
         Center(

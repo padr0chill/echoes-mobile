@@ -178,22 +178,27 @@ class TrackListScreen extends StatelessWidget {
             children: [
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
+                // кнопки делят ширину; на узком экране / крупном шрифте подпись ужимается, а не вылезает
                 child: Row(children: [
-                  FilledButton.icon(
-                    onPressed: () => audio.playList(list, 0),
-                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
-                    label: const Text('Слушать', style: TextStyle(color: Colors.black)),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => audio.playList(list, 0),
+                      icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
+                      label: const FittedBox(
+                          fit: BoxFit.scaleDown, child: Text('Слушать', style: TextStyle(color: Colors.black))),
+                    ),
                   ),
                   SizedBox(width: context.u(8)),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      if (!audio.shuffle.value) audio.toggleShuffle();
-                      audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
-                    },
-                    icon: const Icon(Icons.shuffle_rounded),
-                    label: const Text('Вперемешку'),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        audio.shuffle.value = true; // список перемешает playList
+                        audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
+                      },
+                      icon: const Icon(Icons.shuffle_rounded),
+                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Вперемешку')),
+                    ),
                   ),
-                  const Spacer(),
                   if (!offline) _DownloadAll(list: list),
                 ]),
               ),

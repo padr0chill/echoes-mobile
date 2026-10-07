@@ -173,6 +173,14 @@ void main() {
       });
     });
   }
+  testWidgets(
+      'phone playlist',
+      (t) => shoot(t, phone, 'phone_playlist', () async {
+            await openTab(t, 'Моя музыка');
+            await t.tap(find.text('В дорогу'));
+            await t.pump();
+            await t.pump(const Duration(milliseconds: 600));
+          }));
   testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () => openTab(t, 'Поиск')));
   testWidgets('phone player', (t) => shoot(t, phone, 'phone_player', () => openPlayer(t)));
   testWidgets('se library', (t) => shoot(t, se, 'se_library', () => openTab(t, 'Моя музыка')));

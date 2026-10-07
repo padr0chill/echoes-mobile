@@ -70,4 +70,35 @@ void main() {
     expect(audio.upNext.value, 1);
     expect(ids().sublist(2, 4), ['t2', 'y']);
   });
+
+  test('вперемешку: очередь реально перемешана — играет ровно то, что показано', () async {
+    audio.toggleShuffle();
+    expect(audio.shuffle.value, isTrue);
+    expect(audio.current!.id, 't2'); // текущий не сбился
+    expect(ids().toSet(), {for (var i = 0; i < 10; i++) 't$i'}); // все треки на месте
+    final shown = ids().sublist(audio.index.value + 1, audio.index.value + 4);
+    for (final want in shown) {
+      await audio.skipToNext();
+      expect(audio.current!.id, want);
+    }
+    audio.toggleShuffle(); // выключить — для следующих тестов
+  });
+
+  test('вперемешку не трогает «Далее в очереди»', () {
+    audio.addToQueue(tr('x'));
+    audio.addToQueue(tr('y'));
+    audio.toggleShuffle();
+    expect(ids().sublist(audio.index.value, audio.index.value + 3), ['t2', 'x', 'y']);
+    audio.toggleShuffle();
+  });
+
+  test('выключили вперемешку — прежний порядок, с того же трека', () async {
+    final before = ids();
+    audio.toggleShuffle();
+    await audio.skipToNext();
+    final now = audio.current!.id;
+    audio.toggleShuffle();
+    expect(ids(), before);
+    expect(audio.current!.id, now);
+  });
 }

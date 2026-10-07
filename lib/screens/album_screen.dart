@@ -189,7 +189,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                               onTap: list.isEmpty
                                   ? null
                                   : () {
-                                      if (!audio.shuffle.value) audio.toggleShuffle();
+                                      audio.shuffle.value = true; // список перемешает playList
                                       audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
                                     },
                               child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -231,7 +231,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 );
               }
               return ListView.builder(
-                padding: EdgeInsets.only(bottom: context.u(140)),
+                padding: EdgeInsets.only(bottom: context.u(200)), // место под мини-плеер и вкладки
                 itemCount: head.length + (tail != null ? 1 : list.length),
                 itemBuilder: (context, i) {
                   if (i < head.length) return head[i];

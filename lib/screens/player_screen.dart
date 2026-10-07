@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../services/lyrics.dart';
@@ -10,6 +11,7 @@ import '../services/store.dart';
 import '../ui.dart';
 import '../skins/winamp.dart';
 import '../vinyl.dart';
+import 'lyrics_tools.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
 
@@ -305,6 +307,94 @@ class _LyricsViewState extends State<_LyricsView> {
     }
   }
 
+  void _reload() => setState(() {
+        _f = LyricsService.instance.get(widget.track);
+        _active = -1;
+        _keys.clear();
+      });
+
+  Future<void> _search() async {
+    final ly = await pickLyrics(context, widget.track);
+    if (ly != null) _reload();
+  }
+
+  Future<void> _own() async {
+    final ly = await ownLyrics(context, widget.track);
+    if (ly != null) _reload();
+  }
+
+  Future<void> _sync(Lyrics ly) async {
+    final how = await showGlassSheet<String>(
+      context,
+      (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.touch_app_rounded),
+            title: const Text('Вручную — нажимать на каждую строку'),
+            subtitle: const Text('Точно: песня играет с начала, вы отмечаете строки'),
+            onTap: () => Navigator.pop(ctx, 'tap'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.auto_fix_high_rounded),
+            title: const Text('Автоматически (примерно)'),
+            subtitle: const Text('По длине строк; потом можно подправить сдвигом'),
+            onTap: () => Navigator.pop(ctx, 'auto'),
+          ),
+          if (ly.source != 'lrclib' && ly.source != 'lyrics.ovh')
+            ListTile(
+              leading: const Icon(Icons.restart_alt_rounded),
+              title: const Text('Сбросить — искать заново'),
+              onTap: () => Navigator.pop(ctx, 'reset'),
+            ),
+        ]),
+      ),
+    );
+    if (how == null || !mounted) return;
+    final texts = [for (final l in ly.lines) l.text];
+    if (how == 'auto') {
+      final total = audio.player.duration ?? widget.track.duration;
+      await LyricsService.instance.save(widget.track, LyricsService.autoSync(texts, total));
+    } else if (how == 'reset') {
+      await LyricsService.instance.reset(widget.track);
+    } else {
+      await Navigator.of(context, rootNavigator: true)
+          .push(MaterialPageRoute(builder: (_) => LyricsSyncScreen(track: widget.track, lines: texts)));
+    }
+    if (mounted) _reload();
+  }
+
+  Future<void> _shift(Lyrics ly, int ms) async {
+    await LyricsService.instance.save(widget.track, ly.shifted(Duration(milliseconds: ms)));
+    _reload();
+  }
+
+  /// Панель над текстом: найти другой, синхронизировать, сдвиг (раньше/позже), свой текст.
+  Widget _toolbar(BuildContext context, Lyrics ly) {
+    final dim = Colors.white.withValues(alpha: 0.6);
+    Widget btn(IconData i, String tip, VoidCallback on) => IconButton(
+        tooltip: tip, visualDensity: VisualDensity.compact, icon: Icon(i, color: Colors.white), onPressed: on);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: context.u(12)),
+      child: Row(children: [
+        Expanded(
+          child: Text(
+            ly.approx ? 'тайминги примерные — подправьте' : (ly.synced ? ly.source : '${ly.source} · без таймингов'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: ly.approx ? context.accent : dim, fontSize: 12),
+          ),
+        ),
+        if (ly.synced) ...[
+          btn(Icons.fast_rewind_rounded, 'Текст раньше на 0,5 с', () => _shift(ly, -500)),
+          btn(Icons.fast_forward_rounded, 'Текст позже на 0,5 с', () => _shift(ly, 500)),
+        ],
+        btn(Icons.sync_rounded, 'Синхронизировать', () => _sync(ly)),
+        btn(Icons.search_rounded, 'Найти другой текст', _search),
+        btn(Icons.edit_note_rounded, 'Свой текст', _own),
+      ]),
+    );
+  }
+
   void _follow(int i) {
     if (i == _active) return;
     _active = i;
@@ -325,7 +415,27 @@ class _LyricsViewState extends State<_LyricsView> {
         }
         final ly = snap.data;
         if (ly == null || ly.lines.isEmpty) {
-          return const Center(child: Text('Текст не найден', style: TextStyle(color: Colors.white70)));
+          return Center(
+            child: Padding(
+              padding: EdgeInsets.all(context.u(24)),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('Текст не найден автоматически', style: TextStyle(color: Colors.white70)),
+                SizedBox(height: context.u(14)),
+                Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
+                  FilledButton.icon(
+                    onPressed: () => _search(),
+                    icon: const Icon(Icons.search_rounded, color: Colors.black),
+                    label: const Text('Найти вручную', style: TextStyle(color: Colors.black)),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _own(),
+                    icon: const Icon(Icons.edit_note_rounded),
+                    label: const Text('Свой текст'),
+                  ),
+                ]),
+              ]),
+            ),
+          );
         }
         return StreamBuilder<Duration>(
           stream: audio.player.positionStream,
@@ -338,45 +448,48 @@ class _LyricsViewState extends State<_LyricsView> {
               }
               WidgetsBinding.instance.addPostFrameCallback((_) => _follow(cur));
             }
-            return ShaderMask(
-              shaderCallback: (r) => const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
-                stops: [0, 0.12, 0.88, 1],
-              ).createShader(r),
-              blendMode: BlendMode.dstIn,
-              child: ListView.builder(
-                controller: _sc,
-                padding: EdgeInsets.symmetric(horizontal: context.u(24), vertical: context.u(80)),
-                itemCount: ly.lines.length,
-                itemBuilder: (context, i) {
-                  final l = ly.lines[i];
-                  final on = i == cur;
-                  return GestureDetector(
-                    key: _keys.putIfAbsent(i, () => GlobalKey()),
-                    onTap: ly.synced ? () => audio.seek(l.at) : null,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: context.u(7)),
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 250),
-                        style: TextStyle(
-                          fontSize: on ? 26 : 22,
-                          fontWeight: FontWeight.w800,
-                          height: 1.25,
-                          color: !ly.synced
-                              ? Colors.white.withValues(alpha: 0.85)
-                              : on
-                                  ? Colors.white
-                                  : Colors.white.withValues(alpha: i < cur ? 0.35 : 0.5),
-                        ),
-                        child: Text(l.text.isEmpty ? '♪' : l.text),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            );
+            return Column(children: [
+              _toolbar(context, ly),
+              Expanded(
+                  child: ShaderMask(
+                      shaderCallback: (r) => const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
+                            stops: [0, 0.12, 0.88, 1],
+                          ).createShader(r),
+                      blendMode: BlendMode.dstIn,
+                      child: ListView.builder(
+                        controller: _sc,
+                        padding: EdgeInsets.symmetric(horizontal: context.u(24), vertical: context.u(80)),
+                        itemCount: ly.lines.length,
+                        itemBuilder: (context, i) {
+                          final l = ly.lines[i];
+                          final on = i == cur;
+                          return GestureDetector(
+                            key: _keys.putIfAbsent(i, () => GlobalKey()),
+                            onTap: ly.synced ? () => audio.seek(l.at) : null,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: context.u(7)),
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 250),
+                                style: TextStyle(
+                                  fontSize: on ? 26 : 22,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.25,
+                                  color: !ly.synced
+                                      ? Colors.white.withValues(alpha: 0.85)
+                                      : on
+                                          ? Colors.white
+                                          : Colors.white.withValues(alpha: i < cur ? 0.35 : 0.5),
+                                ),
+                                child: Text(l.text.isEmpty ? '♪' : l.text),
+                              ),
+                            ),
+                          );
+                        },
+                      ))),
+            ]);
           },
         );
       },

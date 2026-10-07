@@ -255,6 +255,7 @@ class _Blob extends StatelessWidget {
 Future<T?> showGlassSheet<T>(BuildContext context, Widget Function(BuildContext) builder) {
   return showModalBottomSheet<T>(
     context: context,
+    useRootNavigator: true, // поверх мини-плеера и панели вкладок
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.35),
     isScrollControlled: true,

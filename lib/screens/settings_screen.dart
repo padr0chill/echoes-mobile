@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 
+import '../glass.dart';
 import '../services/offline.dart';
 import '../services/store.dart';
 import '../ui.dart';
@@ -158,17 +160,32 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-/// Фото для фона: копия во внутреннюю папку приложения (оригинал из «Фото»/«Файлов» может пропасть).
+/// Фото для фона: из галереи (системный выбор фото iOS) или из «Файлов». Копия — во внутреннюю папку
+/// приложения (оригинал может пропасть).
 Future<void> _pickBackground(BuildContext context) async {
+  final fromGallery = await showGlassSheet<bool>(
+    context,
+    (ctx) => SafeArea(
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(
+          leading: const Icon(Icons.photo_library_rounded),
+          title: const Text('Из галереи'),
+          subtitle: const Text('Фото и картинки с телефона'),
+          onTap: () => Navigator.pop(ctx, true),
+        ),
+        ListTile(
+          leading: const Icon(Icons.folder_rounded),
+          title: const Text('Из «Файлов»'),
+          subtitle: const Text('iCloud Drive, загрузки, Telegram'),
+          onTap: () => Navigator.pop(ctx, false),
+        ),
+      ]),
+    ),
+  );
+  if (fromGallery == null || !context.mounted) return;
   final XFile? f;
   try {
-    f = await openFile(acceptedTypeGroups: const [
-      XTypeGroup(
-        label: 'Фото',
-        extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
-        uniformTypeIdentifiers: ['public.image'],
-      ),
-    ]);
+    f = fromGallery ? await _fromGallery() : await _fromFiles();
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть фото: $e')));
@@ -176,6 +193,28 @@ Future<void> _pickBackground(BuildContext context) async {
     return;
   }
   if (f == null) return;
+  await _saveBackground(f);
+}
+
+/// Системная галерея iOS (PHPicker): разрешение на доступ ко всем фото не нужно — приложение получает
+/// только выбранную картинку. Большие фото ужимаются до 2400 px — фону хватает, памяти меньше.
+Future<XFile?> _fromGallery() => ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2400,
+      maxHeight: 2400,
+      imageQuality: 90,
+      requestFullMetadata: false,
+    );
+
+Future<XFile?> _fromFiles() => openFile(acceptedTypeGroups: const [
+      XTypeGroup(
+        label: 'Фото',
+        extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
+        uniformTypeIdentifiers: ['public.image'],
+      ),
+    ]);
+
+Future<void> _saveBackground(XFile f) async {
   final dir = await getApplicationSupportDirectory();
   final ext = f.name.contains('.') ? f.name.split('.').last.toLowerCase() : 'jpg';
   final dst = File('${dir.path}/background_${DateTime.now().millisecondsSinceEpoch}.$ext');

@@ -79,7 +79,13 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   Future<void> playList(List<Track> list, int start, {Future<void> Function()? wave}) async {
     nearEnd = wave;
     upNext.value = 0;
+    _unshuffled = null;
     tracks.value = List.of(list);
+    if (shuffle.value && wave == null && list.length > 1) {
+      // «вперемешку»: выбранный трек — первым, остальные — в случайном порядке (очередь это и показывает)
+      _shuffleAround(start);
+      start = 0;
+    }
     queue.add(tracks.value.map((t) => t.toMediaItem()).toList());
     await _playIndex(start);
   }
@@ -403,7 +409,6 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
 
   /// Следующий трек — заранее (обе площадки): «следующий» включается почти сразу.
   void _prefetchNext() {
-    if (shuffle.value) return;
     final j = index.value + 1;
     if (j >= tracks.value.length) return;
     final n = tracks.value[j];
@@ -421,13 +426,6 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     if (n == 0) return null;
     // добавленные вручную — всегда следующими, даже «вперемешку»
     if (upNext.value > 0 && index.value + 1 < n) return index.value + 1;
-    if (shuffle.value && n > 1) {
-      var j = index.value;
-      while (j == index.value) {
-        j = _rnd.nextInt(n);
-      }
-      return j;
-    }
     final j = index.value + 1;
     if (j < n) return j;
     return (repeat.value == RepeatState.all || user) ? 0 : null;
@@ -448,7 +446,49 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  void toggleShuffle() => shuffle.value = !shuffle.value;
+  /// Порядок до «вперемешку» — чтобы вернуть его, когда перемешивание выключат.
+  List<Track>? _unshuffled;
+
+  /// Перемешать очередь вокруг трека i: он — первым, затем «Далее в очереди» (добавленные вручную,
+  /// в своём порядке), затем все остальные треки списка в случайном порядке.
+  void _shuffleAround(int i) {
+    final l = tracks.value;
+    if (l.isEmpty) return;
+    i = i.clamp(0, l.length - 1);
+    _unshuffled = List.of(l);
+    final up = upNext.value.clamp(0, l.length - i - 1);
+    final head = [l[i], ...l.sublist(i + 1, i + 1 + up)];
+    final rest = [...l.sublist(0, i), ...l.sublist(i + 1 + up)]..shuffle(_rnd);
+    tracks.value = [...head, ...rest];
+    index.value = 0;
+    queue.add(tracks.value.map((x) => x.toMediaItem()).toList());
+  }
+
+  /// Вперемешку вкл/выкл — как в Spotify: очередь реально перемешивается (и в «Очереди» видно,
+  /// что заиграет дальше); выключили — прежний порядок, с того же трека.
+  void toggleShuffle() {
+    shuffle.value = !shuffle.value;
+    final l = tracks.value;
+    if (l.length < 2 || nearEnd != null) return; // волна и так случайная
+    if (shuffle.value) {
+      _shuffleAround(index.value < 0 ? 0 : index.value);
+      return;
+    }
+    final orig = _unshuffled;
+    _unshuffled = null;
+    if (orig == null) return;
+    final cur = current;
+    final up = upNext.value.clamp(0, l.length - index.value - 1);
+    final queued = index.value >= 0 ? l.sublist(index.value + 1, index.value + 1 + up) : <Track>[];
+    // исходный порядок + треки, добавленные уже во время перемешивания (в конец)
+    final have = orig.toSet();
+    final restored = [...orig, ...l.where((x) => !have.contains(x))]..removeWhere(queued.contains);
+    var ci = cur == null ? -1 : restored.indexOf(cur);
+    if (ci >= 0) restored.insertAll(ci + 1, queued);
+    tracks.value = restored;
+    index.value = ci;
+    queue.add(restored.map((x) => x.toMediaItem()).toList());
+  }
 
   void cycleRepeat() {
     repeat.value = RepeatState.values[(repeat.value.index + 1) % RepeatState.values.length];

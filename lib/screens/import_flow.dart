@@ -62,7 +62,7 @@ Future<void> importFromPc(BuildContext context) async {
   if (file == null || !context.mounted) return;
 
   final messenger = ScaffoldMessenger.of(context);
-  final nav = Navigator.of(context);
+  final nav = Navigator.of(context, rootNavigator: true); // окно «Переношу…» — в корневом навигаторе
   showDialog<void>(
     context: context,
     barrierDismissible: false,
