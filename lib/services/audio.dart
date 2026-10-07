@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models.dart';
 import 'store.dart';
 import 'offline.dart';
+import 'square_cover.dart';
 import 'sc.dart';
 import 'stream_source.dart';
 import 'yt.dart';
@@ -21,7 +22,10 @@ extension TrackMedia on Track {
         title: title,
         artist: artist,
         duration: seconds > 0 ? duration : null,
-        artUri: Uri.parse(thumb),
+        // у видео YouTube — уже обрезанная квадратная (без полос), если готова; иначе сеть
+        artUri: SquareCover.instance.ready(this) != null
+            ? Uri.file(SquareCover.instance.ready(this)!.path)
+            : Uri.parse(art ?? cover),
       );
 }
 
@@ -168,6 +172,11 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final t = l[i];
     final my = ++_token;
     mediaItem.add(t.toMediaItem());
+    // экран блокировки: чистая квадратная обложка без полос — как только готова
+    SquareCover.instance.get(t).then((f) {
+      final m = mediaItem.value;
+      if (f != null && m != null && m.id == t.id) mediaItem.add(m.copyWith(artUri: Uri.file(f.path)));
+    });
     error.value = null;
     loading.value = true;
     _broadcast();
@@ -345,14 +354,33 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       }
       if (cancelled()) return false;
     }
+    // 2-я попытка: 1) свежая ссылка на то же видео (старая могла «протухнуть» — 403 после смены сети);
+    // 2) та же песня другим видео (официальное с YouTube Music / другая заливка — ограничения у них разные)
+    YtService.instance.forget(vid);
+    final alt = <String>{vid};
+    try {
+      alt.add(await YtService.instance.findSame(t, exclude: vid).timeout(const Duration(seconds: 8)));
+    } catch (_) {}
+    for (final v in alt) {
+      if (cancelled()) return false;
+      try {
+        final p = await _resolveYt(v, eco, fresh: true);
+        if (await playYt(p)) {
+          if (v != vid) errs.clear();
+          return true;
+        }
+      } catch (e) {
+        errs.add('YouTube${v == vid ? ' (свежая ссылка)' : ' (другое видео)'}: ${_short(e)}');
+      }
+    }
     throw Exception(errs.join(' · '));
   }
 
   /// Поток YouTube: способы 0 и 1 — одновременно (первый удачный), потом остальные по очереди.
   /// Каждый не дольше 7 с — зависший запрос не держит трек.
-  Future<StreamPick> _resolveYt(String vid, bool eco) async {
+  Future<StreamPick> _resolveYt(String vid, bool eco, {bool fresh = false}) async {
     Future<StreamPick> one(int i) =>
-        YtService.instance.streamWith(vid, i, economy: eco).timeout(const Duration(seconds: 7));
+        YtService.instance.streamWith(vid, i, economy: eco, fresh: fresh).timeout(const Duration(seconds: 7));
     try {
       return await _firstOk([one(0), one(1)]);
     } catch (_) {}

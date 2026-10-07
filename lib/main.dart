@@ -15,6 +15,7 @@ import 'screens/wave_screen.dart';
 import 'services/audio.dart';
 import 'services/offline.dart';
 import 'services/sc.dart';
+import 'services/square_cover.dart';
 import 'services/store.dart';
 import 'skins/milkdrop.dart';
 import 'skins/winamp.dart';
@@ -25,6 +26,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Store.instance.load();
   await Offline.instance.load();
+  await SquareCover.instance.init();
   ScService.instance
     ..seedClientId(Store.instance.scClientId)
     ..onClientId = Store.instance.setScClientId;

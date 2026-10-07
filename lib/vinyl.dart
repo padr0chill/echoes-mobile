@@ -193,11 +193,16 @@ class LyricsTicker extends StatefulWidget {
   final Track track;
   const LyricsTicker({super.key, required this.track});
 
+  /// Высота блока: текущая строка — до 3 строк, следующая — до 2 (с учётом размера шрифта).
+  static double heightFor(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(20 * 1.2 * 3 + 4 + 15 * 1.3 * 2) + context.u(8);
+
   @override
   State<LyricsTicker> createState() => _LyricsTickerState();
 }
 
 class _LyricsTickerState extends State<LyricsTicker> {
+  // (высота блока — LyricsTicker.heightFor: 3 строки текущей + 2 следующей)
   Lyrics? _ly;
 
   @override
@@ -224,7 +229,7 @@ class _LyricsTickerState extends State<LyricsTicker> {
   @override
   Widget build(BuildContext context) {
     final ly = _ly;
-    final h = MediaQuery.textScalerOf(context).scale(64) + context.u(8);
+    final h = LyricsTicker.heightFor(context);
     if (ly == null || !ly.synced || ly.lines.isEmpty) return SizedBox(height: h);
     return SizedBox(
       height: h,
@@ -251,14 +256,16 @@ class _LyricsTickerState extends State<LyricsTicker> {
               key: ValueKey(cur),
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // строка целиком: переносится до 3 строк (а не обрезается «…»)
                 Text(line(cur),
-                    maxLines: 1,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
+                    style:
+                        const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2)),
                 const SizedBox(height: 4),
                 Text(line(cur + 1),
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(

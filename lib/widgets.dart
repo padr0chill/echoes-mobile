@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -6,6 +8,7 @@ import 'models.dart';
 import 'screens/artist_screen.dart';
 import 'services/audio.dart';
 import 'services/offline.dart';
+import 'services/square_cover.dart';
 import 'services/store.dart';
 import 'skins/winamp.dart';
 import 'ui.dart';
@@ -38,30 +41,34 @@ class Cover extends StatelessWidget {
         height: size,
         child: t == null
             ? ph()
-            : (t.art != null || !t.isYt) && debugImage == null
-                ? Image.network(t.cover,
-                    fit: BoxFit.cover,
-                    cacheWidth: (size * 3).round(),
-                    errorBuilder: (_, __, ___) => ph()) // квадратная обложка (SoundCloud, YouTube Music) — без подрезки
-                : FittedBox(
-                    fit: BoxFit.cover,
-                    clipBehavior: Clip.hardEdge,
-                    child: SizedBox(
-                      // 4:3-миниатюра с полосами — увеличиваем, чтобы полосы ушли за край
-                      width: size * 16 / 9,
-                      height: size * 16 / 9 * 0.75,
-                      child: debugImage != null
-                          ? Image(image: debugImage!(t), fit: BoxFit.cover)
-                          : Image.network(
-                              big ? t.cover : t.thumb,
-                              fit: BoxFit.cover,
-                              cacheWidth: (size * 3).round(),
-                              errorBuilder: (_, __, ___) => big
-                                  ? Image.network(t.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ph())
-                                  : ph(),
-                            ),
-                    ),
-                  ),
+            // большая обложка видео YouTube — чистый квадрат в хорошем качестве (без чёрных полос)
+            : big && SquareCover.instance.needed(t) && debugImage == null
+                ? _SquareYt(track: t, size: size, fallback: ph)
+                : (t.art != null || !t.isYt) && debugImage == null
+                    ? Image.network(t.cover,
+                        fit: BoxFit.cover,
+                        cacheWidth: (size * 3).round(),
+                        errorBuilder: (_, __, ___) =>
+                            ph()) // квадратная обложка (SoundCloud, YouTube Music) — без подрезки
+                    : FittedBox(
+                        fit: BoxFit.cover,
+                        clipBehavior: Clip.hardEdge,
+                        child: SizedBox(
+                          // 4:3-миниатюра с полосами — увеличиваем, чтобы полосы ушли за край
+                          width: size * 16 / 9,
+                          height: size * 16 / 9 * 0.75,
+                          child: debugImage != null
+                              ? Image(image: debugImage!(t), fit: BoxFit.cover)
+                              : Image.network(
+                                  big ? t.cover : t.thumb,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: (size * 3).round(),
+                                  errorBuilder: (_, __, ___) => big
+                                      ? Image.network(t.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ph())
+                                      : ph(),
+                                ),
+                        ),
+                      ),
       ),
     );
   }
@@ -556,6 +563,28 @@ class SectionTitle extends StatelessWidget {
         Expanded(child: Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
         if (trailing != null) trailing!,
       ]),
+    );
+  }
+}
+
+/// Квадратная обложка видео YouTube без полос: готовая — сразу, иначе — пока делается, обычное превью.
+class _SquareYt extends StatelessWidget {
+  final Track track;
+  final double size;
+  final Widget Function() fallback;
+  const _SquareYt({required this.track, required this.size, required this.fallback});
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = SquareCover.instance.ready(track);
+    Widget file(File f) =>
+        Image.file(f, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => fallback());
+    if (ready != null) return file(ready);
+    return FutureBuilder<File?>(
+      future: SquareCover.instance.get(track),
+      builder: (context, s) => s.data != null
+          ? file(s.data!)
+          : Image.network(track.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback()),
     );
   }
 }

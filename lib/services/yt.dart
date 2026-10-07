@@ -65,8 +65,9 @@ class YtService {
   /// Видео YouTube с той же песней: слова названия, исполнитель и близкая длительность.
   /// Видео с той же песней: сначала среди официальных песен YouTube Music, затем обычный поиск YouTube.
   /// Сравниваются слова названия, исполнитель и длительность; концертные, ремиксы и т. п. — штраф.
-  Future<String> findSame(Track t) async {
-    final c = _ytIds[t.id];
+  /// exclude — видео, которое не открылось: ищем ту же песню другим видео (без кэша).
+  Future<String> findSame(Track t, {String? exclude}) async {
+    final c = exclude == null ? _ytIds[t.id] : null;
     if (c != null) return c;
     final q = '${t.artist} ${t.title}'.trim();
     List<String> words(String s) =>
@@ -78,6 +79,7 @@ class YtService {
       Track? best;
       var bestScore = -1e9;
       for (final r in res.take(10)) {
+        if (r.id == exclude) continue;
         final have = words('${r.artist} ${r.title}').toSet();
         final hit = want.isEmpty ? 1.0 : want.where(have.contains).length / want.length;
         if (hit < 0.5) continue;
@@ -94,14 +96,16 @@ class YtService {
       return (best, bestScore);
     }
 
-    String done(String id) => _ytIds[t.id] = id;
+    String done(String id) => exclude == null ? (_ytIds[t.id] = id) : id;
     try {
       final (best, score) = pick(await YtmService.instance.searchSongs(q, limit: 10));
       if (best != null && score >= 11) return done(best.id);
     } catch (_) {}
     final res = await search(q);
     if (res.isEmpty) throw Exception('пусто');
-    return done((pick(res).$1 ?? res.first).id);
+    final alt = res.where((r) => r.id != exclude).toList();
+    if (alt.isEmpty) throw Exception('другого видео нет');
+    return done((pick(alt).$1 ?? alt.first).id);
   }
 
   Future<StreamPick> stream(String id, {bool economy = false, int from = 0}) async {
@@ -117,10 +121,12 @@ class YtService {
   }
 
   /// Поток одним способом (clients[i]); ошибка — с причиной.
-  Future<StreamPick> streamWith(String id, int i, {bool economy = false}) async {
+  Future<StreamPick> streamWith(String id, int i, {bool economy = false, bool fresh = false}) async {
     final key = '$id/$economy/$i';
-    final c = _cache[key];
-    if (c != null && DateTime.now().difference(c.$2) < const Duration(hours: 2)) return c.$1;
+    final c = fresh ? null : _cache[key];
+    // ссылка YouTube привязана к IP: сменилась сеть (Wi-Fi ↔ LTE, NAT оператора) — старая даёт 403,
+    // поэтому держим недолго (20 мин), а при ошибке берём свежую (fresh)
+    if (c != null && DateTime.now().difference(c.$2) < const Duration(minutes: 20)) return c.$1;
     Object? lastErr;
     {
       try {
@@ -165,6 +171,9 @@ class YtService {
       return false;
     }
   }
+
+  /// Забыть ссылки на видео (они «протухли» — 403 после смены сети).
+  void forget(String id) => _cache.removeWhere((k, _) => k.startsWith('$id/'));
 
   /// Для заранее подготовленного следующего трека.
   Future<Uri> streamUrl(String id, {bool economy = false}) async => (await stream(id, economy: economy)).url;

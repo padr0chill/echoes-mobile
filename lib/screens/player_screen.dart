@@ -52,7 +52,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     : Store.instance.vinyl
                         // винил: пластинка крутится, под ней — текущая строка текста песни
                         ? LayoutBuilder(builder: (context, b) {
-                            final ticker = MediaQuery.textScalerOf(context).scale(64) + context.u(8);
+                            final ticker = LyricsTicker.heightFor(context);
                             final s = math.min(coverSize, b.maxHeight - ticker - context.u(24)).clamp(100.0, 520.0);
                             return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                               VinylDisc(track: t, size: s),
