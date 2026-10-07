@@ -101,4 +101,17 @@ void main() {
     expect(ids(), before);
     expect(audio.current!.id, now);
   });
+
+  test('мини-плеер узнаёт о новом треке, даже если номер в очереди тот же', () async {
+    audio.index.value = 0;
+    final before = audio.trackKey.value;
+    // другой плейлист с той же позиции 0 — номер не меняется, а трек другой
+    audio.tracks.value = [tr('новый'), tr('ещё')];
+    expect(audio.current!.id, 'новый');
+    expect(audio.trackKey.value, greaterThan(before));
+    // тот же трек — лишних обновлений нет
+    final k = audio.trackKey.value;
+    audio.tracks.value = [tr('новый'), tr('другой')];
+    expect(audio.trackKey.value, k);
+  });
 }

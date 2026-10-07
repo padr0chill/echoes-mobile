@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../services/audio.dart';
-import '../services/lyrics.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import 'milkdrop_engine.dart';
+import 'milkdrop_words.dart';
 import 'winamp.dart';
 
 /// Управление MilkDrop снаружи: пресеты (135, как на ПК), режим смены. Слушатели узнают о смене пресета
@@ -82,50 +82,9 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
   bool _playing = false;
   StreamSubscription<bool>? _sub;
 
-  // текст песни, «вжигаемый» в картинку: новая строка — несколько кадров подряд рисуется в буфер,
-  // дальше её тянет, крутит и растворяет обратная связь (как milk_words на ПК)
-  List<LyricLine> _lines = const [];
-  String? _lyricsFor;
-  int _lineIdx = -1, _stampLeft = 0;
-  String _stampText = '';
-  Offset _stampAt = const Offset(0.5, 0.45);
-  final _rnd = math.Random();
-
-  void _loadLyrics() {
-    final t = audio.current;
-    if (t == null || t.id == _lyricsFor) return;
-    _lyricsFor = t.id;
-    _lines = const [];
-    _lineIdx = -1;
-    LyricsService.instance.get(t).then((ly) {
-      if (!mounted || audio.current?.id != t.id) return;
-      _lines = ly != null && ly.synced ? ly.lines : const [];
-    });
-  }
-
-  void _stampStep() {
-    if (!Store.instance.milkdropText || _lines.isEmpty) return;
-    final pos = audio.player.position + const Duration(milliseconds: 200);
-    var cur = -1;
-    for (var i = 0; i < _lines.length; i++) {
-      if (_lines[i].at <= pos) cur = i;
-    }
-    if (cur != _lineIdx) {
-      _lineIdx = cur;
-      final s = cur >= 0 ? _lines[cur].text.trim() : '';
-      if (s.isNotEmpty) {
-        _stampText = s;
-        _stampLeft = 6;
-        _stampAt = Offset(0.5 + (_rnd.nextDouble() - 0.5) * 0.12, 0.3 + _rnd.nextDouble() * 0.4);
-      }
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    audio.trackKey.addListener(_loadLyrics);
-    _loadLyrics();
     _takeShaders();
     if (_warp == null) {
       _load().then((_) {
@@ -182,26 +141,6 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
     final d = MdWaveDrawer(e, canvas, w, h);
     d.draw();
     d.rings(dt);
-    _stampStep();
-    if (_stampLeft > 0) {
-      _stampLeft--;
-      final tp = TextPainter(
-        text: TextSpan(
-          text: _stampText,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            height: 1.1,
-            color: MdWaveDrawer.hsv(e.hue + 0.5, 0.35, 1, 0.55 + 0.08 * _stampLeft),
-          ),
-        ),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-        maxLines: 3,
-        ellipsis: '…',
-      )..layout(maxWidth: w * 0.88);
-      tp.paint(canvas, Offset(_stampAt.dx * w - tp.width / 2, _stampAt.dy * h - tp.height / 2));
-    }
     final pic = rec.endRecording();
     _buf = pic.toImageSync(w.toInt(), h.toInt());
     pic.dispose();
@@ -212,7 +151,6 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
   void dispose() {
     _ticker.dispose();
     _sub?.cancel();
-    audio.trackKey.removeListener(_loadLyrics);
     if (widget.controller == null) _c.dispose();
     _frame.dispose();
     _buf?.dispose();
@@ -226,9 +164,18 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
       if (box.maxHeight > 0 && box.maxWidth.isFinite && box.maxHeight.isFinite) {
         _aspect = (box.maxWidth / box.maxHeight).clamp(0.3, 3.0);
       }
-      return RepaintBoundary(
-        child: CustomPaint(size: Size.infinite, painter: _CompPainter(_frame, _comp!, () => _buf, _c.engine)),
-      );
+      return Stack(fit: StackFit.expand, children: [
+        RepaintBoundary(
+          child: CustomPaint(size: Size.infinite, painter: _CompPainter(_frame, _comp!, () => _buf, _c.engine)),
+        ),
+        // слова текста песни — ПОВЕРХ картинки (как на ПК), кнопка «ТЕКСТ» включает/выключает
+        ListenableBuilder(
+          listenable: Store.instance,
+          builder: (context, _) => Store.instance.milkdropText
+              ? RepaintBoundary(child: MilkdropWords(frame: _frame, hue: () => _c.engine.hue))
+              : const SizedBox.shrink(),
+        ),
+      ]);
     });
   }
 }

@@ -10,7 +10,15 @@ import 'package:http/http.dart' as http;
 
 // Обрезка полос у превью YouTube (до/после — в папку out): flutter test test/square_cover_test.dart --run-skipped
 void main() {
-  for (final id in ['S9oa-5CQdf0', 'X9N-3-oEMK0', 'B5wofUHNaGg', 'nftMiMczZFY', 'ok-8cAbeGeQ', 'SbNe5ahuUa0', 'JGqA7Evm0y0']) {
+  for (final id in [
+    'S9oa-5CQdf0',
+    'X9N-3-oEMK0',
+    'B5wofUHNaGg',
+    'nftMiMczZFY',
+    'ok-8cAbeGeQ',
+    'SbNe5ahuUa0',
+    'JGqA7Evm0y0'
+  ]) {
     test(id, () async {
       final r = await http.get(Uri.parse('https://i.ytimg.com/vi/$id/maxresdefault.jpg'));
       final bytes = r.statusCode == 200 && r.bodyBytes.length > 3000

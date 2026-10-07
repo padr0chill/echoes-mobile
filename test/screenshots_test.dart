@@ -10,6 +10,7 @@ import 'package:echoes_mobile/models.dart';
 import 'package:echoes_mobile/cover_color.dart';
 import 'package:echoes_mobile/services/audio.dart';
 import 'package:echoes_mobile/services/wave.dart';
+import 'package:echoes_mobile/screens/equalizer_screen.dart';
 import 'package:echoes_mobile/skins/milkdrop.dart';
 import 'package:echoes_mobile/services/store.dart';
 import 'package:echoes_mobile/widgets.dart';
@@ -181,6 +182,17 @@ void main() {
             await t.pump();
             await t.pump(const Duration(milliseconds: 600));
           }));
+  testWidgets('phone equalizer', (t) async {
+    Store.instance
+        .setEq(enabled: true, gains: eqPresets['Бас+'], preamp: presetPreamp(eqPresets['Бас+']!), preset: 'Бас+');
+    addTearDown(() => Store.instance.setEq(enabled: false, gains: eqPresets['Плоский'], preamp: 0, preset: 'Плоский'));
+    await shoot(t, phone, 'phone_equalizer', () async {
+      await openPlayer(t);
+      await t.tap(find.byTooltip('Эквалайзер'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 600));
+    });
+  });
   testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () => openTab(t, 'Поиск')));
   testWidgets('phone player', (t) => shoot(t, phone, 'phone_player', () => openPlayer(t)));
   testWidgets('se library', (t) => shoot(t, se, 'se_library', () => openTab(t, 'Моя музыка')));

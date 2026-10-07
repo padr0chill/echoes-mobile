@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('чистка названия: feat, prod, клип, «исполнитель - название» в названии', () {
     expect(LyricsService.cleanup('Miyagi & Andy Panda', 'Kosandra (Official Video)'), ('Miyagi', 'Kosandra'));
-    expect(LyricsService.cleanup('lil flash\$', 'lil flash\$ - project x (prod. dzhioev)'), ('lil flash\$', 'project x'));
+    expect(
+        LyricsService.cleanup('lil flash\$', 'lil flash\$ - project x (prod. dzhioev)'), ('lil flash\$', 'project x'));
     expect(LyricsService.cleanup('Кишлак - Topic', 'Грязь [Премьера клипа]'), ('Кишлак', 'Грязь'));
     expect(LyricsService.cleanup('LINKIN PARK', 'Numb feat. Someone'), ('LINKIN PARK', 'Numb'));
   });
