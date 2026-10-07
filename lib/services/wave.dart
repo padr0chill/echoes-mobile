@@ -89,7 +89,7 @@ class Wave extends ChangeNotifier {
   /// Похожие на трек: у SoundCloud-трека — сразу; у YouTube — сначала находим ту же песню на SoundCloud.
   Future<List<Track>> relatedFor(Track t) async {
     final sc = ScService.instance;
-    final id = !t.isYt ? t.scId : (await sc.match(t.artist, t.title, t.seconds, strict: false))?.id;
+    final id = t.isSc || t.isPreview ? t.scId : (await sc.match(t.artist, t.title, t.seconds, strict: false))?.id;
     if (id == null) return sc.searchTracks(t.artist, limit: 20);
     return sc.related(id);
   }

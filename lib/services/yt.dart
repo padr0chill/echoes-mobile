@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models.dart';
+import 'ytm.dart';
 
 /// Выбранный аудиопоток: ссылка, размер (для перемотки через прокси), тип и каким клиентом получен.
 class StreamPick {
@@ -62,36 +63,45 @@ class YtService {
   ];
 
   /// Видео YouTube с той же песней: слова названия, исполнитель и близкая длительность.
+  /// Видео с той же песней: сначала среди официальных песен YouTube Music, затем обычный поиск YouTube.
+  /// Сравниваются слова названия, исполнитель и длительность; концертные, ремиксы и т. п. — штраф.
   Future<String> findSame(Track t) async {
     final c = _ytIds[t.id];
     if (c != null) return c;
-    final res = await search('${t.artist} ${t.title}');
-    if (res.isEmpty) throw Exception('пусто');
+    final q = '${t.artist} ${t.title}'.trim();
     List<String> words(String s) =>
         s.toLowerCase().split(RegExp(r'[^\p{L}\p{N}]+', unicode: true)).where((w) => w.length > 1).toList();
     final want = words(t.title).toSet();
     final who = words(t.artist).toSet();
-    Track? best;
-    var bestScore = -1e9;
-    for (final r in res.take(10)) {
-      final have = words('${r.artist} ${r.title}').toSet();
-      final hit = want.isEmpty ? 1.0 : want.where(have.contains).length / want.length;
-      if (hit < 0.5) continue;
-      final byArtist = who.isEmpty ? 1.0 : who.where(have.contains).length / who.length;
-      final dd = t.seconds > 0 && r.seconds > 0 ? (r.seconds - t.seconds).abs() : 30;
-      // концертные, ремиксы, каверы и т. п. — не та запись, если их не просили
-      final raw = '${r.artist} ${r.title}'.toLowerCase();
-      final want0 = '${t.artist} ${t.title}'.toLowerCase();
-      final junk = _junk.where((j) => raw.contains(j) && !want0.contains(j)).length;
-      final score = hit * 10 + byArtist * 6 - dd / 6 - junk * 8;
-      if (score > bestScore) {
-        bestScore = score;
-        best = r;
+    final want0 = q.toLowerCase();
+    (Track?, double) pick(List<Track> res) {
+      Track? best;
+      var bestScore = -1e9;
+      for (final r in res.take(10)) {
+        final have = words('${r.artist} ${r.title}').toSet();
+        final hit = want.isEmpty ? 1.0 : want.where(have.contains).length / want.length;
+        if (hit < 0.5) continue;
+        final byArtist = who.isEmpty ? 1.0 : who.where(have.contains).length / who.length;
+        final dd = t.seconds > 0 && r.seconds > 0 ? (r.seconds - t.seconds).abs() : 30;
+        final raw = '${r.artist} ${r.title}'.toLowerCase();
+        final junk = _junk.where((j) => raw.contains(j) && !want0.contains(j)).length;
+        final score = hit * 10 + byArtist * 6 - dd / 6 - junk * 8;
+        if (score > bestScore) {
+          bestScore = score;
+          best = r;
+        }
       }
+      return (best, bestScore);
     }
-    final id = (best ?? res.first).id;
-    _ytIds[t.id] = id;
-    return id;
+
+    String done(String id) => _ytIds[t.id] = id;
+    try {
+      final (best, score) = pick(await YtmService.instance.searchSongs(q, limit: 10));
+      if (best != null && score >= 11) return done(best.id);
+    } catch (_) {}
+    final res = await search(q);
+    if (res.isEmpty) throw Exception('пусто');
+    return done((pick(res).$1 ?? res.first).id);
   }
 
   Future<StreamPick> stream(String id, {bool economy = false, int from = 0}) async {

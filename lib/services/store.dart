@@ -181,6 +181,38 @@ class Store extends ChangeNotifier {
     _save();
   }
 
+  /// Импорт с ПК: «Мне нравится» сливается с лайками, плейлист с тем же именем — дополняется,
+  /// остальные создаются. → сколько треков добавлено.
+  int importPlaylists(List<(String, List<Track>)> lists) {
+    var added = 0;
+    for (final (name, tracks) in lists) {
+      if (name.trim().toLowerCase() == 'мне нравится') {
+        final have = liked.toSet();
+        for (final t in tracks) {
+          if (have.add(t)) {
+            liked.add(t);
+            added++;
+          }
+        }
+        continue;
+      }
+      var p = playlists.where((p) => p.name == name).firstOrNull;
+      if (p == null) {
+        p = Playlist(name.trim().isEmpty ? 'С компьютера' : name.trim());
+        playlists.add(p);
+      }
+      final have = p.tracks.toSet();
+      for (final t in tracks) {
+        if (have.add(t)) {
+          p.tracks.add(t);
+          added++;
+        }
+      }
+    }
+    _save();
+    return added;
+  }
+
   void setAccent(int i) {
     accentIndex = i;
     _save();

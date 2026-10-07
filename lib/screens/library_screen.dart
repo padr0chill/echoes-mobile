@@ -6,6 +6,7 @@ import '../services/audio.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'import_flow.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -29,6 +30,12 @@ class LibraryScreen extends StatelessWidget {
               title: 'Мне нравится',
               sub: '${st.liked.length} тр.',
               onTap: () => _open(context, 'Мне нравится', () => st.liked),
+            ),
+            _Card(
+              icon: Icons.computer_rounded,
+              title: 'Импорт с ПК',
+              sub: 'Плейлисты из ECHOES на компьютере',
+              onTap: () => importFromPc(context),
             ),
             SectionTitle('Плейлисты',
                 trailing: IconButton(

@@ -366,6 +366,18 @@ class ScService {
     return ((j as Map)['collection'] as List? ?? []).cast<Map>().map(_album).where((a) => a.count > 0).toList();
   }
 
+  /// Треки по id (по 50 за запрос): id → трек (полный или отрывок). Удалённых в ответе нет.
+  Future<Map<int, Track>> tracksByIds(List<int> ids) async {
+    final out = <int, Track>{};
+    for (var i = 0; i < ids.length; i += 50) {
+      final r = await _api('/tracks', {'ids': ids.skip(i).take(50).join(',')}) as List;
+      for (final t in r.cast<Map>().map(_parse)) {
+        if (t.playable || t.snippet) out[t.id] = t.toTrack();
+      }
+    }
+    return out;
+  }
+
   /// Треки альбома по порядку. SoundCloud отдаёт полностью только первые ~5, остальные — дозапрашиваем по id.
   Future<List<Track>> albumTracks(int id) async {
     final p = await _api('/playlists/$id') as Map;

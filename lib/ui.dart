@@ -19,6 +19,9 @@ extension UiScale on BuildContext {
   Color get accent => Store.instance.accent;
 }
 
+/// Переключить вкладку из глубины экрана (например, капсула «Для вас» на волне). Слушает Shell.
+final openTab = ValueNotifier<int?>(null);
+
 ThemeData buildTheme(Color accent, bool light) {
   final base = light ? ThemeData.light(useMaterial3: true) : ThemeData.dark(useMaterial3: true);
   final bg = light ? const Color(0xFFF4F3F0) : const Color(0xFF0E0E10);

@@ -6,7 +6,7 @@ import '../models.dart';
 import '../services/audio.dart';
 import '../services/sc.dart';
 import '../services/store.dart';
-import '../services/yt.dart';
+import '../services/search.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'album_screen.dart';
@@ -26,7 +26,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   bool _busy = false;
   String? _err;
   int _token = 0;
-  bool _sc = false; // источник поиска: YouTube или SoundCloud (SoundCloud играет всегда)
+  SearchSource _src = SearchSource.all; // «Все» = YouTube Music + SoundCloud
   String _last = '';
 
   @override
@@ -46,7 +46,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
     try {
       // альбомы — всегда с SoundCloud, параллельно с треками; их ошибка поиску не мешает
       final albumsF = ScService.instance.searchAlbums(q).catchError((_) => <ScAlbum>[]);
-      final r = _sc ? await ScService.instance.searchTracks(q) : await YtService.instance.search(q);
+      final r = await SearchService.search(q, _src);
       final al = await albumsF;
       if (my != _token) return;
       setState(() {
@@ -102,15 +102,20 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(4)),
-          child: Wrap(children: [
-            for (final s in const [(false, 'YouTube'), (true, 'SoundCloud')])
+          child: Wrap(runSpacing: context.u(6), children: [
+            for (final s in const [
+              (SearchSource.all, 'Все'),
+              (SearchSource.ytm, 'YouTube Music'),
+              (SearchSource.yt, 'YouTube'),
+              (SearchSource.sc, 'SoundCloud'),
+            ])
               Padding(
                 padding: EdgeInsets.only(right: context.u(8)),
                 child: ChoiceChip(
                   label: Text(s.$2),
-                  selected: _sc == s.$1,
+                  selected: _src == s.$1,
                   onSelected: (_) {
-                    setState(() => _sc = s.$1);
+                    setState(() => _src = s.$1);
                     if (_last.isNotEmpty) _search(_last);
                   },
                 ),

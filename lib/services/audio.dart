@@ -161,11 +161,13 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
 
     // отрывок SoundCloud — сначала найти эту песню на YouTube
     var vid = t.id;
-    if (t.isPreview) {
+    if (t.needsLookup) {
       try {
         vid = await YtService.instance.findSame(t);
       } catch (e) {
-        throw Exception('на SoundCloud только отрывок, а на YouTube песня не нашлась: ${_short(e)}');
+        throw Exception(t.isPreview
+            ? 'на SoundCloud только отрывок, а на YouTube песня не нашлась: ${_short(e)}'
+            : 'песня не нашлась на YouTube: ${_short(e)}');
       }
       if (cancelled()) return false;
     }

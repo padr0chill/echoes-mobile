@@ -83,12 +83,21 @@ class _ShellState extends State<Shell> {
   void initState() {
     super.initState();
     audio.error.addListener(_showError); // ошибка трека — сразу видно, с причиной
+    openTab.addListener(_onOpenTab);
   }
 
   @override
   void dispose() {
     audio.error.removeListener(_showError);
+    openTab.removeListener(_onOpenTab);
     super.dispose();
+  }
+
+  void _onOpenTab() {
+    final i = openTab.value;
+    if (i == null) return;
+    openTab.value = null;
+    if (mounted) setState(() => _tab = i);
   }
 
   void _showError() {
