@@ -7,6 +7,7 @@ import '../services/store.dart';
 import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'artist_screen.dart';
 
 class _Section {
   final String title;
@@ -103,7 +104,7 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
               ]);
             }
             return ListView(
-              padding: EdgeInsets.only(bottom: context.u(130)),
+              padding: EdgeInsets.only(bottom: context.u(200)),
               children: [
                 head,
                 for (final s in snap.data!) ...[
@@ -144,11 +145,16 @@ class _Card extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Cover(track: track, size: w, radius: context.u(12)),
           SizedBox(height: context.u(6)),
-          Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text(track.artist,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+          Text(track.title,
+              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+          GestureDetector(
+            onTap: () => openArtist(context, track),
+            child: Text(track.artist,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+          ),
         ]),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../services/store.dart';
@@ -17,7 +18,7 @@ class LibraryScreen extends StatelessWidget {
       child: ListenableBuilder(
         listenable: st,
         builder: (context, _) => ListView(
-          padding: EdgeInsets.only(bottom: context.u(120)),
+          padding: EdgeInsets.only(bottom: context.u(200)),
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
@@ -98,7 +99,8 @@ class _Card extends StatelessWidget {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                  Text(sub, style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+                  Text(sub,
+                      style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
                 ]),
               ),
               const Icon(Icons.chevron_right_rounded),
@@ -119,7 +121,9 @@ class TrackListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final st = Store.instance;
-    return Scaffold(
+    return Ambient(
+        child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(playlist?.name ?? title),
         actions: [
@@ -149,7 +153,7 @@ class TrackListScreen extends StatelessWidget {
             return const Center(child: Text('Пока пусто'));
           }
           return ListView(
-            padding: EdgeInsets.only(bottom: context.u(120)),
+            padding: EdgeInsets.only(bottom: context.u(200)),
             children: [
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
@@ -176,6 +180,6 @@ class TrackListScreen extends StatelessWidget {
           );
         },
       ),
-    );
+    ));
   }
 }

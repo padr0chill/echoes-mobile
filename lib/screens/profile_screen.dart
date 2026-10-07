@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../glass.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
@@ -26,7 +27,7 @@ class ProfileScreen extends StatelessWidget {
           final top = st.topArtists(5);
           final maxS = top.isEmpty ? 1 : (st.artistSeconds[top.first] ?? 1);
           return ListView(
-            padding: EdgeInsets.only(bottom: context.u(130)),
+            padding: EdgeInsets.only(bottom: context.u(200)),
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(8), 0),
@@ -36,7 +37,10 @@ class ProfileScreen extends StatelessWidget {
                     tooltip: 'Настройки',
                     icon: const Icon(Icons.settings_rounded),
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => Scaffold(appBar: AppBar(), body: const SettingsScreen()),
+                      builder: (_) => Ambient(
+                        child: Scaffold(
+                            backgroundColor: Colors.transparent, appBar: AppBar(), body: const SettingsScreen()),
+                      ),
                     )),
                   ),
                 ]),
@@ -107,7 +111,9 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(top[i], maxLines: 1, overflow: TextOverflow.ellipsis,
+                        Text(top[i],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontWeight: FontWeight.w700)),
                         SizedBox(height: context.u(4)),
                         ClipRRect(
@@ -123,7 +129,8 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     SizedBox(width: context.u(10)),
                     Text(_time(st.artistSeconds[top[i]] ?? 0),
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+                        style: TextStyle(
+                            fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
                   ]),
                 ),
               SizedBox(height: context.u(12)),
@@ -167,13 +174,17 @@ class _Stat extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(context.u(12)),
       decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(context.u(14))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+      child:
+          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
         Row(children: [
           Icon(icon, size: 18, color: context.accent),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7))),
+            child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7))),
           ),
         ]),
         const SizedBox(height: 4),

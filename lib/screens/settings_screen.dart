@@ -16,7 +16,7 @@ class SettingsScreen extends StatelessWidget {
       child: ListenableBuilder(
         listenable: st,
         builder: (context, _) => ListView(
-          padding: EdgeInsets.only(bottom: context.u(120)),
+          padding: EdgeInsets.only(bottom: context.u(200)),
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),

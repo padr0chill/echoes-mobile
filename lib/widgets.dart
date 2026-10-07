@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'glass.dart';
 import 'models.dart';
+import 'screens/artist_screen.dart';
 import 'services/audio.dart';
 import 'services/store.dart';
 import 'ui.dart';
@@ -33,27 +35,29 @@ class Cover extends StatelessWidget {
         child: t == null
             ? ph()
             : t.isSc && debugImage == null
-                ? Image.network(t.cover, fit: BoxFit.cover, cacheWidth: (size * 3).round(),
+                ? Image.network(t.cover,
+                    fit: BoxFit.cover,
+                    cacheWidth: (size * 3).round(),
                     errorBuilder: (_, __, ___) => ph()) // квадратная обложка SoundCloud — без подрезки
-            : FittedBox(
-                fit: BoxFit.cover,
-                clipBehavior: Clip.hardEdge,
-                child: SizedBox(
-                  // 4:3-миниатюра с полосами — увеличиваем, чтобы полосы ушли за край
-                  width: size * 16 / 9,
-                  height: size * 16 / 9 * 0.75,
-                  child: debugImage != null
-                      ? Image(image: debugImage!(t), fit: BoxFit.cover)
-                      : Image.network(
-                          big ? t.cover : t.thumb,
-                          fit: BoxFit.cover,
-                          cacheWidth: (size * 3).round(),
-                          errorBuilder: (_, __, ___) => big
-                              ? Image.network(t.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ph())
-                              : ph(),
-                        ),
-                ),
-              ),
+                : FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      // 4:3-миниатюра с полосами — увеличиваем, чтобы полосы ушли за край
+                      width: size * 16 / 9,
+                      height: size * 16 / 9 * 0.75,
+                      child: debugImage != null
+                          ? Image(image: debugImage!(t), fit: BoxFit.cover)
+                          : Image.network(
+                              big ? t.cover : t.thumb,
+                              fit: BoxFit.cover,
+                              cacheWidth: (size * 3).round(),
+                              errorBuilder: (_, __, ___) => big
+                                  ? Image.network(t.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ph())
+                                  : ph(),
+                            ),
+                    ),
+                  ),
       ),
     );
   }
@@ -63,13 +67,15 @@ class TrackTile extends StatelessWidget {
   final Track track;
   final VoidCallback onTap;
   final Playlist? playlist;
+  final bool showArtist;
 
-  const TrackTile({super.key, required this.track, required this.onTap, this.playlist});
+  const TrackTile({super.key, required this.track, required this.onTap, this.playlist, this.showArtist = true});
 
   @override
   Widget build(BuildContext context) {
     final cur = audio.current == track;
     final sub = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
+    final dur = track.seconds > 0 ? fmtDuration(track.duration) : '';
     return InkWell(
       onTap: onTap,
       onLongPress: () => showTrackMenu(context, track, playlist: playlist),
@@ -85,11 +91,21 @@ class TrackTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null)),
               const SizedBox(height: 2),
-              Text(
-                  [track.artist, if (track.seconds > 0) fmtDuration(track.duration)].join('  ·  '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: sub)),
+              Row(children: [
+                // имя исполнителя — ссылка на его страницу
+                if (showArtist && track.artist.isNotEmpty)
+                  Flexible(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => openArtist(context, track),
+                      child: Text(track.artist,
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: sub)),
+                    ),
+                  ),
+                if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
+                  Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
+                if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
+              ]),
             ]),
           ),
           IconButton(
@@ -104,10 +120,9 @@ class TrackTile extends StatelessWidget {
 
 Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) {
   final st = Store.instance;
-  return showModalBottomSheet(
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
+  return showGlassSheet(
+    context,
+    (ctx) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
           leading: Cover(track: t, size: 44),
@@ -115,6 +130,15 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
           subtitle: Text(t.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
         const Divider(height: 1),
+        if (t.artist.isNotEmpty)
+          ListTile(
+            leading: const Icon(Icons.person_rounded),
+            title: Text('Перейти к исполнителю: ${t.artist}', maxLines: 1, overflow: TextOverflow.ellipsis),
+            onTap: () {
+              Navigator.pop(ctx);
+              openArtist(context, t);
+            },
+          ),
         ListTile(
           leading: Icon(st.isLiked(t) ? Icons.favorite_rounded : Icons.favorite_border_rounded),
           title: Text(st.isLiked(t) ? 'Убрать из «Мне нравится»' : 'Мне нравится'),
@@ -163,10 +187,9 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
 
 Future<void> pickPlaylist(BuildContext context, Track t) async {
   final st = Store.instance;
-  await showModalBottomSheet(
-    context: context,
-    showDragHandle: true,
-    builder: (ctx) => SafeArea(
+  await showGlassSheet(
+    context,
+    (ctx) => SafeArea(
       child: ListView(shrinkWrap: true, children: [
         ListTile(
           leading: const Icon(Icons.add_rounded),
@@ -225,38 +248,39 @@ class MiniPlayer extends StatelessWidget {
           onVerticalDragEnd: (d) {
             if ((d.primaryVelocity ?? 0) < -200) onOpen();
           },
-          child: Container(
-            margin: EdgeInsets.fromLTRB(context.u(8), 0, context.u(8), context.u(6)),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(context.u(14)),
-              boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 16, offset: Offset(0, 4))],
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(context.u(10), 0, context.u(10), context.u(8)),
+            // мини-плеер — стеклянная капсула, как в iOS
+            child: Glass(
+              radius: context.u(22),
+              tint: 1.3,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Padding(
+                  padding: EdgeInsets.all(context.u(8)),
+                  child: Row(children: [
+                    Hero(tag: 'cover', child: Cover(track: t, size: context.u(44), radius: context.u(8))),
+                    SizedBox(width: context.u(10)),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(t.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(t.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+                      ]),
+                    ),
+                    const PlayPauseButton(size: 40),
+                    IconButton(icon: const Icon(Icons.skip_next_rounded), onPressed: audio.skipToNext),
+                  ]),
+                ),
+                const _ThinProgress(),
+              ]),
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Padding(
-                padding: EdgeInsets.all(context.u(8)),
-                child: Row(children: [
-                  Hero(tag: 'cover', child: Cover(track: t, size: context.u(44), radius: context.u(8))),
-                  SizedBox(width: context.u(10)),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(t.title,
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      Text(t.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
-                    ]),
-                  ),
-                  const PlayPauseButton(size: 40),
-                  IconButton(icon: const Icon(Icons.skip_next_rounded), onPressed: audio.skipToNext),
-                ]),
-              ),
-              const _ThinProgress(),
-            ]),
           ),
         );
       },

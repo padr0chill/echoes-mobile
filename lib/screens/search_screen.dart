@@ -82,7 +82,8 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                     ),
               filled: true,
               fillColor: Theme.of(context).cardColor,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(context.u(14)), borderSide: BorderSide.none),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(context.u(14)), borderSide: BorderSide.none),
               contentPadding: EdgeInsets.symmetric(vertical: context.u(12)),
             ),
             onChanged: (_) => setState(() {}),
@@ -109,7 +110,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
         Expanded(
           child: _results.isNotEmpty
               ? ListView.builder(
-                  padding: EdgeInsets.only(bottom: context.u(120)),
+                  padding: EdgeInsets.only(bottom: context.u(200)),
                   itemCount: _results.length,
                   itemBuilder: (context, i) => TrackTile(
                     track: _results[i],

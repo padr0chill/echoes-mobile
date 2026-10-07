@@ -8,6 +8,7 @@ import '../services/lyrics.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'artist_screen.dart';
 
 /// Полный плеер: размытая обложка фоном, обложка, название, перемотка, кнопки; текст песни и очередь.
 /// На широком экране (iPad, поворот) — обложка слева, управление справа.
@@ -89,8 +90,8 @@ class _Backdrop extends StatelessWidget {
         imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
         child: Cover.debugImage != null
             ? Image(image: Cover.debugImage!(track), fit: BoxFit.cover)
-            : Image.network(track.thumb, fit: BoxFit.cover, cacheWidth: 120,
-                errorBuilder: (_, __, ___) => const SizedBox()),
+            : Image.network(track.thumb,
+                fit: BoxFit.cover, cacheWidth: 120, errorBuilder: (_, __, ___) => const SizedBox()),
       ),
       Container(color: Colors.black.withValues(alpha: 0.55)),
     ]);
@@ -147,7 +148,17 @@ class _Controls extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: white, fontSize: 22, fontWeight: FontWeight.w800)),
               SizedBox(height: context.u(2)),
-              Text(t?.artist ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim, fontSize: 16)),
+              GestureDetector(
+                onTap: t == null ? null : () => openArtist(context, t),
+                child: Text(t?.artist ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: dim,
+                        fontSize: 16,
+                        decoration: TextDecoration.underline,
+                        decorationColor: dim.withValues(alpha: 0.4))),
+              ),
             ]),
           ),
           if (t != null)
@@ -282,7 +293,8 @@ class _LyricsViewState extends State<_LyricsView> {
     _active = i;
     final ctx = _keys[i]?.currentContext;
     if (ctx != null) {
-      Scrollable.ensureVisible(ctx, alignment: 0.4, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
+      Scrollable.ensureVisible(ctx,
+          alignment: 0.4, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
     }
   }
 
@@ -383,8 +395,11 @@ void _showQueue(BuildContext context) {
                 key: ValueKey('${list[j].id}$j'),
                 direction: j == cur ? DismissDirection.none : DismissDirection.endToStart,
                 onDismissed: (_) => audio.removeAt(j),
-                background: Container(color: Colors.redAccent, alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20), child: const Icon(Icons.delete_outline)),
+                background: Container(
+                    color: Colors.redAccent,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete_outline)),
                 child: TrackTile(track: list[j], onTap: () => audio.jumpTo(j)),
               );
             },

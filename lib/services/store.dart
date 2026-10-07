@@ -46,14 +46,20 @@ class Store extends ChangeNotifier {
       return (jsonDecode(s) as List).map((e) => Track.fromJson(Map<String, dynamic>.from(e as Map))).toList();
     }
 
-    liked..clear()..addAll(tracks('liked'));
-    history..clear()..addAll(tracks('history'));
+    liked
+      ..clear()
+      ..addAll(tracks('liked'));
+    history
+      ..clear()
+      ..addAll(tracks('history'));
     final pl = _p.getString('playlists');
     playlists.clear();
     if (pl != null) {
       playlists.addAll((jsonDecode(pl) as List).map((e) => Playlist.fromJson(Map<String, dynamic>.from(e as Map))));
     }
-    searches..clear()..addAll(_p.getStringList('searches') ?? []);
+    searches
+      ..clear()
+      ..addAll(_p.getStringList('searches') ?? []);
     accentIndex = _p.getInt('accent') ?? 0;
     economy = _p.getBool('economy') ?? false;
     light = _p.getBool('light') ?? false;

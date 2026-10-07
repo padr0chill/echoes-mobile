@@ -50,6 +50,19 @@ class Wave extends ChangeNotifier {
     }
   }
 
+  /// Волна от готового списка (например, «Волна по исполнителю»): его треки вперемешку, дальше — похожие.
+  Future<void> startWith(List<Track> seed, String label) async {
+    if (seed.isEmpty) return;
+    mood = label;
+    error = null;
+    final list = List.of(seed)..shuffle();
+    _played
+      ..clear()
+      ..addAll(list.map((t) => t.id));
+    await audio.playList(list, 0, wave: extend);
+    notifyListeners();
+  }
+
   void stop() {
     audio.nearEnd = null;
     notifyListeners();

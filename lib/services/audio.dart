@@ -203,11 +203,12 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       if (_preferSc) sc,
       () => yt(0),
       () => yt(1),
-      if (!_preferSc) () async {
-        final ok = await sc();
-        if (ok) _preferSc = true; // YouTube отказал этому телефону — дальше сразу SoundCloud
-        return ok;
-      },
+      if (!_preferSc)
+        () async {
+          final ok = await sc();
+          if (ok) _preferSc = true; // YouTube отказал этому телефону — дальше сразу SoundCloud
+          return ok;
+        },
       for (var i = 2; i < n; i++) () => yt(i),
     ];
     for (final step in order) {

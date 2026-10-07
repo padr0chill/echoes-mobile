@@ -14,12 +14,30 @@ class ScTrack {
   final List<Map<String, dynamic>> transcodings;
   final String? auth;
   final String? art;
+  final int? userId;
 
-  ScTrack(this.id, this.title, this.artist, this.seconds, this.snippet, this.transcodings, this.auth, this.art);
+  ScTrack(this.id, this.title, this.artist, this.seconds, this.snippet, this.transcodings, this.auth, this.art,
+      [this.userId]);
 
   bool get playable => !snippet && transcodings.any((t) => !_isOpus(t));
 
-  Track toTrack() => Track(id: 'sc:$id', title: title, artist: artist, seconds: seconds, art: art);
+  Track toTrack() => Track(id: 'sc:$id', title: title, artist: artist, seconds: seconds, art: art, artistId: userId);
+}
+
+/// Аккаунт исполнителя на SoundCloud.
+class ScArtist {
+  final int id;
+  final String name;
+  final String? avatar;
+  final int followers;
+  final int trackCount;
+  final bool verified;
+  final String? city;
+  final String? about;
+  final String? banner;
+
+  ScArtist(this.id, this.name, this.avatar, this.followers, this.trackCount, this.verified, this.city, this.about,
+      this.banner);
 }
 
 bool _isOpus(Map t) {
@@ -42,8 +60,8 @@ class ScService {
   Future<String> clientId({bool fresh = false}) async {
     if (_clientId != null && !fresh) return _clientId!;
     final home = await http.get(Uri.https('soundcloud.com', '/'), headers: {'User-Agent': _ua}).timeout(
-          const Duration(seconds: 12),
-        );
+      const Duration(seconds: 12),
+    );
     final scripts = RegExp(r'<script[^>]+src="(https://a-v2\.sndcdn\.com/assets/[^"]+\.js)"')
         .allMatches(home.body)
         .map((m) => m.group(1)!)
@@ -63,9 +81,8 @@ class ScService {
   Future<dynamic> _api(String path, [Map<String, String> q = const {}]) async {
     for (final fresh in [false, true]) {
       final cid = await clientId(fresh: fresh);
-      final r = await http
-          .get(Uri.https('api-v2.soundcloud.com', path, {...q, 'client_id': cid}), headers: {'User-Agent': _ua})
-          .timeout(const Duration(seconds: 12));
+      final r = await http.get(Uri.https('api-v2.soundcloud.com', path, {...q, 'client_id': cid}),
+          headers: {'User-Agent': _ua}).timeout(const Duration(seconds: 12));
       if (r.statusCode == 401 || r.statusCode == 403) continue;
       if (r.statusCode != 200) throw Exception('SoundCloud: HTTP ${r.statusCode}');
       return jsonDecode(r.body);
@@ -84,9 +101,13 @@ class ScService {
       '${(t['user'] as Map?)?['username'] ?? ''}',
       (full / 1000).round(),
       t['policy'] == 'SNIP' || (dur < 31000 && full > 40000),
-      (((t['media'] as Map?)?['transcodings'] as List?) ?? []).cast<Map>().map((e) => Map<String, dynamic>.from(e)).toList(),
+      (((t['media'] as Map?)?['transcodings'] as List?) ?? [])
+          .cast<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList(),
       t['track_authorization'] as String?,
       art,
+      ((t['user'] as Map?)?['id'] as num?)?.toInt(),
     );
     _byId[s.id] = s;
     return s;
@@ -127,7 +148,11 @@ class ScService {
           final f = (x['format'] as Map?) ?? {};
           final prog = f['protocol'] == 'progressive' ? 0 : 1;
           final mime = '${f['mime_type'] ?? ''}';
-          final codec = mime.contains('mpeg') ? 0 : mime.contains('mp4') ? 1 : 2;
+          final codec = mime.contains('mpeg')
+              ? 0
+              : mime.contains('mp4')
+                  ? 1
+                  : 2;
           return prog * 10 + codec;
         }
 
@@ -151,12 +176,33 @@ class ScService {
   }
 
   static const _junk = [
-    'cover', 'flip', 'remix', 'mashup', 'edit', 'sped up', 'speed up', 'slowed', 'nightcore', 'remake',
-    '8d', 'bass boosted', 'live', 'karaoke', 'instrumental', 'reverb', 'кавер', 'ремикс', 'минус', 'перепев',
+    'cover',
+    'flip',
+    'remix',
+    'mashup',
+    'edit',
+    'sped up',
+    'speed up',
+    'slowed',
+    'nightcore',
+    'remake',
+    '8d',
+    'bass boosted',
+    'live',
+    'karaoke',
+    'instrumental',
+    'reverb',
+    'кавер',
+    'ремикс',
+    'минус',
+    'перепев',
   ];
 
-  static String _norm(String s) =>
-      s.toLowerCase().replaceAll(RegExp(r'[\(\[].*?[\)\]]'), ' ').replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+  static String _norm(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp(r'[\(\[].*?[\)\]]'), ' ')
+      .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
+      .trim();
 
   /// Та же песня на SoundCloud: слова названия совпадают, длительность близка (±15 с или ±8 %), не отрывок.
   /// Два запроса: «исполнитель название», затем только название.
@@ -205,6 +251,62 @@ class ScService {
       if (best != null && bestScore > 12) break; // уверенно нашли — второй запрос не нужен
     }
     return best;
+  }
+
+  // ── исполнитель ──
+
+  ScArtist _artist(Map u) => ScArtist(
+        (u['id'] as num).toInt(),
+        '${u['username'] ?? ''}',
+        (u['avatar_url'] as String?)?.replaceAll('-large.', '-t500x500.'),
+        ((u['followers_count'] ?? 0) as num).toInt(),
+        ((u['track_count'] ?? 0) as num).toInt(),
+        u['verified'] == true,
+        (u['city'] as String?)?.trim(),
+        (u['description'] as String?)?.trim(),
+        (((u['visuals'] as Map?)?['visuals'] as List?)?.cast<Map>().firstOrNull?['visual_url']) as String?,
+      );
+
+  /// Аккаунт по имени: точное совпадение имени, затем подписчики; «подтверждён» — в плюс.
+  Future<ScArtist?> findArtist(String name) async {
+    final j = await _api('/search/users', {'q': name, 'limit': '10'});
+    final list = ((j as Map)['collection'] as List? ?? []).cast<Map>().map(_artist).toList();
+    if (list.isEmpty) return null;
+    final want = _norm(name);
+    double score(ScArtist a) {
+      final n = _norm(a.name);
+      final exact = n == want
+          ? 1000.0
+          : (n.contains(want) || want.contains(n))
+              ? 300.0
+              : 0.0;
+      return exact + (a.verified ? 200 : 0) + a.followers.clamp(0, 10000000) / 20000.0;
+    }
+
+    list.sort((a, b) => score(b).compareTo(score(a)));
+    return list.first;
+  }
+
+  Future<ScArtist> artist(int id) async => _artist(await _api('/users/$id') as Map);
+
+  Future<List<Track>> artistTop(int id) async {
+    final j = await _api('/users/$id/toptracks', {'limit': '20'});
+    return ((j as Map)['collection'] as List? ?? [])
+        .cast<Map>()
+        .map(_parse)
+        .where((t) => t.playable)
+        .map((t) => t.toTrack())
+        .toList();
+  }
+
+  Future<List<Track>> artistTracks(int id) async {
+    final j = await _api('/users/$id/tracks', {'limit': '60'});
+    return ((j as Map)['collection'] as List? ?? [])
+        .cast<Map>()
+        .map(_parse)
+        .where((t) => t.playable)
+        .map((t) => t.toTrack())
+        .toList();
   }
 
   /// Ссылка на ту же песню (запасной источник для YouTube) или null.

@@ -100,9 +100,7 @@ class YtService {
     if (size <= 0) return false;
     final mid = size ~/ 2;
     try {
-      final r = await http
-          .get(url, headers: {'Range': 'bytes=$mid-${mid + 1}'})
-          .timeout(const Duration(seconds: 8));
+      final r = await http.get(url, headers: {'Range': 'bytes=$mid-${mid + 1}'}).timeout(const Duration(seconds: 8));
       return r.statusCode == 206 || r.statusCode == 200;
     } catch (_) {
       return false;

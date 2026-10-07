@@ -6,8 +6,9 @@ class Track {
   final String artist;
   final int seconds;
   final String? art; // обложка (SoundCloud); у YouTube — миниатюра видео
+  final int? artistId; // аккаунт исполнителя на SoundCloud (для страницы исполнителя)
 
-  const Track({required this.id, required this.title, required this.artist, this.seconds = 0, this.art});
+  const Track({required this.id, required this.title, required this.artist, this.seconds = 0, this.art, this.artistId});
 
   bool get isSc => id.startsWith('sc:');
   int get scId => int.parse(id.substring(3));
@@ -17,7 +18,14 @@ class Track {
 
   Duration get duration => Duration(seconds: seconds);
 
-  Map<String, dynamic> toJson() => {'id': id, 't': title, 'a': artist, 's': seconds, if (art != null) 'art': art};
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        't': title,
+        'a': artist,
+        's': seconds,
+        if (art != null) 'art': art,
+        if (artistId != null) 'aid': artistId
+      };
 
   factory Track.fromJson(Map<String, dynamic> j) => Track(
         id: j['id'] as String,
@@ -25,6 +33,7 @@ class Track {
         artist: (j['a'] ?? '') as String,
         seconds: (j['s'] ?? 0) as int,
         art: j['art'] as String?,
+        artistId: j['aid'] as int?,
       );
 
   @override
@@ -52,8 +61,10 @@ class Playlist {
 Track trackFromVideo(String id, String rawTitle, String author, Duration? d) {
   var artist = author.replaceAll(RegExp(r'\s*-\s*Topic$'), '').replaceAll(RegExp(r'VEVO$'), '').trim();
   var title = rawTitle;
-  title = title.replaceAll(RegExp(r'\s*[\(\[](official\s*(music\s*)?(video|audio|lyric[s]?\s*video)|lyrics?|audio|clip|hd|4k)[\)\]]',
-      caseSensitive: false), '');
+  title = title.replaceAll(
+      RegExp(r'\s*[\(\[](official\s*(music\s*)?(video|audio|lyric[s]?\s*video)|lyrics?|audio|clip|hd|4k)[\)\]]',
+          caseSensitive: false),
+      '');
   final dash = title.indexOf(' - ');
   if (dash > 0 && dash < title.length - 3) {
     artist = title.substring(0, dash).trim();
