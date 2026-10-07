@@ -49,7 +49,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(audio.tracks.value.length, 1);
     expect(find.text('Новый плейлист'), findsNothing);
-    final tr = tester.widget<Transform>(find.descendant(of: find.byType(SwipeActions), matching: find.byType(Transform)).last);
+    final tr =
+        tester.widget<Transform>(find.descendant(of: find.byType(SwipeActions), matching: find.byType(Transform)).last);
     expect(tr.transform.getTranslation().x, 0);
   });
 }

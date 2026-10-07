@@ -10,6 +10,7 @@ import 'package:echoes_mobile/models.dart';
 import 'package:echoes_mobile/cover_color.dart';
 import 'package:echoes_mobile/services/audio.dart';
 import 'package:echoes_mobile/services/wave.dart';
+import 'package:echoes_mobile/skins/milkdrop.dart';
 import 'package:echoes_mobile/services/store.dart';
 import 'package:echoes_mobile/widgets.dart';
 import 'package:flutter/material.dart';
@@ -50,7 +51,8 @@ void main() {
     await Store.instance.load();
     final cov = Directory(Platform.environment['COVERS_DIR'] ?? '');
     final files = cov.existsSync()
-        ? (cov.listSync().whereType<File>().where((f) => f.path.endsWith('.jpg')).toList()..sort((a, b) => a.path.compareTo(b.path)))
+        ? (cov.listSync().whereType<File>().where((f) => f.path.endsWith('.jpg')).toList()
+          ..sort((a, b) => a.path.compareTo(b.path)))
         : <File>[];
     for (var i = 0; i < tracks.length && files.isNotEmpty; i++) {
       images[tracks[i].id] = MemoryImage(files[(i * 37) % files.length].readAsBytesSync());
@@ -97,7 +99,8 @@ void main() {
   }
 
   Future<void> openTab(WidgetTester tester, String label) async {
-    await tester.tap(find.text(label).last);
+    final f = find.text(label);
+    await tester.tap((f.evaluate().isNotEmpty ? f : find.text(label.toUpperCase())).last); // Эховамп — капсом
     await tester.pump(const Duration(milliseconds: 300));
   }
 
@@ -145,6 +148,31 @@ void main() {
     addTearDown(() => Store.instance.setSkin('glass'));
     await shoot(t, phone, 'winamp_library', () => openTab(t, 'Моя музыка'));
   });
+  for (final tab in [('Волна', 'wave'), ('Поиск', 'search'), ('Профиль', 'profile')]) {
+    testWidgets('echoamp ${tab.$2}', (t) async {
+      Store.instance.setSkin('winamp');
+      addTearDown(() => Store.instance.setSkin('glass'));
+      await shoot(t, phone, 'echoamp_${tab.$2}', () => openTab(t, tab.$1));
+    });
+  }
+  for (final preset in [0]) {
+    testWidgets('milkdrop $preset', (t) async {
+      await t.runAsync(MilkdropView.preload);
+      Store.instance.setSkin('winamp');
+      addTearDown(() => Store.instance.setSkin('glass'));
+      await shoot(t, phone, 'milkdrop_$preset', () async {
+        await openPlayer(t);
+        await t.tap(find.text('MILKDROP'));
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 600));
+        for (var i = 0; i < preset; i++) {
+          await t.tapAt(const Offset(195, 500));
+          await t.pump(const Duration(seconds: 3));
+        }
+        await t.pump(const Duration(seconds: 1));
+      });
+    });
+  }
   testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () => openTab(t, 'Поиск')));
   testWidgets('phone player', (t) => shoot(t, phone, 'phone_player', () => openPlayer(t)));
   testWidgets('se library', (t) => shoot(t, se, 'se_library', () => openTab(t, 'Моя музыка')));

@@ -123,7 +123,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 Center(
                   child: Container(
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(context.u(20)),
+                      borderRadius: BorderRadius.circular(context.r(20)),
                       boxShadow: [
                         BoxShadow(
                             color: Colors.black.withValues(alpha: 0.4), blurRadius: 40, offset: const Offset(0, 16)),
@@ -167,7 +167,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                       child: SizedBox(
                         height: context.u(50),
                         child: FilledButton.icon(
-                          style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                          style: FilledButton.styleFrom(shape: context.pill),
                           onPressed: list.isEmpty ? null : () => audio.playList(list, 0),
                           icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
                           label:
@@ -185,7 +185,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                           child: Material(
                             type: MaterialType.transparency,
                             child: InkWell(
-                              customBorder: const StadiumBorder(),
+                              customBorder: context.pill,
                               onTap: list.isEmpty
                                   ? null
                                   : () {

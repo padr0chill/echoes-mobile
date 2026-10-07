@@ -8,8 +8,9 @@ import '../models.dart';
 import '../services/audio.dart';
 import '../services/store.dart';
 import '../ui.dart';
+import 'milkdrop.dart';
 
-/// Тема «Winamp» — как Winamp 2.x на ПК (без тяжёлого MilkDrop): плоские панели с фаской, чёрный ЖК
+/// Тема «Эховамп» (ECHOAMP) — как Winamp 2.x на ПК (MilkDrop — лёгкий, на видеокарте): плоские панели с фаской, чёрный ЖК
 /// с зелёными цифрами, анализатор спектра, бегущая строка, серые кнопки, плейлист.
 /// Без размытий и фоновых картинок — самая лёгкая тема.
 class Wa {
@@ -25,6 +26,9 @@ class Wa {
   static const text = Color(0xFFE6E6EE);
   static const mono = TextStyle(fontFamily: 'Menlo', fontFamilyFallback: ['Courier', 'monospace']);
 }
+
+void openMilkdrop(BuildContext context) =>
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MilkdropScreen()));
 
 /// Панель с фаской: выпуклая (кнопки, рамки) или вдавленная (ЖК, плейлист).
 class WaBevel extends StatelessWidget {
@@ -103,7 +107,7 @@ class WinampPlayer extends StatelessWidget {
               padding: EdgeInsets.all(context.u(6)),
               child: Column(children: [
                 WaTitleBar(
-                  title: 'WINAMP',
+                  title: 'ECHOAMP',
                   leading: GestureDetector(
                     onTap: () => Navigator.pop(context),
                     child: Padding(
@@ -176,7 +180,11 @@ class _Display extends StatelessWidget {
                   },
                 ),
                 SizedBox(height: context.u(6)),
-                SizedBox(height: context.u(34), width: double.infinity, child: const Spectrum()),
+                // нажатие на спектр — MilkDrop (как щелчок по визуализации в Winamp)
+                GestureDetector(
+                  onTap: () => openMilkdrop(context),
+                  child: SizedBox(height: context.u(34), width: double.infinity, child: const Spectrum()),
+                ),
               ]),
             ),
             SizedBox(width: context.u(10)),
@@ -186,7 +194,7 @@ class _Display extends StatelessWidget {
                   height: context.u(22),
                   child: Marquee(
                     text: t == null
-                        ? 'ECHOES — Winamp, it really whips the llama\'s ass!'
+                        ? 'ECHOAMP — it really whips the llama\'s ass!'
                         : '${audio.index.value + 1}. ${t.artist} - ${t.title} (${fmtDuration(t.duration)})',
                     style: Wa.mono.copyWith(color: Wa.green, fontSize: 14),
                   ),
@@ -479,6 +487,20 @@ class _Buttons extends StatelessWidget {
         led('SHUFFLE', audio.shuffle, () => audio.shuffle.value, audio.toggleShuffle),
         const SizedBox(width: 4),
         led('REPEAT', audio.repeat, () => audio.repeat.value != RepeatState.off, audio.cycleRepeat),
+        const SizedBox(width: 4),
+        // окно визуализации, как в Winamp
+        GestureDetector(
+          onTap: () => openMilkdrop(context),
+          child: WaBevel(
+            color: Wa.btn,
+            padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.auto_awesome, size: 10, color: Wa.green),
+              const SizedBox(width: 4),
+              Text('MILKDROP', style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+        ),
         const Spacer(),
         ValueListenableBuilder<int>(
           valueListenable: audio.index,
@@ -513,7 +535,7 @@ class _Playlist extends StatelessWidget {
     return WaBevel(
       padding: EdgeInsets.all(context.u(6)),
       child: Column(children: [
-        const WaTitleBar(title: 'WINAMP PLAYLIST'),
+        const WaTitleBar(title: 'ECHOAMP PLAYLIST'),
         SizedBox(height: context.u(4)),
         Expanded(
           child: WaBevel(

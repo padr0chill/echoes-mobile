@@ -9,6 +9,7 @@ import '../cover_color.dart';
 import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
+import '../skins/milkdrop.dart';
 import '../services/store.dart';
 import '../services/wave.dart';
 import '../ui.dart';
@@ -68,7 +69,7 @@ class WaveScreen extends StatelessWidget {
       Widget tile(String? m, IconData icon, String label, String sub, List<Color> pal) {
         final selected = w.active && w.mood == m;
         return InkWell(
-          borderRadius: BorderRadius.circular(ctx.u(18)),
+          borderRadius: BorderRadius.circular(ctx.r(18)),
           onTap: () {
             Navigator.pop(ctx);
             w.start(mood: m);
@@ -76,7 +77,7 @@ class WaveScreen extends StatelessWidget {
           child: Container(
             padding: EdgeInsets.all(ctx.u(10)),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(ctx.u(18)),
+              borderRadius: BorderRadius.circular(ctx.r(18)),
               color: selected ? pal[1].withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.06),
               border: Border.all(color: selected ? pal[1] : Colors.white.withValues(alpha: 0.14)),
             ),
@@ -150,7 +151,8 @@ class WaveScreen extends StatelessWidget {
         final pal = paletteFor(active ? w.mood : null, context.accent);
         final bottom = MediaQuery.paddingOf(context).bottom;
         return Stack(children: [
-          Positioned.fill(child: _Flame(colors: pal, track: t)),
+          // Эховамп — вместо пламени MilkDrop
+          Positioned.fill(child: context.echoamp ? const MilkdropView() : _Flame(colors: pal, track: t)),
           SafeArea(
             bottom: false,
             child: Column(children: [
@@ -285,12 +287,12 @@ class _TunePill extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(context.r(99)),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: context.u(18), vertical: context.u(10)),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.22),
-              borderRadius: BorderRadius.circular(99),
+              borderRadius: BorderRadius.circular(context.r(99)),
               border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -612,7 +614,7 @@ class _NowPlaying extends StatelessWidget {
       child: Column(key: ValueKey(t.id), mainAxisSize: MainAxisSize.min, children: [
         Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(context.u(12)),
+            borderRadius: BorderRadius.circular(context.r(12)),
             boxShadow: [
               BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 24, offset: const Offset(0, 8))
             ],
@@ -623,12 +625,12 @@ class _NowPlaying extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: context.u(28)),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(context.r(99)),
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: context.u(20), vertical: context.u(9)),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(99),
+                borderRadius: BorderRadius.circular(context.r(99)),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
               ),
               child: Text(t.title,

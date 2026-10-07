@@ -25,7 +25,7 @@ class SettingsScreen extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
-              child: const Text('Настройки', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+              child: ScreenTitle('Настройки'),
             ),
             const SectionTitle('Оформление'),
             Padding(
@@ -33,7 +33,7 @@ class SettingsScreen extends StatelessWidget {
               child: SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'glass', icon: Icon(Icons.blur_on_rounded), label: Text('Обычная')),
-                  ButtonSegment(value: 'winamp', icon: Icon(Icons.graphic_eq_rounded), label: Text('Winamp')),
+                  ButtonSegment(value: 'winamp', icon: Icon(Icons.graphic_eq_rounded), label: Text('Эховамп')),
                 ],
                 selected: {st.skin},
                 onSelectionChanged: (s) => st.setSkin(s.first),
@@ -43,7 +43,8 @@ class SettingsScreen extends StatelessWidget {
             if (st.winamp)
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(16), 0),
-                child: Text('Как Winamp 2 на ПК: ЖК-дисплей, спектр, плейлист. Без размытий — самая лёгкая тема.',
+                child: Text(
+                    'Эховамп — весь интерфейс как Winamp 2 на ПК: ЖК-дисплей, спектр, MilkDrop, плейлисты. Без размытий — самая лёгкая тема.',
                     style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
               ),
             if (!st.winamp) ...[

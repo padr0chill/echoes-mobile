@@ -143,15 +143,7 @@ class Ambient extends StatelessWidget {
     // Winamp — ровный тёмный фон, без картинок
     if (st.winamp) {
       return Stack(fit: StackFit.expand, children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF22223A), Color(0xFF14141E)],
-            ),
-          ),
-        ),
+        const ColoredBox(color: Colors.black), // как окно плейлиста Winamp
         child,
       ]);
     }

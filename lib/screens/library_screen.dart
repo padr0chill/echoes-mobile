@@ -24,7 +24,7 @@ class LibraryScreen extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
-              child: const Text('Моя музыка', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+              child: ScreenTitle('Моя музыка'),
             ),
             _Card(
               icon: Icons.favorite_rounded,
@@ -99,9 +99,9 @@ class _Card extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(16), 0),
       child: Material(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(context.u(14)),
+        borderRadius: BorderRadius.circular(context.r(14)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(context.u(14)),
+          borderRadius: BorderRadius.circular(context.r(14)),
           onTap: onTap,
           child: Padding(
             padding: EdgeInsets.all(context.u(12)),
@@ -111,7 +111,7 @@ class _Card extends StatelessWidget {
                 height: context.u(48),
                 decoration: BoxDecoration(
                   color: context.accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(context.u(10)),
+                  borderRadius: BorderRadius.circular(context.r(10)),
                 ),
                 child: Icon(icon, color: context.accent),
               ),

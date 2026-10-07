@@ -94,7 +94,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
               filled: true,
               fillColor: Theme.of(context).cardColor,
               border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(context.u(14)), borderSide: BorderSide.none),
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(context.r(14)), borderSide: BorderSide.none),
               contentPadding: EdgeInsets.symmetric(vertical: context.u(12)),
             ),
             onChanged: (_) => setState(() {}),

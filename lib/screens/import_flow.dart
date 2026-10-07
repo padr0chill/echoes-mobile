@@ -36,7 +36,7 @@ Future<void> importFromPc(BuildContext context) async {
         width: double.infinity,
         height: ctx.u(50),
         child: FilledButton.icon(
-          style: FilledButton.styleFrom(shape: const StadiumBorder()),
+          style: FilledButton.styleFrom(shape: context.pill),
           onPressed: () => Navigator.pop(ctx, true),
           icon: const Icon(Icons.folder_open_rounded, color: Colors.black),
           label: const Text('Выбрать файл', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),

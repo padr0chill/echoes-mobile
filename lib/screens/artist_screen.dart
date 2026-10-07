@@ -239,7 +239,7 @@ class _GlassAction extends StatelessWidget {
         height: h,
         child: FilledButton(
           onPressed: onTap,
-          style: FilledButton.styleFrom(shape: const StadiumBorder()),
+          style: FilledButton.styleFrom(shape: context.pill),
           child: content,
         ),
       );
@@ -251,7 +251,7 @@ class _GlassAction extends StatelessWidget {
         height: h,
         child: Material(
           type: MaterialType.transparency,
-          child: InkWell(customBorder: const StadiumBorder(), onTap: onTap, child: content),
+          child: InkWell(customBorder: context.pill, onTap: onTap, child: content),
         ),
       ),
     );

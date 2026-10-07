@@ -7,6 +7,7 @@ import 'screens/artist_screen.dart';
 import 'services/audio.dart';
 import 'services/offline.dart';
 import 'services/store.dart';
+import 'skins/winamp.dart';
 import 'ui.dart';
 
 /// Обложка: миниатюра YouTube, обрезанная в квадрат (без чёрных полос 16:9). Только кэш в памяти.
@@ -24,6 +25,7 @@ class Cover extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = track;
+    final radius = context.echoamp ? 0.0 : this.radius; // Эховамп — квадратные обложки
     Widget ph() => Container(
           color: Theme.of(context).cardColor,
           alignment: Alignment.center,
@@ -62,6 +64,18 @@ class Cover extends StatelessWidget {
                   ),
       ),
     );
+  }
+}
+
+/// Заголовок экрана: крупный текст; в Эховампе — полосатая шапка окна, как у Winamp.
+class ScreenTitle extends StatelessWidget {
+  final String text;
+  const ScreenTitle(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.echoamp) return WaBevel(child: WaTitleBar(title: text.toUpperCase()));
+    return Text(text, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900));
   }
 }
 

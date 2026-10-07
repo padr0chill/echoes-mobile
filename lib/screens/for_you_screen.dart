@@ -84,7 +84,7 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
           builder: (context, snap) {
             final head = Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
-              child: const Text('Для вас', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+              child: ScreenTitle('Для вас'),
             );
             if (snap.connectionState != ConnectionState.done) {
               return ListView(children: [

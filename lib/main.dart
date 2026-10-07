@@ -16,6 +16,8 @@ import 'services/audio.dart';
 import 'services/offline.dart';
 import 'services/sc.dart';
 import 'services/store.dart';
+import 'skins/milkdrop.dart';
+import 'skins/winamp.dart';
 import 'ui.dart';
 import 'widgets.dart';
 
@@ -26,6 +28,7 @@ Future<void> main() async {
   ScService.instance
     ..seedClientId(Store.instance.scClientId)
     ..onClientId = Store.instance.setScClientId;
+  if (Store.instance.winamp) MilkdropView.preload().ignore();
   final session = await AudioSession.instance;
   await session.configure(const AudioSessionConfiguration.music());
   audio = await AudioService.init(
@@ -221,6 +224,7 @@ class GlassTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (context.echoamp) return _EchoampTabBar(items: items, index: index, onTap: onTap);
     final bottom = MediaQuery.paddingOf(context).bottom;
     final h = context.u(62);
     return Padding(
@@ -287,6 +291,54 @@ class GlassTabBar extends StatelessWidget {
           }),
         ),
       ),
+    );
+  }
+}
+
+/// Нижняя панель в Эховампе: ряд серых кнопок с фаской, выбранная — «нажата» (вдавлена, зелёная).
+class _EchoampTabBar extends StatelessWidget {
+  final List<(IconData, String)> items;
+  final int index;
+  final ValueChanged<int> onTap;
+  const _EchoampTabBar({required this.items, required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return WaBevel(
+      padding: EdgeInsets.fromLTRB(context.u(4), context.u(4), context.u(4), (bottom > 0 ? bottom : 0) + context.u(4)),
+      child: Row(children: [
+        for (var i = 0; i < items.length; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Semantics(
+                selected: i == index,
+                button: true,
+                label: items[i].$2,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(i),
+                  child: WaBevel(
+                    sunken: i == index,
+                    color: i == index ? Colors.black : Wa.btn,
+                    padding: EdgeInsets.symmetric(vertical: context.u(5)),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(items[i].$1, size: context.u(20), color: i == index ? Wa.green : Wa.text),
+                      SizedBox(height: context.u(2)),
+                      Text(items[i].$2.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          style: Wa.mono.copyWith(
+                              fontSize: 8.5, fontWeight: FontWeight.w700, color: i == index ? Wa.green : Wa.text)),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ]),
     );
   }
 }
