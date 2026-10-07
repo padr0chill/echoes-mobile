@@ -144,7 +144,7 @@ class WaveScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = Wave.instance;
     return ListenableBuilder(
-      listenable: Listenable.merge([w, audio.index, Store.instance]),
+      listenable: Listenable.merge([w, audio.trackKey, Store.instance]),
       builder: (context, _) {
         final active = w.active;
         final t = active ? audio.current : null;

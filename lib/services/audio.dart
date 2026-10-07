@@ -56,6 +56,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   final _rnd = Random();
 
   EchoesAudio() {
+    index.addListener(_bumpTrackKey);
+    tracks.addListener(_bumpTrackKey);
     player.playbackEventStream.listen((_) => _broadcast(), onError: (Object e, StackTrace st) {
       error.value = 'Поток оборвался — попробуйте ещё раз';
       _broadcast();
@@ -68,6 +70,20 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       final m = mediaItem.value;
       if (d != null && m != null && m.duration != d) mediaItem.add(m.copyWith(duration: d));
     });
+  }
+
+  /// Меняется, когда сменился ИГРАЮЩИЙ трек — и при смене номера, и при замене всей очереди
+  /// (новый плейлист с той же позиции, «вперемешку» — номер остаётся 0, а трек другой). На него подписаны
+  /// мини-плеер, фон, плеер, волна: раньше они слушали только номер и показывали прошлый трек.
+  final ValueNotifier<int> trackKey = ValueNotifier(0);
+  String? _keyId;
+
+  void _bumpTrackKey() {
+    final id = current?.id;
+    if (id != _keyId) {
+      _keyId = id;
+      trackKey.value++;
+    }
   }
 
   Track? get current {

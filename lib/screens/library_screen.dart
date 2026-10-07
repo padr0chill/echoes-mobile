@@ -153,6 +153,56 @@ class _TrackListScreenState extends State<TrackListScreen> {
   Playlist? get playlist => widget.playlist;
   bool get offline => widget.offline;
 
+  static const _sorts = [
+    ('order', Icons.south_rounded, 'Как добавлены (сверху вниз)'),
+    ('recent', Icons.north_rounded, 'Сначала новые (снизу вверх)'),
+    ('title', Icons.sort_by_alpha_rounded, 'По названию (А → Я)'),
+    ('artist', Icons.person_rounded, 'По исполнителю'),
+    ('duration', Icons.timer_outlined, 'По длительности'),
+  ];
+
+  /// Порядок показа (и игры — играет то, что видно): как добавлены / наоборот / по названию / исполнителю /
+  /// длительности. Сравнение названий — без регистра.
+  static List<Track> _sorted(List<Track> l, String mode) {
+    int byText(String a, String b) => a.toLowerCase().compareTo(b.toLowerCase());
+    switch (mode) {
+      case 'recent':
+        return l.reversed.toList();
+      case 'title':
+        return [...l]..sort((a, b) => byText(a.title, b.title));
+      case 'artist':
+        return [...l]..sort((a, b) {
+            final c = byText(a.artist, b.artist);
+            return c != 0 ? c : byText(a.title, b.title);
+          });
+      case 'duration':
+        return [...l]..sort((a, b) => a.seconds.compareTo(b.seconds));
+      default:
+        return l;
+    }
+  }
+
+  Future<void> _pickSort(BuildContext context) async {
+    final st = Store.instance;
+    await showGlassSheet<void>(
+      context,
+      (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          for (final (k, icon, label) in _sorts)
+            ListTile(
+              leading: Icon(icon),
+              title: Text(label),
+              trailing: st.playlistSort == k ? Icon(Icons.check_rounded, color: ctx.accent) : null,
+              onTap: () {
+                st.setPlaylistView(sort: k);
+                Navigator.pop(ctx);
+              },
+            ),
+        ]),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _q.dispose();
@@ -178,6 +228,19 @@ class _TrackListScreenState extends State<TrackListScreen> {
       appBar: AppBar(
         title: Text(playlist?.name ?? title),
         actions: [
+          IconButton(
+            tooltip: 'Порядок',
+            icon: const Icon(Icons.sort_rounded),
+            onPressed: () => _pickSort(context),
+          ),
+          ListenableBuilder(
+            listenable: st,
+            builder: (context, _) => IconButton(
+              tooltip: st.playlistGrid ? 'Списком' : 'Сеткой',
+              icon: Icon(st.playlistGrid ? Icons.view_list_rounded : Icons.grid_view_rounded),
+              onPressed: () => st.setPlaylistView(grid: !st.playlistGrid),
+            ),
+          ),
           if (playlist != null)
             PopupMenuButton<String>(
               onSelected: (v) async {
@@ -199,7 +262,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
       body: ListenableBuilder(
         listenable: Listenable.merge([st, Offline.instance]),
         builder: (context, _) {
-          final list = tracks();
+          final list = _sorted(tracks(), st.playlistSort);
           if (list.isEmpty) {
             return const Center(child: Text('Пока пусто'));
           }
@@ -269,6 +332,38 @@ class _TrackListScreenState extends State<TrackListScreen> {
               ),
           ];
           // список строится по мере прокрутки — быстро даже на 500+ треках
+          if (st.playlistGrid) {
+            // сетка обложек слева направо: столбцов — сколько влезает (2 на телефоне, больше на iPad)
+            return LayoutBuilder(builder: (context, box) {
+              final cols = (box.maxWidth / context.u(180)).floor().clamp(2, 6);
+              final rows = (shown.length + cols - 1) ~/ cols;
+              return ListView.builder(
+                padding: EdgeInsets.only(bottom: context.u(200)),
+                itemCount: head.length + rows,
+                itemBuilder: (context, k) {
+                  if (k < head.length) return head[k];
+                  final r = k - head.length;
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(14)),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      for (var c = 0; c < cols; c++) ...[
+                        if (c > 0) SizedBox(width: context.u(12)),
+                        Expanded(
+                          child: r * cols + c < shown.length
+                              ? _GridTrack(
+                                  track: list[shown[r * cols + c]],
+                                  playlist: playlist,
+                                  onTap: () => audio.playList(list, shown[r * cols + c]),
+                                )
+                              : const SizedBox(),
+                        ),
+                      ],
+                    ]),
+                  );
+                },
+              );
+            });
+          }
           return ListView.builder(
             padding: EdgeInsets.only(bottom: context.u(200)),
             itemCount: head.length + shown.length,
@@ -315,6 +410,35 @@ class _DownloadAll extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Скачиваю ${list.length - done} тр. — потом будут играть без интернета')));
       },
+    );
+  }
+}
+
+/// Плитка трека в сетке: обложка, название, исполнитель; долгое нажатие — меню трека.
+class _GridTrack extends StatelessWidget {
+  final Track track;
+  final Playlist? playlist;
+  final VoidCallback onTap;
+  const _GridTrack({required this.track, required this.playlist, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cur = audio.current == track;
+    final dim = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: () => showTrackMenu(context, track, playlist: playlist),
+      child: LayoutBuilder(
+        builder: (context, box) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Cover(track: track, size: box.maxWidth, radius: context.r(14)),
+          SizedBox(height: context.u(6)),
+          Text(track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.w700, color: cur ? context.accent : null)),
+          Text(track.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: dim)),
+        ]),
+      ),
     );
   }
 }

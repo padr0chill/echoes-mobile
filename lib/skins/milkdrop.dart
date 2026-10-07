@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../services/audio.dart';
+import '../services/lyrics.dart';
+import '../services/store.dart';
 import '../ui.dart';
 import 'milkdrop_engine.dart';
 import 'winamp.dart';
@@ -80,9 +82,50 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
   bool _playing = false;
   StreamSubscription<bool>? _sub;
 
+  // текст песни, «вжигаемый» в картинку: новая строка — несколько кадров подряд рисуется в буфер,
+  // дальше её тянет, крутит и растворяет обратная связь (как milk_words на ПК)
+  List<LyricLine> _lines = const [];
+  String? _lyricsFor;
+  int _lineIdx = -1, _stampLeft = 0;
+  String _stampText = '';
+  Offset _stampAt = const Offset(0.5, 0.45);
+  final _rnd = math.Random();
+
+  void _loadLyrics() {
+    final t = audio.current;
+    if (t == null || t.id == _lyricsFor) return;
+    _lyricsFor = t.id;
+    _lines = const [];
+    _lineIdx = -1;
+    LyricsService.instance.get(t).then((ly) {
+      if (!mounted || audio.current?.id != t.id) return;
+      _lines = ly != null && ly.synced ? ly.lines : const [];
+    });
+  }
+
+  void _stampStep() {
+    if (!Store.instance.milkdropText || _lines.isEmpty) return;
+    final pos = audio.player.position + const Duration(milliseconds: 200);
+    var cur = -1;
+    for (var i = 0; i < _lines.length; i++) {
+      if (_lines[i].at <= pos) cur = i;
+    }
+    if (cur != _lineIdx) {
+      _lineIdx = cur;
+      final s = cur >= 0 ? _lines[cur].text.trim() : '';
+      if (s.isNotEmpty) {
+        _stampText = s;
+        _stampLeft = 6;
+        _stampAt = Offset(0.5 + (_rnd.nextDouble() - 0.5) * 0.12, 0.3 + _rnd.nextDouble() * 0.4);
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    audio.trackKey.addListener(_loadLyrics);
+    _loadLyrics();
     _takeShaders();
     if (_warp == null) {
       _load().then((_) {
@@ -139,6 +182,26 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
     final d = MdWaveDrawer(e, canvas, w, h);
     d.draw();
     d.rings(dt);
+    _stampStep();
+    if (_stampLeft > 0) {
+      _stampLeft--;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: _stampText,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            height: 1.1,
+            color: MdWaveDrawer.hsv(e.hue + 0.5, 0.35, 1, 0.55 + 0.08 * _stampLeft),
+          ),
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+        maxLines: 3,
+        ellipsis: '…',
+      )..layout(maxWidth: w * 0.88);
+      tp.paint(canvas, Offset(_stampAt.dx * w - tp.width / 2, _stampAt.dy * h - tp.height / 2));
+    }
     final pic = rec.endRecording();
     _buf = pic.toImageSync(w.toInt(), h.toInt());
     pic.dispose();
@@ -149,6 +212,7 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
   void dispose() {
     _ticker.dispose();
     _sub?.cancel();
+    audio.trackKey.removeListener(_loadLyrics);
     if (widget.controller == null) _c.dispose();
     _frame.dispose();
     _buf?.dispose();
@@ -240,16 +304,40 @@ class _MilkdropScreenState extends State<MilkdropScreen> {
         child: Column(children: [
           WaBevel(
             padding: EdgeInsets.all(context.u(4)),
-            child: WaTitleBar(
-              title: 'MILKDROP',
-              leading: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Icon(Icons.close_rounded, color: Wa.text, size: context.u(22)),
+            child: Row(children: [
+              Expanded(
+                child: WaTitleBar(
+                  title: 'MILKDROP',
+                  leading: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(Icons.close_rounded, color: Wa.text, size: context.u(22)),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              // «ТЕКСТ»: строки текста песни вжигаются в картинку (лампочка — вкл/выкл)
+              ListenableBuilder(
+                listenable: Store.instance,
+                builder: (context, _) {
+                  final on = Store.instance.milkdropText;
+                  return GestureDetector(
+                    onTap: () => Store.instance.setMilkdropText(!on),
+                    child: WaBevel(
+                      color: Wa.btn,
+                      padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(6)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(width: 6, height: 6, color: on ? Wa.green : Wa.greenDim),
+                        const SizedBox(width: 5),
+                        Text('ТЕКСТ',
+                            style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            ]),
           ),
           Expanded(
             child: GestureDetector(

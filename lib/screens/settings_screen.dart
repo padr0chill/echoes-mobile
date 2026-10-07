@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 
 import '../glass.dart';
+import 'equalizer_screen.dart';
 import '../services/offline.dart';
 import '../services/store.dart';
 import '../ui.dart';
@@ -109,6 +110,13 @@ class SettingsScreen extends StatelessWidget {
               onChanged: st.setLight,
             ),
             const SectionTitle('Звук'),
+            ListTile(
+              leading: const Icon(Icons.equalizer_rounded),
+              title: const Text('Эквалайзер'),
+              subtitle: Text(st.eqEnabled ? 'Вкл · ${st.eqPreset}' : 'Выключен'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => openEqualizer(context),
+            ),
             SwitchListTile(
               title: const Text('Экономия трафика'),
               subtitle: const Text('Лёгкий аудиопоток, если YouTube его отдаёт'),

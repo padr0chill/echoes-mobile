@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:echoes_eq/echoes_eq.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
@@ -36,6 +37,16 @@ class Store extends ChangeNotifier {
   bool bgBlur = true;
 
   bool get winamp => skin == 'winamp';
+
+  // вид плейлистов: порядок и сетка/список
+  String playlistSort = 'order'; // order — как добавлены, recent — сначала новые, title, artist, duration
+  bool playlistGrid = false; // false — список сверху вниз, true — сетка обложек слева направо
+  // эквалайзер
+  bool eqEnabled = false;
+  List<double> eqGains = List.filled(10, 0.0);
+  double eqPreamp = 0;
+  String eqPreset = 'Плоский';
+  bool milkdropText = true; // MilkDrop «вжигает» строки текста песни в картинку (как на ПК)
 
   // профиль и статистика
   String name = 'Слушатель';
@@ -75,6 +86,14 @@ class Store extends ChangeNotifier {
     vinyl = _p.getBool('vinyl') ?? false;
     bgPath = _p.getString('bg');
     bgBlur = _p.getBool('bg_blur') ?? true;
+    playlistSort = _p.getString('pl_sort') ?? 'order';
+    playlistGrid = _p.getBool('pl_grid') ?? false;
+    milkdropText = _p.getBool('md_text') ?? true;
+    eqEnabled = _p.getBool('eq_on') ?? false;
+    final g = _p.getStringList('eq_gains');
+    if (g != null && g.length == 10) eqGains = g.map((s) => double.tryParse(s) ?? 0).toList();
+    eqPreamp = _p.getDouble('eq_pre') ?? 0;
+    eqPreset = _p.getString('eq_preset') ?? 'Плоский';
     name = _p.getString('name') ?? 'Слушатель';
     plays = _p.getInt('plays') ?? 0;
     listenSeconds = _p.getInt('listen_s') ?? 0;
@@ -104,6 +123,13 @@ class Store extends ChangeNotifier {
       _p.setString('bg', bgPath!);
     }
     _p.setBool('bg_blur', bgBlur);
+    _p.setString('pl_sort', playlistSort);
+    _p.setBool('pl_grid', playlistGrid);
+    _p.setBool('md_text', milkdropText);
+    _p.setBool('eq_on', eqEnabled);
+    _p.setStringList('eq_gains', eqGains.map((v) => v.toStringAsFixed(1)).toList());
+    _p.setDouble('eq_pre', eqPreamp);
+    _p.setString('eq_preset', eqPreset);
     _p.setString('name', name);
     _p.setInt('plays', plays);
     _p.setInt('listen_s', listenSeconds);
@@ -243,6 +269,27 @@ class Store extends ChangeNotifier {
 
   void setEconomy(bool v) {
     economy = v;
+    _save();
+  }
+
+  void setPlaylistView({String? sort, bool? grid}) {
+    if (sort != null) playlistSort = sort;
+    if (grid != null) playlistGrid = grid;
+    _save();
+  }
+
+  /// Эквалайзер: сохранить и сразу применить к звуку.
+  void setEq({bool? enabled, List<double>? gains, double? preamp, String? preset}) {
+    if (enabled != null) eqEnabled = enabled;
+    if (gains != null) eqGains = List.of(gains);
+    if (preamp != null) eqPreamp = preamp;
+    if (preset != null) eqPreset = preset;
+    _save();
+    EchoesEq.apply(gains: eqGains, preamp: eqPreamp, enabled: eqEnabled);
+  }
+
+  void setMilkdropText(bool v) {
+    milkdropText = v;
     _save();
   }
 

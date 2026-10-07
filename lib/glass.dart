@@ -176,7 +176,7 @@ class Ambient extends StatelessWidget {
       ColoredBox(color: base),
       RepaintBoundary(
         child: ValueListenableBuilder<int>(
-          valueListenable: audio.index,
+          valueListenable: audio.trackKey,
           builder: (context, _, __) {
             final src = image ?? audio.current?.thumb;
             return Stack(fit: StackFit.expand, children: [

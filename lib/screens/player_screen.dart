@@ -12,6 +12,7 @@ import '../ui.dart';
 import '../skins/winamp.dart';
 import '../vinyl.dart';
 import '../blurred_cover.dart';
+import 'equalizer_screen.dart';
 import 'lyrics_tools.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
@@ -32,7 +33,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     if (Store.instance.winamp) return const WinampPlayer();
     return ValueListenableBuilder<int>(
-      valueListenable: audio.index,
+      valueListenable: audio.trackKey,
       builder: (context, _, __) {
         final t = audio.current;
         return Scaffold(
@@ -132,6 +133,14 @@ class _Header extends StatelessWidget {
           tooltip: 'Текст песни',
           icon: Icon(Icons.lyrics_rounded, color: lyrics ? context.accent : Colors.white),
           onPressed: onLyrics,
+        ),
+        ListenableBuilder(
+          listenable: Store.instance,
+          builder: (context, _) => IconButton(
+            tooltip: 'Эквалайзер',
+            icon: Icon(Icons.equalizer_rounded, color: Store.instance.eqEnabled ? context.accent : Colors.white),
+            onPressed: () => openEqualizer(context),
+          ),
         ),
         IconButton(
           tooltip: 'Очередь',

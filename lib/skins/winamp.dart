@@ -8,6 +8,7 @@ import '../models.dart';
 import '../services/audio.dart';
 import '../services/store.dart';
 import '../ui.dart';
+import '../screens/equalizer_screen.dart';
 import 'milkdrop.dart';
 
 /// Тема «Эховамп» (ECHOAMP) — как Winamp 2.x на ПК (MilkDrop — лёгкий, на видеокарте): плоские панели с фаской, чёрный ЖК
@@ -144,7 +145,7 @@ class _Display extends StatelessWidget {
       color: Wa.lcd,
       padding: EdgeInsets.all(context.u(8)),
       child: ValueListenableBuilder<int>(
-        valueListenable: audio.index,
+        valueListenable: audio.trackKey,
         builder: (context, _, __) {
           final t = audio.current;
           return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -484,26 +485,38 @@ class _Buttons extends StatelessWidget {
       ]),
       SizedBox(height: context.u(6)),
       Row(children: [
-        led('SHUFFLE', audio.shuffle, () => audio.shuffle.value, audio.toggleShuffle),
-        const SizedBox(width: 4),
-        led('REPEAT', audio.repeat, () => audio.repeat.value != RepeatState.off, audio.cycleRepeat),
-        const SizedBox(width: 4),
-        // окно визуализации, как в Winamp
-        GestureDetector(
-          onTap: () => openMilkdrop(context),
-          child: WaBevel(
-            color: Wa.btn,
-            padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.auto_awesome, size: 10, color: Wa.green),
+        // лампочки-кнопки: не влезают в узкий экран — листаются вбок, ♥ остаётся справа
+        Expanded(
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              led('SHUFFLE', audio.shuffle, () => audio.shuffle.value, audio.toggleShuffle),
               const SizedBox(width: 4),
-              Text('MILKDROP', style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
+              led('REPEAT', audio.repeat, () => audio.repeat.value != RepeatState.off, audio.cycleRepeat),
+              const SizedBox(width: 4),
+              // окно эквалайзера, как в Winamp
+              led('EQ', Store.instance, () => Store.instance.eqEnabled, () => openEqualizer(context)),
+              const SizedBox(width: 4),
+              // окно визуализации, как в Winamp
+              GestureDetector(
+                onTap: () => openMilkdrop(context),
+                child: WaBevel(
+                  color: Wa.btn,
+                  padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.auto_awesome, size: 10, color: Wa.green),
+                    const SizedBox(width: 4),
+                    Text('MILKDROP',
+                        style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
             ]),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 4),
         ValueListenableBuilder<int>(
-          valueListenable: audio.index,
+          valueListenable: audio.trackKey,
           builder: (context, _, __) => ListenableBuilder(
             listenable: Store.instance,
             builder: (context, _) {

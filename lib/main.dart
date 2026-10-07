@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:echoes_eq/echoes_eq.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -27,6 +28,9 @@ Future<void> main() async {
   await Store.instance.load();
   await Offline.instance.load();
   await SquareCover.instance.init();
+  // эквалайзер — сохранённые настройки сразу к звуку
+  final st0 = Store.instance;
+  EchoesEq.apply(gains: st0.eqGains, preamp: st0.eqPreamp, enabled: st0.eqEnabled);
   ScService.instance
     ..seedClientId(Store.instance.scClientId)
     ..onClientId = Store.instance.setScClientId;

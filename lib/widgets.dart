@@ -445,7 +445,7 @@ class MiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
-      valueListenable: audio.index,
+      valueListenable: audio.trackKey,
       builder: (context, _, __) {
         final t = audio.current;
         if (t == null) return const SizedBox.shrink();
