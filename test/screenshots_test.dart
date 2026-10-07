@@ -5,6 +5,7 @@ library;
 
 import 'dart:io';
 
+import 'package:echoes_mobile/i18n.dart';
 import 'package:echoes_mobile/main.dart';
 import 'package:echoes_mobile/models.dart';
 import 'package:echoes_mobile/cover_color.dart';
@@ -189,6 +190,24 @@ void main() {
     await shoot(t, phone, 'phone_equalizer', () async {
       await openPlayer(t);
       await t.tap(find.byTooltip('Эквалайзер'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 600));
+    });
+  });
+  // английский интерфейс
+  for (final tab in const [('My Music', 'library'), ('Profile', 'profile'), ('Search', 'search'), ('Wave', 'wave')]) {
+    testWidgets('en ${tab.$2}', (t) async {
+      appLangSetting = 'en';
+      addTearDown(() => appLangSetting = 'ru');
+      await shoot(t, phone, 'en_${tab.$2}', () => openTab(t, tab.$1));
+    });
+  }
+  testWidgets('en settings', (t) async {
+    appLangSetting = 'en';
+    addTearDown(() => appLangSetting = 'ru');
+    await shoot(t, phone, 'en_settings', () async {
+      await openTab(t, 'Profile');
+      await t.tap(find.byTooltip('Settings'));
       await t.pump();
       await t.pump(const Duration(milliseconds: 600));
     });

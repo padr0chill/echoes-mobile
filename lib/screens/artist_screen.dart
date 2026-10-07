@@ -9,6 +9,7 @@ import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'album_screen.dart';
+import '../i18n.dart';
 
 /// Открыть страницу исполнителя трека (аккаунт на SoundCloud: у трека SoundCloud — сразу, иначе — поиском по имени).
 void openArtist(BuildContext context, Track t) {
@@ -44,7 +45,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
   Future<_ArtistData> _load() async {
     final sc = ScService.instance;
     final a = widget.id != null ? await sc.artist(widget.id!) : await sc.findArtist(widget.name);
-    if (a == null) throw Exception('Исполнитель «${widget.name}» не найден на SoundCloud');
+    if (a == null) throw Exception(tr('Исполнитель «{0}» не найден на SoundCloud', [widget.name]));
     // альбомы не обязательны: если не загрузились — страница всё равно откроется
     final albums = sc.artistAlbums(a.id).catchError((_) => <ScAlbum>[]);
     final r = await Future.wait([sc.artistTop(a.id), sc.artistTracks(a.id)]);
@@ -52,8 +53,8 @@ class _ArtistScreenState extends State<ArtistScreen> {
   }
 
   String _count(int n) {
-    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1).replaceAll('.', ',')} млн';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1).replaceAll('.', ',')} тыс.';
+    if (n >= 1000000) return tr('{0} млн', [(n / 1000000).toStringAsFixed(1).replaceAll('.', ',')]);
+    if (n >= 1000) return tr('{0} тыс.', [(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1).replaceAll('.', ',')]);
     return '$n';
   }
 
@@ -75,10 +76,10 @@ class _ArtistScreenState extends State<ArtistScreen> {
                   child: Padding(
                     padding: EdgeInsets.all(context.u(24)),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text('${snap.error ?? 'Не удалось загрузить'}'.replaceFirst('Exception: ', ''),
+                      Text('${snap.error ?? tr('Не удалось загрузить')}'.replaceFirst('Exception: ', ''),
                           textAlign: TextAlign.center),
                       SizedBox(height: context.u(12)),
-                      FilledButton(onPressed: () => setState(() => _f = _load()), child: const Text('Повторить')),
+                      FilledButton(onPressed: () => setState(() => _f = _load()), child: Text(tr('Повторить'))),
                     ]),
                   ),
                 )
@@ -175,10 +176,10 @@ class _ArtistScreenState extends State<ArtistScreen> {
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 stat(
                   s.connectionState != ConnectionState.done ? '…' : (ml == null ? '—' : _count(ml)),
-                  'слушателей в месяц',
+                  tr('слушателей в месяц'),
                   'Spotify',
                 ),
-                stat(_count(a.followers), 'подписчиков', 'SoundCloud'),
+                stat(_count(a.followers), tr('подписчиков'), 'SoundCloud'),
               ]),
             );
           },
@@ -190,7 +191,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
             Expanded(
               child: _GlassAction(
                 icon: Icons.play_arrow_rounded,
-                label: 'Слушать',
+                label: tr('Слушать'),
                 filled: true,
                 onTap: all.isEmpty ? null : () => audio.playList(d.top.isNotEmpty ? d.top : all, 0),
               ),
@@ -199,7 +200,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
             Expanded(
               child: _GlassAction(
                 icon: Icons.waves_rounded,
-                label: 'Волна',
+                label: tr('Волна'),
                 onTap: all.isEmpty ? null : () => Wave.instance.startWith(all, a.name),
               ),
             ),
@@ -215,35 +216,34 @@ class _ArtistScreenState extends State<ArtistScreen> {
             ),
           ),
         if (d.top.isNotEmpty) ...[
-          const SectionTitle('Популярное'),
+          SectionTitle(tr('Популярное')),
           for (var i = 0; i < d.top.length && i < topN; i++)
             TrackTile(track: d.top[i], onTap: () => audio.playList(d.top, i), showArtist: false),
           if (d.top.length > 5)
             Center(
               child: TextButton(
                 onPressed: () => setState(() => _topMore = !_topMore),
-                child: Text(_topMore ? 'Свернуть' : 'Показать ещё'),
+                child: Text(_topMore ? tr('Свернуть') : tr('Показать ещё')),
               ),
             ),
         ],
         if (albums.isNotEmpty) ...[
-          SectionTitle('Альбомы · ${albums.length}'),
+          SectionTitle(tr('Альбомы · {0}', [albums.length])),
           AlbumRow(albums: albums),
         ],
         if (singles.isNotEmpty) ...[
-          SectionTitle('Синглы и EP · ${singles.length}'),
+          SectionTitle(tr('Синглы и EP · {0}', [singles.length])),
           AlbumRow(albums: singles),
         ],
         if (d.all.isNotEmpty) ...[
-          SectionTitle('Все треки · ${d.all.length}'),
+          SectionTitle(tr('Все треки · {0}', [d.all.length])),
           for (var i = 0; i < d.all.length; i++)
             TrackTile(track: d.all[i], onTap: () => audio.playList(d.all, i), showArtist: false),
         ],
         if (all.isEmpty)
           Padding(
             padding: EdgeInsets.all(context.u(24)),
-            child:
-                const Text('У этого аккаунта нет треков, которые можно слушать целиком', textAlign: TextAlign.center),
+            child: Text(tr('У этого аккаунта нет треков, которые можно слушать целиком'), textAlign: TextAlign.center),
           ),
       ],
     );

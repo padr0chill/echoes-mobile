@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models.dart';
+import '../i18n.dart';
 
 /// Трек SoundCloud: подходит ли (полный, не 30-секундный отрывок) и откуда брать звук.
 class ScTrack {
@@ -55,11 +56,11 @@ class ScAlbum {
   ScAlbum(this.id, this.title, this.artist, this.artistId, this.art, this.count, this.year, this.kind);
 
   String get kindLabel => switch (kind) {
-        'album' => 'Альбом',
+        'album' => tr('Альбом'),
         'ep' => 'EP',
-        'single' => 'Сингл',
-        'compilation' => 'Сборник',
-        _ => 'Плейлист',
+        'single' => tr('Сингл'),
+        'compilation' => tr('Сборник'),
+        _ => tr('Плейлист'),
       };
 }
 
@@ -113,7 +114,7 @@ class ScService {
         }
       } catch (_) {}
     }
-    throw Exception('SoundCloud: не найден client_id');
+    throw Exception(tr('SoundCloud: не найден client_id'));
   }
 
   /// GET api-v2 с client_id; устаревший ключ (401/403) — один раз взять новый.
@@ -126,7 +127,7 @@ class ScService {
       if (r.statusCode != 200) throw Exception('SoundCloud: HTTP ${r.statusCode}');
       return jsonDecode(r.body);
     }
-    throw Exception('SoundCloud: ключ не принят');
+    throw Exception(tr('SoundCloud: ключ не принят'));
   }
 
   ScTrack _parse(Map t) {
@@ -211,7 +212,7 @@ class ScService {
         if (url != null) return Uri.parse(url);
       } catch (_) {}
     }
-    throw Exception('SoundCloud: нет доступного потока');
+    throw Exception(tr('SoundCloud: нет доступного потока'));
   }
 
   static const _junk = [

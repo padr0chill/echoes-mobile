@@ -3,6 +3,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models.dart';
 import 'ytm.dart';
+import '../i18n.dart';
 
 /// Выбранный аудиопоток: ссылка, размер (для перемотки через прокси), тип и каким клиентом получен.
 class StreamPick {
@@ -102,9 +103,9 @@ class YtService {
       if (best != null && score >= 11) return done(best.id);
     } catch (_) {}
     final res = await search(q);
-    if (res.isEmpty) throw Exception('пусто');
+    if (res.isEmpty) throw Exception(tr('пусто'));
     final alt = res.where((r) => r.id != exclude).toList();
-    if (alt.isEmpty) throw Exception('другого видео нет');
+    if (alt.isEmpty) throw Exception(tr('другого видео нет'));
     return done((pick(alt).$1 ?? alt.first).id);
   }
 
@@ -117,7 +118,7 @@ class YtService {
         lastErr = e;
       }
     }
-    throw Exception('YouTube не отдал поток: ${_short(lastErr)}');
+    throw Exception(tr('YouTube не отдал поток: {0}', [_short(lastErr)]));
   }
 
   /// Поток одним способом (clients[i]); ошибка — с причиной.
@@ -152,7 +153,7 @@ class YtService {
           _cache[key] = (pick, DateTime.now());
           return pick;
         }
-        lastErr = 'отдаёт только начало потока';
+        lastErr = tr('отдаёт только начало потока');
       } catch (e) {
         lastErr = e;
       }

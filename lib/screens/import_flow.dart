@@ -7,6 +7,7 @@ import '../glass.dart';
 import '../services/importer.dart';
 import '../services/store.dart';
 import '../ui.dart';
+import '../i18n.dart';
 
 /// «Импорт с ПК»: файл «.echoesplaylist» из ECHOES на компьютере (или .m3u / .txt) → плейлисты на телефоне.
 Future<void> importFromPc(BuildContext context) async {
@@ -25,12 +26,12 @@ Future<void> importFromPc(BuildContext context) async {
           ]),
         );
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Плейлисты с компьютера', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+      Text(tr('Плейлисты с компьютера'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
       SizedBox(height: ctx.u(14)),
-      step('1', 'В ECHOES на ПК: «＋ Новый плейлист» → «Перенести все плейлисты на телефон…»'),
-      step('2', 'Отправьте файл себе: Telegram «Избранное», iCloud Drive или почта'),
-      step('3', 'На iPhone откройте файл → «Поделиться» → «Сохранить в Файлы»'),
-      step('4', 'Нажмите «Выбрать файл» и найдите его'),
+      step('1', tr('В ECHOES на ПК: «＋ Новый плейлист» → «Перенести все плейлисты на телефон…»')),
+      step('2', tr('Отправьте файл себе: Telegram «Избранное», iCloud Drive или почта')),
+      step('3', tr('На iPhone откройте файл → «Поделиться» → «Сохранить в Файлы»')),
+      step('4', tr('Нажмите «Выбрать файл» и найдите его')),
       SizedBox(height: ctx.u(8)),
       SizedBox(
         width: double.infinity,
@@ -39,7 +40,7 @@ Future<void> importFromPc(BuildContext context) async {
           style: FilledButton.styleFrom(shape: context.pill),
           onPressed: () => Navigator.pop(ctx, true),
           icon: const Icon(Icons.folder_open_rounded, color: Colors.black),
-          label: const Text('Выбрать файл', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+          label: Text(tr('Выбрать файл'), style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
         ),
       ),
     ]);
@@ -48,15 +49,15 @@ Future<void> importFromPc(BuildContext context) async {
 
   final XFile? file;
   try {
-    file = await openFile(acceptedTypeGroups: const [
+    file = await openFile(acceptedTypeGroups: [
       XTypeGroup(
-        label: 'Плейлисты',
+        label: tr('Плейлисты'),
         extensions: ['echoesplaylist', 'm3u', 'm3u8', 'txt', 'json'],
         uniformTypeIdentifiers: ['public.item'],
       ),
     ]);
   } catch (e) {
-    if (context.mounted) _toast(context, 'Не удалось открыть «Файлы»: $e');
+    if (context.mounted) _toast(context, tr('Не удалось открыть «Файлы»: {0}', [e]));
     return;
   }
   if (file == null || !context.mounted) return;
@@ -72,7 +73,7 @@ Future<void> importFromPc(BuildContext context) async {
         content: Row(children: [
           CircularProgressIndicator(color: ctx.accent),
           SizedBox(width: ctx.u(16)),
-          const Expanded(child: Text('Переношу плейлисты…')),
+          Expanded(child: Text(tr('Переношу плейлисты…'))),
         ]),
       ),
     ),
@@ -85,12 +86,16 @@ Future<void> importFromPc(BuildContext context) async {
     lists = await Importer.resolve(lists);
     final total = lists.fold<int>(0, (s, l) => s + l.$2.length);
     final added = Store.instance.importPlaylists(lists);
-    msg = 'Готово: ${lists.length} ${_pl(lists.length)}, $total тр. '
-        '${added < total ? '(новых — $added, остальные уже были)' : ''}';
+    msg = tr('Готово: {0} {1}, {2} тр. {3}', [
+      lists.length,
+      _pl(lists.length),
+      total,
+      added < total ? tr('(новых — {0}, остальные уже были)', [added]) : ''
+    ]);
   } on FormatException catch (e) {
-    msg = 'Не получилось прочитать файл: ${e.message}';
+    msg = tr('Не получилось прочитать файл: {0}', [e.message]);
   } catch (e) {
-    msg = 'Ошибка импорта: $e';
+    msg = tr('Ошибка импорта: {0}', [e]);
   }
   nav.pop();
   messenger.showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 6)));
@@ -98,9 +103,9 @@ Future<void> importFromPc(BuildContext context) async {
 
 String _pl(int n) {
   final d = n % 10, h = n % 100;
-  if (d == 1 && h != 11) return 'плейлист';
-  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return 'плейлиста';
-  return 'плейлистов';
+  if (d == 1 && h != 11) return tr('плейлист');
+  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return tr('плейлиста');
+  return tr('плейлистов');
 }
 
 void _toast(BuildContext context, String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));

@@ -12,6 +12,7 @@ import 'square_cover.dart';
 import 'sc.dart';
 import 'stream_source.dart';
 import 'yt.dart';
+import '../i18n.dart';
 
 enum RepeatState { off, all, one }
 
@@ -59,7 +60,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     index.addListener(_bumpTrackKey);
     tracks.addListener(_bumpTrackKey);
     player.playbackEventStream.listen((_) => _broadcast(), onError: (Object e, StackTrace st) {
-      error.value = 'Поток оборвался — попробуйте ещё раз';
+      error.value = tr('Поток оборвался — попробуйте ещё раз');
       _broadcast();
     });
     player.playingStream.listen((_) => _broadcast());
@@ -206,7 +207,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       final ne = nearEnd;
       if (ne != null && tracks.value.length - index.value <= 4) ne().ignore(); // волна: подгрузить ещё
     } catch (e) {
-      if (my == _token) error.value = 'Не удалось открыть трек: ${_short(e, 320)}';
+      if (my == _token) error.value = tr('Не удалось открыть трек: {0}', [_short(e, 320)]);
     } finally {
       if (my == _token) {
         loading.value = false;
@@ -233,7 +234,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         await player.setAudioSource(AudioSource.file(local.path)).timeout(const Duration(seconds: 10));
         return true;
       } catch (e) {
-        errs.add('файл в загрузках: ${_short(e)}'); // повреждён — пробуем онлайн
+        errs.add(tr('файл в загрузках: {0}', [_short(e)])); // повреждён — пробуем онлайн
       }
     }
 
@@ -263,10 +264,10 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       try {
         vid = await YtService.instance.findSame(t);
       } catch (e) {
-        if (t.isSc) throw Exception('${errs.join(' · ')} · на YouTube не нашлась: ${_short(e)}');
+        if (t.isSc) throw Exception(tr('{0} · на YouTube не нашлась: {1}', [errs.join(' · '), _short(e)]));
         throw Exception(t.isPreview
-            ? 'на SoundCloud только отрывок, а на YouTube песня не нашлась: ${_short(e)}'
-            : 'песня не нашлась на YouTube: ${_short(e)}');
+            ? tr('на SoundCloud только отрывок, а на YouTube песня не нашлась: {0}', [_short(e)])
+            : tr('песня не нашлась на YouTube: {0}', [_short(e)]));
       }
       if (cancelled()) return false;
     }
@@ -277,7 +278,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       return null;
     });
     final scF = (t.isPreview || t.isSc ? Future<Uri?>.value(null) : _resolveSc(t)).then<Uri?>((u) {
-      if (u == null && !t.isPreview && !t.isSc) errs.add('SoundCloud: такой песни нет');
+      if (u == null && !t.isPreview && !t.isSc) errs.add(tr('SoundCloud: такой песни нет'));
       return u;
     }, onError: (Object e) {
       errs.add('SoundCloud: ${_short(e)}');
@@ -306,7 +307,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         _preferSc = false;
         return true;
       } catch (e) {
-        errs.add('YouTube файл: ${_short(e)}');
+        errs.add(tr('YouTube файл: {0}', [_short(e)]));
       }
       return false;
     }
@@ -327,7 +328,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
         return true;
       } catch (e) {
-        errs.add('SoundCloud файл: ${_short(e)}');
+        errs.add(tr('SoundCloud файл: {0}', [_short(e)]));
         return false;
       }
     }
@@ -414,7 +415,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         last = e;
       }
     }
-    throw Exception(_short(last ?? 'нет потока'));
+    throw Exception(_short(last ?? tr('нет потока')));
   }
 
   /// Первый успешный из нескольких; все упали — ошибка последнего.

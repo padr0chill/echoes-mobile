@@ -4,6 +4,7 @@ import '../models.dart';
 import 'audio.dart';
 import 'sc.dart';
 import 'store.dart';
+import '../i18n.dart';
 
 /// «Моя волна»: бесконечный поток похожих треков. Старт — от того, что вы лайкали и слушали
 /// (или по настроению); когда очередь подходит к концу, подгружаются «похожие» на текущий трек.
@@ -36,14 +37,14 @@ class Wave extends ChangeNotifier {
     notifyListeners();
     try {
       final first = await _firstBatch();
-      if (first.isEmpty) throw Exception('не нашлось треков');
+      if (first.isEmpty) throw Exception(tr('не нашлось треков'));
       first.shuffle();
       _played
         ..clear()
         ..addAll(first.map((t) => t.id));
       await audio.playList(first, 0, wave: extend);
     } catch (e) {
-      error = 'Волна не запустилась: ${'$e'.replaceFirst('Exception: ', '')}';
+      error = tr('Волна не запустилась: {0}', ['$e'.replaceFirst('Exception: ', '')]);
     } finally {
       loading = false;
       notifyListeners();

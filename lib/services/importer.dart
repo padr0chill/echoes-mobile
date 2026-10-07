@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../models.dart';
 import 'sc.dart';
+import '../i18n.dart';
 
 /// Плейлист из файла: название и треки.
 typedef ImportedList = (String, List<Track>);
@@ -22,7 +23,7 @@ class Importer {
         return [for (final p in (d['playlists'] as List? ?? []).cast<Map>()) _one(p, fallbackName)];
       }
       if (f == 'echoes-playlist') return [_one(d, fallbackName)];
-      throw const FormatException('это не плейлист ECHOES');
+      throw FormatException(tr('это не плейлист ECHOES'));
     }
     final out = <Track>[];
     int? extDur;
@@ -44,7 +45,7 @@ class Importer {
       final t = _line(line, 0);
       if (t != null) out.add(t);
     }
-    if (out.isEmpty) throw const FormatException('в файле не нашлось ни одного трека');
+    if (out.isEmpty) throw FormatException(tr('в файле не нашлось ни одного трека'));
     return [(fallbackName, out)];
   }
 

@@ -9,6 +9,7 @@ import '../services/text_match.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'import_flow.dart';
+import '../i18n.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -25,52 +26,52 @@ class LibraryScreen extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
-              child: ScreenTitle('Моя музыка'),
+              child: ScreenTitle(tr('Моя музыка')),
             ),
             _Card(
               icon: Icons.favorite_rounded,
-              title: 'Мне нравится',
-              sub: '${st.liked.length} тр.',
-              onTap: () => _open(context, 'Мне нравится', () => st.liked),
+              title: tr('Мне нравится'),
+              sub: tr('{0} тр.', [st.liked.length]),
+              onTap: () => _open(context, tr('Мне нравится'), () => st.liked),
             ),
             ListenableBuilder(
               listenable: Offline.instance,
               builder: (context, _) => _Card(
                 icon: Icons.download_done_rounded,
-                title: 'Скачанное',
+                title: tr('Скачанное'),
                 sub: Offline.instance.count == 0
-                    ? 'Играет без интернета — «Скачать» в меню трека'
-                    : '${Offline.instance.count} тр. · ${fmtBytes(Offline.instance.bytes)}',
-                onTap: () => _open(context, 'Скачанное', () => Offline.instance.tracks, offline: true),
+                    ? tr('Играет без интернета — «Скачать» в меню трека')
+                    : tr('{0} тр. · {1}', [Offline.instance.count, fmtBytes(Offline.instance.bytes)]),
+                onTap: () => _open(context, tr('Скачанное'), () => Offline.instance.tracks, offline: true),
               ),
             ),
             _Card(
               icon: Icons.computer_rounded,
-              title: 'Импорт с ПК',
-              sub: 'Плейлисты из ECHOES на компьютере',
+              title: tr('Импорт с ПК'),
+              sub: tr('Плейлисты из ECHOES на компьютере'),
               onTap: () => importFromPc(context),
             ),
-            SectionTitle('Плейлисты',
+            SectionTitle(tr('Плейлисты'),
                 trailing: IconButton(
                   icon: const Icon(Icons.add_rounded),
                   onPressed: () async {
-                    final n = await askText(context, 'Новый плейлист', 'Название');
+                    final n = await askText(context, tr('Новый плейлист'), tr('Название'));
                     if (n != null) st.createPlaylist(n);
                   },
                 )),
             if (st.playlists.isEmpty)
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-                child: const Text('Плейлистов пока нет — нажмите «+» или «Добавить в плейлист» у трека'),
+                child: Text(tr('Плейлистов пока нет — нажмите «+» или «Добавить в плейлист» у трека')),
               ),
             for (final p in st.playlists)
               _Card(
                 icon: Icons.queue_music_rounded,
                 title: p.name,
-                sub: '${p.tracks.length} тр.',
+                sub: tr('{0} тр.', [p.tracks.length]),
                 onTap: () => _open(context, p.name, () => p.tracks, playlist: p),
               ),
-            if (st.history.isNotEmpty) const SectionTitle('Недавно играли'),
+            if (st.history.isNotEmpty) SectionTitle(tr('Недавно играли')),
             for (var i = 0; i < st.history.length && i < 30; i++)
               TrackTile(track: st.history[i], onTap: () => audio.playList(st.history, i)),
           ],
@@ -153,13 +154,13 @@ class _TrackListScreenState extends State<TrackListScreen> {
   Playlist? get playlist => widget.playlist;
   bool get offline => widget.offline;
 
-  static const _sorts = [
-    ('order', Icons.south_rounded, 'Как добавлены (сверху вниз)'),
-    ('recent', Icons.north_rounded, 'Сначала новые (снизу вверх)'),
-    ('title', Icons.sort_by_alpha_rounded, 'По названию (А → Я)'),
-    ('artist', Icons.person_rounded, 'По исполнителю'),
-    ('duration', Icons.timer_outlined, 'По длительности'),
-  ];
+  static List<(String, IconData, String)> get _sorts => [
+        ('order', Icons.south_rounded, tr('Как добавлены (сверху вниз)')),
+        ('recent', Icons.north_rounded, tr('Сначала новые (снизу вверх)')),
+        ('title', Icons.sort_by_alpha_rounded, tr('По названию (А → Я)')),
+        ('artist', Icons.person_rounded, tr('По исполнителю')),
+        ('duration', Icons.timer_outlined, tr('По длительности')),
+      ];
 
   /// Порядок показа (и игры — играет то, что видно): как добавлены / наоборот / по названию / исполнителю /
   /// длительности. Сравнение названий — без регистра.
@@ -229,14 +230,14 @@ class _TrackListScreenState extends State<TrackListScreen> {
         title: Text(playlist?.name ?? title),
         actions: [
           IconButton(
-            tooltip: 'Порядок',
+            tooltip: tr('Порядок'),
             icon: const Icon(Icons.sort_rounded),
             onPressed: () => _pickSort(context),
           ),
           ListenableBuilder(
             listenable: st,
             builder: (context, _) => IconButton(
-              tooltip: st.playlistGrid ? 'Списком' : 'Сеткой',
+              tooltip: st.playlistGrid ? tr('Списком') : tr('Сеткой'),
               icon: Icon(st.playlistGrid ? Icons.view_list_rounded : Icons.grid_view_rounded),
               onPressed: () => st.setPlaylistView(grid: !st.playlistGrid),
             ),
@@ -245,16 +246,16 @@ class _TrackListScreenState extends State<TrackListScreen> {
             PopupMenuButton<String>(
               onSelected: (v) async {
                 if (v == 'rename') {
-                  final n = await askText(context, 'Переименовать', 'Название', initial: playlist!.name);
+                  final n = await askText(context, tr('Переименовать'), tr('Название'), initial: playlist!.name);
                   if (n != null) st.renamePlaylist(playlist!, n);
                 } else if (v == 'delete') {
                   st.deletePlaylist(playlist!);
                   if (context.mounted) Navigator.pop(context);
                 }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'rename', child: Text('Переименовать')),
-                PopupMenuItem(value: 'delete', child: Text('Удалить плейлист')),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'rename', child: Text(tr('Переименовать'))),
+                PopupMenuItem(value: 'delete', child: Text(tr('Удалить плейлист'))),
               ],
             ),
         ],
@@ -264,7 +265,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
         builder: (context, _) {
           final list = _sorted(tracks(), st.playlistSort);
           if (list.isEmpty) {
-            return const Center(child: Text('Пока пусто'));
+            return Center(child: Text(tr('Пока пусто')));
           }
           final words = _norm(_query).split(' ').where((w) => w.isNotEmpty).toList();
           // индексы найденных треков в полном списке (играем весь плейлист — с выбранного трека)
@@ -281,8 +282,8 @@ class _TrackListScreenState extends State<TrackListScreen> {
                   child: FilledButton.icon(
                     onPressed: () => audio.playList(list, 0),
                     icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
-                    label: const FittedBox(
-                        fit: BoxFit.scaleDown, child: Text('Слушать', style: TextStyle(color: Colors.black))),
+                    label: FittedBox(
+                        fit: BoxFit.scaleDown, child: Text(tr('Слушать'), style: TextStyle(color: Colors.black))),
                   ),
                 ),
                 SizedBox(width: context.u(8)),
@@ -293,7 +294,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
                       audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
                     },
                     icon: const Icon(Icons.shuffle_rounded),
-                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Вперемешку')),
+                    label: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Вперемешку'))),
                   ),
                 ),
                 if (!offline) _DownloadAll(list: list),
@@ -306,7 +307,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
                 onChanged: (v) => setState(() => _query = v),
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: 'Поиск в плейлисте',
+                  hintText: tr('Поиск в плейлисте'),
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: _query.isEmpty
                       ? null
@@ -328,7 +329,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
             if (words.isNotEmpty && shown.isEmpty)
               Padding(
                 padding: EdgeInsets.all(context.u(24)),
-                child: const Text('В этом плейлисте такого нет', textAlign: TextAlign.center),
+                child: Text(tr('В этом плейлисте такого нет'), textAlign: TextAlign.center),
               ),
           ];
           // список строится по мере прокрутки — быстро даже на 500+ треках
@@ -391,7 +392,7 @@ class _DownloadAll extends StatelessWidget {
     final busy = list.where(o.busy).length;
     if (done == list.length) {
       return IconButton(
-        tooltip: 'Скачано — удалить загрузки списка',
+        tooltip: tr('Скачано — удалить загрузки списка'),
         icon: Icon(Icons.download_done_rounded, color: context.accent),
         onPressed: () => list.forEach(o.remove),
       );
@@ -403,12 +404,12 @@ class _DownloadAll extends StatelessWidget {
       );
     }
     return IconButton(
-      tooltip: 'Скачать всё в приложение',
+      tooltip: tr('Скачать всё в приложение'),
       icon: const Icon(Icons.download_rounded),
       onPressed: () {
         o.downloadAll(list);
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Скачиваю ${list.length - done} тр. — потом будут играть без интернета')));
+            SnackBar(content: Text(tr('Скачиваю {0} тр. — потом будут играть без интернета', [list.length - done]))));
       },
     );
   }

@@ -11,6 +11,7 @@ import '../services/offline.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import '../i18n.dart';
 
 /// Настройки — по минимуму: цвет акцента, светлая тема, экономия трафика.
 class SettingsScreen extends StatelessWidget {
@@ -28,15 +29,29 @@ class SettingsScreen extends StatelessWidget {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
-              child: ScreenTitle('Настройки'),
+              child: ScreenTitle(tr('Настройки')),
             ),
-            const SectionTitle('Оформление'),
+            SectionTitle(tr('Язык')),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: context.u(16)),
               child: SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'glass', icon: Icon(Icons.blur_on_rounded), label: Text('Обычная')),
-                  ButtonSegment(value: 'winamp', icon: Icon(Icons.graphic_eq_rounded), label: Text('Эховамп')),
+                segments: [
+                  ButtonSegment(value: 'auto', label: Text(tr('Авто'))),
+                  const ButtonSegment(value: 'ru', label: Text('Русский')),
+                  const ButtonSegment(value: 'en', label: Text('English')),
+                ],
+                selected: {st.lang},
+                onSelectionChanged: (s) => st.setLang(s.first),
+                showSelectedIcon: false,
+              ),
+            ),
+            SectionTitle(tr('Оформление')),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+              child: SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(value: 'glass', icon: Icon(Icons.blur_on_rounded), label: Text(tr('Обычная'))),
+                  ButtonSegment(value: 'winamp', icon: Icon(Icons.graphic_eq_rounded), label: Text(tr('Эховамп'))),
                 ],
                 selected: {st.skin},
                 onSelectionChanged: (s) => st.setSkin(s.first),
@@ -47,40 +62,40 @@ class SettingsScreen extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(16), 0),
                 child: Text(
-                    'Эховамп — весь интерфейс как Winamp 2 на ПК: ЖК-дисплей, спектр, MilkDrop, плейлисты. Без размытий — самая лёгкая тема.',
+                    tr('Эховамп — весь интерфейс как Winamp 2 на ПК: ЖК-дисплей, спектр, MilkDrop, плейлисты. Без размытий — самая лёгкая тема.'),
                     style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
               ),
             if (!st.winamp) ...[
               SwitchListTile(
                 secondary: const Icon(Icons.album_rounded),
-                title: const Text('Винил вместо обложки'),
-                subtitle: const Text('В плеере крутится пластинка, под ней — строка текста песни'),
+                title: Text(tr('Винил вместо обложки')),
+                subtitle: Text(tr('В плеере крутится пластинка, под ней — строка текста песни')),
                 value: st.vinyl,
                 onChanged: st.setVinyl,
               ),
               ListTile(
                 leading: const Icon(Icons.wallpaper_rounded),
-                title: const Text('Своё фото на фон'),
-                subtitle: Text(st.bgPath == null ? 'Сейчас — размытая обложка трека' : 'Выбрано своё фото'),
+                title: Text(tr('Своё фото на фон')),
+                subtitle: Text(st.bgPath == null ? tr('Сейчас — размытая обложка трека') : tr('Выбрано своё фото')),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   if (st.bgPath != null)
                     IconButton(
-                      tooltip: 'Убрать фото',
+                      tooltip: tr('Убрать фото'),
                       icon: const Icon(Icons.close_rounded),
                       onPressed: () => _clearBackground(st),
                     ),
-                  FilledButton.tonal(onPressed: () => _pickBackground(context), child: const Text('Выбрать')),
+                  FilledButton.tonal(onPressed: () => _pickBackground(context), child: Text(tr('Выбрать'))),
                 ]),
               ),
               if (st.bgPath != null)
                 SwitchListTile(
                   secondary: const Icon(Icons.blur_linear_rounded),
-                  title: const Text('Размыть фото'),
+                  title: Text(tr('Размыть фото')),
                   value: st.bgBlur,
                   onChanged: st.setBgBlur,
                 ),
             ],
-            const SectionTitle('Цвет'),
+            SectionTitle(tr('Цвет')),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: context.u(16)),
               child: Wrap(spacing: context.u(12), runSpacing: context.u(12), children: [
@@ -105,33 +120,33 @@ class SettingsScreen extends StatelessWidget {
             ),
             SizedBox(height: context.u(8)),
             SwitchListTile(
-              title: const Text('Светлая тема'),
+              title: Text(tr('Светлая тема')),
               value: st.light,
               onChanged: st.setLight,
             ),
-            const SectionTitle('Звук'),
+            SectionTitle(tr('Звук')),
             ListTile(
               leading: const Icon(Icons.equalizer_rounded),
-              title: const Text('Эквалайзер'),
-              subtitle: Text(st.eqEnabled ? 'Вкл · ${st.eqPreset}' : 'Выключен'),
+              title: Text(tr('Эквалайзер')),
+              subtitle: Text(st.eqEnabled ? tr('Вкл · {0}', [tr(st.eqPreset)]) : tr('Выключен')),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => openEqualizer(context),
             ),
             SwitchListTile(
-              title: const Text('Экономия трафика'),
-              subtitle: const Text('Лёгкий аудиопоток, если YouTube его отдаёт'),
+              title: Text(tr('Экономия трафика')),
+              subtitle: Text(tr('Лёгкий аудиопоток, если YouTube его отдаёт')),
               value: st.economy,
               onChanged: st.setEconomy,
             ),
-            const SectionTitle('Загрузки'),
+            SectionTitle(tr('Загрузки')),
             ListenableBuilder(
               listenable: Offline.instance,
               builder: (context, _) {
                 final o = Offline.instance;
                 return ListTile(
                   leading: const Icon(Icons.download_done_rounded),
-                  title: Text('Скачано: ${o.count} тр. · ${fmtBytes(o.bytes)}'),
-                  subtitle: const Text('Хранятся внутри приложения и играют без интернета'),
+                  title: Text(tr('Скачано: {0} тр. · {1}', [o.count, fmtBytes(o.bytes)])),
+                  subtitle: Text(tr('Хранятся внутри приложения и играют без интернета')),
                   trailing: o.count == 0
                       ? null
                       : TextButton(
@@ -139,27 +154,28 @@ class SettingsScreen extends StatelessWidget {
                             final ok = await showDialog<bool>(
                               context: context,
                               builder: (ctx) => AlertDialog(
-                                title: const Text('Очистить загрузки?'),
-                                content: Text('Удалить ${o.count} тр. (${fmtBytes(o.bytes)}) из памяти телефона? '
-                                    'Плейлисты и лайки останутся.'),
+                                title: Text(tr('Очистить загрузки?')),
+                                content: Text(tr(
+                                    'Удалить {0} тр. ({1}) из памяти телефона? Плейлисты и лайки останутся.',
+                                    [o.count, fmtBytes(o.bytes)])),
                                 actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
-                                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Отмена'))),
+                                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Удалить'))),
                                 ],
                               ),
                             );
                             if (ok == true) await o.clear();
                           },
-                          child: const Text('Очистить'),
+                          child: Text(tr('Очистить')),
                         ),
                 );
               },
             ),
-            const SectionTitle('О приложении'),
-            const ListTile(
-              title: Text('ECHOES mobile — тестовая версия'),
-              subtitle: Text('Музыка играет потоком и не сохраняется на телефон. '
-                  'В памяти хранятся только списки: «Мне нравится», плейлисты и история.'),
+            SectionTitle(tr('О приложении')),
+            ListTile(
+              title: Text(tr('ECHOES mobile — тестовая версия')),
+              subtitle: Text(tr(
+                  'Музыка играет потоком и не сохраняется на телефон. В памяти хранятся только списки: «Мне нравится», плейлисты и история.')),
             ),
           ],
         ),
@@ -177,14 +193,14 @@ Future<void> _pickBackground(BuildContext context) async {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         ListTile(
           leading: const Icon(Icons.photo_library_rounded),
-          title: const Text('Из галереи'),
-          subtitle: const Text('Фото и картинки с телефона'),
+          title: Text(tr('Из галереи')),
+          subtitle: Text(tr('Фото и картинки с телефона')),
           onTap: () => Navigator.pop(ctx, true),
         ),
         ListTile(
           leading: const Icon(Icons.folder_rounded),
-          title: const Text('Из «Файлов»'),
-          subtitle: const Text('iCloud Drive, загрузки, Telegram'),
+          title: Text(tr('Из «Файлов»')),
+          subtitle: Text(tr('iCloud Drive, загрузки, Telegram')),
           onTap: () => Navigator.pop(ctx, false),
         ),
       ]),
@@ -196,7 +212,7 @@ Future<void> _pickBackground(BuildContext context) async {
     f = fromGallery ? await _fromGallery() : await _fromFiles();
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть фото: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось открыть фото: {0}', [e]))));
     }
     return;
   }
@@ -214,9 +230,9 @@ Future<XFile?> _fromGallery() => ImagePicker().pickImage(
       requestFullMetadata: false,
     );
 
-Future<XFile?> _fromFiles() => openFile(acceptedTypeGroups: const [
+Future<XFile?> _fromFiles() => openFile(acceptedTypeGroups: [
       XTypeGroup(
-        label: 'Фото',
+        label: tr('Фото'),
         extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
         uniformTypeIdentifiers: ['public.image'],
       ),

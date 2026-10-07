@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models.dart';
 import 'sc.dart';
 import 'yt.dart';
+import '../i18n.dart';
 
 /// Загрузки «для офлайна» — как в Spotify / Яндекс Музыке: звук сохраняется во внутреннее хранилище
 /// приложения (Application Support/offline), а не в «Файлы» и не в медиатеку. Снаружи этих файлов не видно,
@@ -180,7 +181,7 @@ class Offline extends ChangeNotifier {
     try {
       final same = await ScService.instance.match(t.artist, t.title, t.seconds);
       if (same != null) return await _sc(same, t, tmp);
-      errs.add('SoundCloud: такой песни нет');
+      errs.add(tr('SoundCloud: такой песни нет'));
     } catch (e) {
       errs.add('SoundCloud: $e');
     }
@@ -250,7 +251,7 @@ class Offline extends ChangeNotifier {
         segs.add(u.resolve(l.trim()));
       }
     }
-    if (segs.isEmpty) throw Exception('SoundCloud: пустой HLS');
+    if (segs.isEmpty) throw Exception(tr('SoundCloud: пустой HLS'));
     final sink = tmp.openWrite();
     try {
       for (var i = 0; i < segs.length; i++) {
@@ -300,7 +301,7 @@ extension PlaybackCache on Offline {
 }
 
 String fmtBytes(int b) {
-  if (b >= 1 << 30) return '${(b / (1 << 30)).toStringAsFixed(1)} ГБ';
-  if (b >= 1 << 20) return '${(b / (1 << 20)).toStringAsFixed(b >= 100 << 20 ? 0 : 1)} МБ';
-  return '${(b / 1024).ceil()} КБ';
+  if (b >= 1 << 30) return tr('{0} ГБ', [(b / (1 << 30)).toStringAsFixed(1)]);
+  if (b >= 1 << 20) return tr('{0} МБ', [(b / (1 << 20)).toStringAsFixed(b >= 100 << 20 ? 0 : 1)]);
+  return tr('{0} КБ', [(b / 1024).ceil()]);
 }

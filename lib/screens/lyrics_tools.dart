@@ -8,6 +8,7 @@ import '../models.dart';
 import '../services/audio.dart';
 import '../services/lyrics.dart';
 import '../ui.dart';
+import '../i18n.dart';
 
 /// «Найти другой текст»: свой запрос и список найденных вариантов (синхронные помечены).
 /// Выбранный — сохраняется для трека. → выбранный текст или null.
@@ -25,7 +26,7 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: EdgeInsets.fromLTRB(ctx.u(16), ctx.u(16), ctx.u(16), ctx.u(8)),
-            child: const Text('Найти текст', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+            child: Text(tr('Найти текст'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
           ),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: ctx.u(16)),
@@ -34,7 +35,7 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
               textInputAction: TextInputAction.search,
               onSubmitted: (q) => setS(() => future = run(q)),
               decoration: InputDecoration(
-                hintText: 'Исполнитель и название',
+                hintText: tr('Исполнитель и название'),
                 prefixIcon: const Icon(Icons.search_rounded),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.arrow_forward_rounded),
@@ -57,7 +58,7 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
                   return Center(
                     child: Padding(
                       padding: EdgeInsets.all(ctx.u(24)),
-                      child: Text('Ничего не нашлось — попробуйте другой запрос или «Свой текст»',
+                      child: Text(tr('Ничего не нашлось — попробуйте другой запрос или «Свой текст»'),
                           textAlign: TextAlign.center, style: TextStyle(color: dim)),
                     ),
                   );
@@ -86,7 +87,7 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
                           color: c.hasSynced ? ctx.accent.withValues(alpha: 0.2) : Colors.white10,
                           borderRadius: BorderRadius.circular(ctx.r(99)),
                         ),
-                        child: Text(c.hasSynced ? 'синхр.' : 'текст',
+                        child: Text(c.hasSynced ? tr('синхр.') : tr('текст'),
                             style: TextStyle(fontSize: 12, color: c.hasSynced ? ctx.accent : dim)),
                       ),
                       onTap: ly == null
@@ -116,19 +117,19 @@ Future<Lyrics?> ownLyrics(BuildContext context, Track t) async {
   final txt = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Свой текст'),
+      title: Text(tr('Свой текст')),
       content: SizedBox(
         width: 420,
         child: TextField(
           controller: ctl,
           maxLines: 12,
           minLines: 6,
-          decoration: const InputDecoration(hintText: 'Вставьте текст песни — по строке на строку'),
+          decoration: InputDecoration(hintText: tr('Вставьте текст песни — по строке на строку')),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, ctl.text), child: const Text('Сохранить')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Отмена'))),
+        FilledButton(onPressed: () => Navigator.pop(ctx, ctl.text), child: Text(tr('Сохранить'))),
       ],
     ),
   );
@@ -213,13 +214,13 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
-        title: const Text('Синхронизация текста'),
-        actions: [TextButton(onPressed: _finish, child: const Text('Готово'))],
+        title: Text(tr('Синхронизация текста')),
+        actions: [TextButton(onPressed: _finish, child: Text(tr('Готово')))],
       ),
       body: Column(children: [
         Padding(
           padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-          child: Text('Нажимайте «Строка», когда начинается выделенная строка',
+          child: Text(tr('Нажимайте «Строка», когда начинается выделенная строка'),
               textAlign: TextAlign.center, style: TextStyle(color: dim)),
         ),
         StreamBuilder<Duration>(
@@ -264,7 +265,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
             padding: EdgeInsets.all(context.u(16)),
             child: Row(children: [
               IconButton.filledTonal(
-                  tooltip: 'Отменить последнюю', onPressed: _undo, icon: const Icon(Icons.undo_rounded)),
+                  tooltip: tr('Отменить последнюю'), onPressed: _undo, icon: const Icon(Icons.undo_rounded)),
               SizedBox(width: context.u(10)),
               Expanded(
                 child: SizedBox(
@@ -274,14 +275,14 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
                     onPressed: _cur < _lines.length ? _mark : _finish,
                     icon:
                         Icon(_cur < _lines.length ? Icons.touch_app_rounded : Icons.check_rounded, color: Colors.black),
-                    label: Text(_cur < _lines.length ? 'Строка ${_cur + 1}/${_lines.length}' : 'Готово',
+                    label: Text(_cur < _lines.length ? tr('Строка {0}/{1}', [_cur + 1, _lines.length]) : tr('Готово'),
                         style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w800)),
                   ),
                 ),
               ),
               SizedBox(width: context.u(10)),
               IconButton.filledTonal(
-                tooltip: 'Остальное — автоматически',
+                tooltip: tr('Остальное — автоматически'),
                 onPressed: () => _finish(autoRest: true),
                 icon: const Icon(Icons.auto_fix_high_rounded),
               ),

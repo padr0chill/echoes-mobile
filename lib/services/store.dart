@@ -5,6 +5,7 @@ import 'package:echoes_eq/echoes_eq.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
+import '../i18n.dart';
 
 /// Всё, что приложение помнит: «Мне нравится», плейлисты, история, настройки.
 /// Хранятся только названия и id треков (несколько килобайт), звук — никогда.
@@ -32,6 +33,7 @@ class Store extends ChangeNotifier {
 
   // оформление
   String skin = 'glass'; // 'glass' — обычная (жидкое стекло), 'winamp' — как Winamp 2 на ПК
+  String lang = 'auto'; // язык интерфейса: 'auto' (как на iPhone), 'ru', 'en'
   bool vinyl = false; // в плеере вместо обложки — крутящийся винил с текстом песни под ним
   String? bgPath; // своё фото на фон (обычная тема)
   bool bgBlur = true;
@@ -83,6 +85,7 @@ class Store extends ChangeNotifier {
     economy = _p.getBool('economy') ?? false;
     light = _p.getBool('light') ?? false;
     skin = _p.getString('skin') ?? 'glass';
+    lang = appLangSetting = _p.getString('lang') ?? appLangSetting;
     vinyl = _p.getBool('vinyl') ?? false;
     bgPath = _p.getString('bg');
     bgBlur = _p.getBool('bg_blur') ?? true;
@@ -116,6 +119,7 @@ class Store extends ChangeNotifier {
     _p.setBool('economy', economy);
     _p.setBool('light', light);
     _p.setString('skin', skin);
+    _p.setString('lang', lang);
     _p.setBool('vinyl', vinyl);
     if (bgPath == null) {
       _p.remove('bg');
@@ -200,7 +204,7 @@ class Store extends ChangeNotifier {
   }
 
   Playlist createPlaylist(String name) {
-    final p = Playlist(name.trim().isEmpty ? 'Новый плейлист' : name.trim());
+    final p = Playlist(name.trim().isEmpty ? tr('Новый плейлист') : name.trim());
     playlists.insert(0, p);
     _save();
     return p;
@@ -244,7 +248,7 @@ class Store extends ChangeNotifier {
       }
       var p = playlists.where((p) => p.name == name).firstOrNull;
       if (p == null) {
-        p = Playlist(name.trim().isEmpty ? 'С компьютера' : name.trim());
+        p = Playlist(name.trim().isEmpty ? tr('С компьютера') : name.trim());
         playlists.add(p);
       }
       final have = p.tracks.toSet();
@@ -290,6 +294,11 @@ class Store extends ChangeNotifier {
 
   void setMilkdropText(bool v) {
     milkdropText = v;
+    _save();
+  }
+
+  void setLang(String v) {
+    lang = appLangSetting = v;
     _save();
   }
 

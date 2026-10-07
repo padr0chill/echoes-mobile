@@ -16,6 +16,7 @@ import 'equalizer_screen.dart';
 import 'lyrics_tools.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
+import '../i18n.dart';
 
 /// Полный плеер: размытая обложка фоном, обложка, название, перемотка, кнопки; текст песни и очередь.
 /// На широком экране (iPad, поворот) — обложка слева, управление справа.
@@ -130,20 +131,20 @@ class _Header extends StatelessWidget {
         ),
         const Spacer(),
         IconButton(
-          tooltip: 'Текст песни',
+          tooltip: tr('Текст песни'),
           icon: Icon(Icons.lyrics_rounded, color: lyrics ? context.accent : Colors.white),
           onPressed: onLyrics,
         ),
         ListenableBuilder(
           listenable: Store.instance,
           builder: (context, _) => IconButton(
-            tooltip: 'Эквалайзер',
+            tooltip: tr('Эквалайзер'),
             icon: Icon(Icons.equalizer_rounded, color: Store.instance.eqEnabled ? context.accent : Colors.white),
             onPressed: () => openEqualizer(context),
           ),
         ),
         IconButton(
-          tooltip: 'Очередь',
+          tooltip: tr('Очередь'),
           icon: const Icon(Icons.queue_music_rounded, color: Colors.white),
           onPressed: () => _showQueue(context),
         ),
@@ -335,20 +336,20 @@ class _LyricsViewState extends State<_LyricsView> {
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(
             leading: const Icon(Icons.touch_app_rounded),
-            title: const Text('Вручную — нажимать на каждую строку'),
-            subtitle: const Text('Точно: песня играет с начала, вы отмечаете строки'),
+            title: Text(tr('Вручную — нажимать на каждую строку')),
+            subtitle: Text(tr('Точно: песня играет с начала, вы отмечаете строки')),
             onTap: () => Navigator.pop(ctx, 'tap'),
           ),
           ListTile(
             leading: const Icon(Icons.auto_fix_high_rounded),
-            title: const Text('Автоматически (примерно)'),
-            subtitle: const Text('По длине строк; потом можно подправить сдвигом'),
+            title: Text(tr('Автоматически (примерно)')),
+            subtitle: Text(tr('По длине строк; потом можно подправить сдвигом')),
             onTap: () => Navigator.pop(ctx, 'auto'),
           ),
           if (ly.source != 'lrclib' && ly.source != 'lyrics.ovh')
             ListTile(
               leading: const Icon(Icons.restart_alt_rounded),
-              title: const Text('Сбросить — искать заново'),
+              title: Text(tr('Сбросить — искать заново')),
               onTap: () => Navigator.pop(ctx, 'reset'),
             ),
         ]),
@@ -383,19 +384,21 @@ class _LyricsViewState extends State<_LyricsView> {
       child: Row(children: [
         Expanded(
           child: Text(
-            ly.approx ? 'тайминги примерные — подправьте' : (ly.synced ? ly.source : '${ly.source} · без таймингов'),
+            ly.approx
+                ? tr('тайминги примерные — подправьте')
+                : (ly.synced ? tr(ly.source) : tr('{0} · без таймингов', [tr(ly.source)])),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(color: ly.approx ? context.accent : dim, fontSize: 12),
           ),
         ),
         if (ly.synced) ...[
-          btn(Icons.fast_rewind_rounded, 'Текст раньше на 0,5 с', () => _shift(ly, -500)),
-          btn(Icons.fast_forward_rounded, 'Текст позже на 0,5 с', () => _shift(ly, 500)),
+          btn(Icons.fast_rewind_rounded, tr('Текст раньше на 0,5 с'), () => _shift(ly, -500)),
+          btn(Icons.fast_forward_rounded, tr('Текст позже на 0,5 с'), () => _shift(ly, 500)),
         ],
-        btn(Icons.sync_rounded, 'Синхронизировать', () => _sync(ly)),
-        btn(Icons.search_rounded, 'Найти другой текст', _search),
-        btn(Icons.edit_note_rounded, 'Свой текст', _own),
+        btn(Icons.sync_rounded, tr('Синхронизировать'), () => _sync(ly)),
+        btn(Icons.search_rounded, tr('Найти другой текст'), _search),
+        btn(Icons.edit_note_rounded, tr('Свой текст'), _own),
       ]),
     );
   }
@@ -424,18 +427,18 @@ class _LyricsViewState extends State<_LyricsView> {
             child: Padding(
               padding: EdgeInsets.all(context.u(24)),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('Текст не найден автоматически', style: TextStyle(color: Colors.white70)),
+                Text(tr('Текст не найден автоматически'), style: TextStyle(color: Colors.white70)),
                 SizedBox(height: context.u(14)),
                 Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
                   FilledButton.icon(
                     onPressed: () => _search(),
                     icon: const Icon(Icons.search_rounded, color: Colors.black),
-                    label: const Text('Найти вручную', style: TextStyle(color: Colors.black)),
+                    label: Text(tr('Найти вручную'), style: TextStyle(color: Colors.black)),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _own(),
                     icon: const Icon(Icons.edit_note_rounded),
-                    label: const Text('Свой текст'),
+                    label: Text(tr('Свой текст')),
                   ),
                 ]),
               ]),
@@ -561,14 +564,14 @@ class _QueueList extends StatelessWidget {
             ),
           ),
           if (cur >= 0 && cur < list.length) ...[
-            SliverToBoxAdapter(child: label('Сейчас играет')),
+            SliverToBoxAdapter(child: label(tr('Сейчас играет'))),
             SliverToBoxAdapter(child: _QueueRow(track: list[cur], playing: true)),
           ],
           if (count == 0)
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.all(context.u(24)),
-                child: Text('Дальше ничего нет — добавьте треки свайпом вправо', style: TextStyle(color: dim)),
+                child: Text(tr('Дальше ничего нет — добавьте треки свайпом вправо'), style: TextStyle(color: dim)),
               ),
             ),
           if (count > 0)
@@ -587,8 +590,8 @@ class _QueueList extends StatelessWidget {
                   key: ValueKey('q${list[j].id}'),
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (i == 0 && up > 0) label('Далее в очереди'),
-                    if (i == up) label(audio.shuffle.value ? 'Далее (вперемешку)' : 'Далее'),
+                    if (i == 0 && up > 0) label(tr('Далее в очереди')),
+                    if (i == up) label(audio.shuffle.value ? tr('Далее (вперемешку)') : tr('Далее')),
                     _QueueRow(
                       track: list[j],
                       queued: i < up,
@@ -650,7 +653,7 @@ class _QueueRow extends StatelessWidget {
               if (queued) Icon(Icons.playlist_add_check_rounded, size: context.u(18), color: context.accent),
               if (onRemove != null)
                 IconButton(
-                  tooltip: 'Убрать из очереди',
+                  tooltip: tr('Убрать из очереди'),
                   icon: Icon(Icons.close_rounded, color: dim, size: context.u(20)),
                   onPressed: onRemove,
                 ),

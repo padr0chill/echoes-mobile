@@ -10,6 +10,7 @@ import '../services/store.dart';
 import '../ui.dart';
 import '../screens/equalizer_screen.dart';
 import 'milkdrop.dart';
+import '../i18n.dart';
 
 /// Тема «Эховамп» (ECHOAMP) — как Winamp 2.x на ПК (MilkDrop — лёгкий, на видеокарте): плоские панели с фаской, чёрный ЖК
 /// с зелёными цифрами, анализатор спектра, бегущая строка, серые кнопки, плейлист.
@@ -474,14 +475,14 @@ class _Buttons extends StatelessWidget {
         );
     return Column(children: [
       Row(children: [
-        b(Icons.skip_previous_rounded, audio.skipToPrevious, tip: 'Назад'),
-        b(Icons.play_arrow_rounded, audio.play, tip: 'Играть'),
-        b(Icons.pause_rounded, audio.pause, tip: 'Пауза'),
+        b(Icons.skip_previous_rounded, audio.skipToPrevious, tip: tr('Назад')),
+        b(Icons.play_arrow_rounded, audio.play, tip: tr('Играть')),
+        b(Icons.pause_rounded, audio.pause, tip: tr('Пауза')),
         b(Icons.stop_rounded, () {
           audio.pause();
           audio.seek(Duration.zero);
-        }, tip: 'Стоп'),
-        b(Icons.skip_next_rounded, audio.skipToNext, tip: 'Дальше'),
+        }, tip: tr('Стоп')),
+        b(Icons.skip_next_rounded, audio.skipToNext, tip: tr('Дальше')),
       ]),
       SizedBox(height: context.u(6)),
       Row(children: [
@@ -559,7 +560,7 @@ class _Playlist extends StatelessWidget {
               builder: (context, _) {
                 final l = audio.tracks.value, cur = audio.index.value;
                 if (l.isEmpty) {
-                  return Center(child: Text('Плейлист пуст', style: Wa.mono.copyWith(color: Wa.green)));
+                  return Center(child: Text(tr('Плейлист пуст'), style: Wa.mono.copyWith(color: Wa.green)));
                 }
                 return ListView.builder(
                   itemCount: l.length,

@@ -12,6 +12,7 @@ import 'services/square_cover.dart';
 import 'services/store.dart';
 import 'skins/winamp.dart';
 import 'ui.dart';
+import 'i18n.dart';
 
 /// Обложка: миниатюра YouTube, обрезанная в квадрат (без чёрных полос 16:9). Только кэш в памяти.
 class Cover extends StatelessWidget {
@@ -106,7 +107,7 @@ class TrackTile extends StatelessWidget {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(SnackBar(
-              content: Text('«${track.title}» — в очереди'),
+              content: Text(tr('«{0}» — в очереди', [track.title])),
               duration: const Duration(seconds: 2),
             ));
         },
@@ -240,7 +241,7 @@ class _SwipeActionsState extends State<SwipeActions> with SingleTickerProviderSt
                   scale: 0.7 + 0.3 * p + (_dx.abs() >= _threshold ? 0.12 : 0),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     if (!right && p > 0.6)
-                      Text('В плейлист',
+                      Text(tr('В плейлист'),
                           style: TextStyle(color: Colors.black.withValues(alpha: p), fontWeight: FontWeight.w800)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: context.u(6)),
@@ -248,7 +249,7 @@ class _SwipeActionsState extends State<SwipeActions> with SingleTickerProviderSt
                           color: Colors.black.withValues(alpha: 0.5 + 0.5 * p)),
                     ),
                     if (right && p > 0.6)
-                      Text('В очередь',
+                      Text(tr('В очередь'),
                           style: TextStyle(color: Colors.black.withValues(alpha: p), fontWeight: FontWeight.w800)),
                   ]),
                 ),
@@ -320,7 +321,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
         if (t.artist.isNotEmpty)
           ListTile(
             leading: const Icon(Icons.person_rounded),
-            title: Text('Перейти к исполнителю: ${t.artist}', maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(tr('Перейти к исполнителю: {0}', [t.artist]), maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () {
               Navigator.pop(ctx);
               openArtist(context, t);
@@ -328,7 +329,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
           ),
         ListTile(
           leading: Icon(st.isLiked(t) ? Icons.favorite_rounded : Icons.favorite_border_rounded),
-          title: Text(st.isLiked(t) ? 'Убрать из «Мне нравится»' : 'Мне нравится'),
+          title: Text(st.isLiked(t) ? tr('Убрать из «Мне нравится»') : tr('Мне нравится')),
           onTap: () {
             st.toggleLike(t);
             Navigator.pop(ctx);
@@ -337,7 +338,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
         if (Offline.instance.has(t))
           ListTile(
             leading: const Icon(Icons.delete_outline_rounded),
-            title: const Text('Удалить из загрузок'),
+            title: Text(tr('Удалить из загрузок')),
             onTap: () {
               Offline.instance.remove(t);
               Navigator.pop(ctx);
@@ -346,8 +347,8 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
         else
           ListTile(
             leading: const Icon(Icons.download_rounded),
-            title: Text(Offline.instance.busy(t) ? 'Скачивается…' : 'Скачать в приложение'),
-            subtitle: const Text('Будет играть без интернета'),
+            title: Text(Offline.instance.busy(t) ? tr('Скачивается…') : tr('Скачать в приложение')),
+            subtitle: Text(tr('Будет играть без интернета')),
             onTap: () {
               Offline.instance.download(t);
               Navigator.pop(ctx);
@@ -355,7 +356,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
           ),
         ListTile(
           leading: const Icon(Icons.playlist_play_rounded),
-          title: const Text('Играть следующим'),
+          title: Text(tr('Играть следующим')),
           onTap: () {
             audio.playNext(t);
             Navigator.pop(ctx);
@@ -363,7 +364,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
         ),
         ListTile(
           leading: const Icon(Icons.queue_music_rounded),
-          title: const Text('В конец очереди'),
+          title: Text(tr('В конец очереди')),
           onTap: () {
             audio.addToQueue(t);
             Navigator.pop(ctx);
@@ -371,7 +372,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
         ),
         ListTile(
           leading: const Icon(Icons.playlist_add_rounded),
-          title: const Text('Добавить в плейлист'),
+          title: Text(tr('Добавить в плейлист')),
           onTap: () {
             Navigator.pop(ctx);
             pickPlaylist(context, t);
@@ -380,7 +381,7 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
         if (playlist != null)
           ListTile(
             leading: const Icon(Icons.remove_circle_outline_rounded),
-            title: Text('Убрать из «${playlist.name}»'),
+            title: Text(tr('Убрать из «{0}»', [playlist.name])),
             onTap: () {
               st.removeFromPlaylist(playlist, t);
               Navigator.pop(ctx);
@@ -399,10 +400,10 @@ Future<void> pickPlaylist(BuildContext context, Track t) async {
       child: ListView(shrinkWrap: true, children: [
         ListTile(
           leading: const Icon(Icons.add_rounded),
-          title: const Text('Новый плейлист'),
+          title: Text(tr('Новый плейлист')),
           onTap: () async {
             Navigator.pop(ctx);
-            final name = await askText(context, 'Новый плейлист', 'Название');
+            final name = await askText(context, tr('Новый плейлист'), tr('Название'));
             if (name != null) st.addToPlaylist(st.createPlaylist(name), t);
           },
         ),
@@ -410,11 +411,11 @@ Future<void> pickPlaylist(BuildContext context, Track t) async {
           ListTile(
             leading: const Icon(Icons.queue_music_rounded),
             title: Text(p.name),
-            subtitle: Text('${p.tracks.length} тр.'),
+            subtitle: Text(tr('{0} тр.', [p.tracks.length])),
             onTap: () {
               st.addToPlaylist(p, t);
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Добавлено в «${p.name}»')));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Добавлено в «{0}»', [p.name]))));
             },
           ),
       ]),
@@ -430,8 +431,8 @@ Future<String?> askText(BuildContext context, String title, String hint, {String
       title: Text(title),
       content: TextField(controller: c, autofocus: true, decoration: InputDecoration(hintText: hint)),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Готово')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Отмена'))),
+        FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: Text(tr('Готово'))),
       ],
     ),
   );

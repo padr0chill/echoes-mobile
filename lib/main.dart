@@ -22,6 +22,7 @@ import 'skins/milkdrop.dart';
 import 'skins/winamp.dart';
 import 'ui.dart';
 import 'widgets.dart';
+import 'i18n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,7 +76,8 @@ class EchoesApp extends StatelessWidget {
               ),
             );
           },
-          home: const Shell(),
+          // смена языка — пересобрать весь интерфейс (строки берутся при построении)
+          home: Shell(key: ValueKey(st.lang)),
         );
       },
     );
@@ -91,7 +93,8 @@ class Shell extends StatefulWidget {
 }
 
 class _ShellState extends State<Shell> {
-  int _tab = 0;
+  static int _keepTab = 0; // вкладка переживает пересборку при смене языка
+  int _tab = _keepTab;
   static const _pages = [WaveScreen(), SearchScreen(), ForYouScreen(), LibraryScreen(), ProfileScreen()];
 
   /// У каждой вкладки свой стек экранов (как в Spotify / Apple Music): плейлист, исполнитель, альбом
@@ -158,6 +161,7 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
+    _keepTab = _tab;
     // скрытые вкладки не анимируются (волна не крутит шейдер, пока вы в поиске)
     final body = PopScope(
       // «назад» (Android, жест) — сначала закрываем экраны внутри вкладки
@@ -176,12 +180,12 @@ class _ShellState extends State<Shell> {
       ]),
     );
     final mini = MiniPlayer(onOpen: _openPlayer);
-    const items = [
-      (Icons.waves_rounded, 'Волна'),
-      (Icons.search_rounded, 'Поиск'),
-      (Icons.auto_awesome_rounded, 'Для вас'),
-      (Icons.library_music_rounded, 'Моя музыка'),
-      (Icons.person_rounded, 'Профиль'),
+    final items = [
+      (Icons.waves_rounded, tr('Волна')),
+      (Icons.search_rounded, tr('Поиск')),
+      (Icons.auto_awesome_rounded, tr('Для вас')),
+      (Icons.library_music_rounded, tr('Моя музыка')),
+      (Icons.person_rounded, tr('Профиль')),
     ];
     if (context.wide) {
       // невысокий экран (телефон боком) — только значки, без подписей и логотипа

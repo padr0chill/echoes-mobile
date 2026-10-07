@@ -12,6 +12,7 @@ import '../ui.dart';
 import '../widgets.dart';
 import 'album_screen.dart';
 import 'artist_screen.dart';
+import '../i18n.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -59,9 +60,9 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
         _albums = al;
         _artists = ar;
       });
-      if (r.isEmpty && al.isEmpty && ar.isEmpty) _err = 'Ничего не нашлось';
+      if (r.isEmpty && al.isEmpty && ar.isEmpty) _err = tr('Ничего не нашлось');
     } catch (e) {
-      if (my == _token) _err = 'Нет соединения или поиск недоступен';
+      if (my == _token) _err = tr('Нет соединения или поиск недоступен');
     } finally {
       if (my == _token && mounted) setState(() => _busy = false);
     }
@@ -84,9 +85,9 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
 
   /// Верх списка результатов: исполнители, альбомы, заголовок «Треки».
   List<Widget> _headWidgets() => [
-        if (_artists.isNotEmpty) ...[const SectionTitle('Исполнители'), _ArtistRow(artists: _artists)],
-        if (_albums.isNotEmpty) ...[const SectionTitle('Альбомы'), AlbumRow(albums: _albums, showArtist: true)],
-        if (_results.isNotEmpty && (_albums.isNotEmpty || _artists.isNotEmpty)) const SectionTitle('Треки'),
+        if (_artists.isNotEmpty) ...[SectionTitle(tr('Исполнители')), _ArtistRow(artists: _artists)],
+        if (_albums.isNotEmpty) ...[SectionTitle(tr('Альбомы')), AlbumRow(albums: _albums, showArtist: true)],
+        if (_results.isNotEmpty && (_albums.isNotEmpty || _artists.isNotEmpty)) SectionTitle(tr('Треки')),
       ];
 
   @override
@@ -104,7 +105,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
             textInputAction: TextInputAction.search,
             onSubmitted: _search,
             decoration: InputDecoration(
-              hintText: 'Песня, исполнитель или альбом',
+              hintText: tr('Песня, исполнитель или альбом'),
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _c.text.isEmpty
                   ? null
@@ -130,8 +131,8 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
         Padding(
           padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(4)),
           child: Wrap(runSpacing: context.u(6), children: [
-            for (final s in const [
-              (SearchSource.all, 'Все'),
+            for (final s in [
+              (SearchSource.all, tr('Все')),
               (SearchSource.ytm, 'YouTube Music'),
               (SearchSource.yt, 'YouTube'),
               (SearchSource.sc, 'SoundCloud'),
@@ -171,8 +172,8 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                         child: Text(_err!, textAlign: TextAlign.center),
                       ),
                     if (st.searches.isNotEmpty)
-                      SectionTitle('Вы искали',
-                          trailing: TextButton(onPressed: st.clearSearches, child: const Text('Очистить'))),
+                      SectionTitle(tr('Вы искали'),
+                          trailing: TextButton(onPressed: st.clearSearches, child: Text(tr('Очистить')))),
                     for (final q in st.searches)
                       ListTile(
                         leading: const Icon(Icons.history_rounded),
@@ -188,7 +189,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                         child: Column(children: [
                           Icon(Icons.graphic_eq_rounded, size: context.u(64), color: context.accent),
                           SizedBox(height: context.u(12)),
-                          const Text('Найдите любую песню — она заиграет сразу,\nбез скачивания на телефон',
+                          Text(tr('Найдите любую песню — она заиграет сразу,\nбез скачивания на телефон'),
                               textAlign: TextAlign.center),
                         ]),
                       ),
@@ -206,9 +207,9 @@ class _ArtistRow extends StatelessWidget {
   const _ArtistRow({required this.artists});
 
   static String _count(int n) => n >= 1000000
-      ? '${(n / 1000000).toStringAsFixed(1).replaceAll('.', ',')} млн'
+      ? tr('{0} млн', [(n / 1000000).toStringAsFixed(1).replaceAll('.', ',')])
       : n >= 1000
-          ? '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1).replaceAll('.', ',')} тыс.'
+          ? tr('{0} тыс.', [(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1).replaceAll('.', ',')])
           : '$n';
 
   @override
@@ -246,7 +247,7 @@ class _ArtistRow extends StatelessWidget {
                   ),
                   if (a.verified) Icon(Icons.verified_rounded, size: 14, color: context.accent),
                 ]),
-                Text('${_count(a.followers)} подп.', maxLines: 1, style: TextStyle(fontSize: 12, color: dim)),
+                Text(tr('{0} подп.', [_count(a.followers)]), maxLines: 1, style: TextStyle(fontSize: 12, color: dim)),
               ]),
             ),
           );

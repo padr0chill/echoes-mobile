@@ -11,6 +11,7 @@ import '../ui.dart';
 import 'milkdrop_engine.dart';
 import 'milkdrop_words.dart';
 import 'winamp.dart';
+import '../i18n.dart';
 
 /// Управление MilkDrop снаружи: пресеты (135, как на ПК), режим смены. Слушатели узнают о смене пресета
 /// (в том числе автоматической) — чтобы показать его название.
@@ -277,7 +278,7 @@ class _MilkdropScreenState extends State<MilkdropScreen> {
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Container(width: 6, height: 6, color: on ? Wa.green : Wa.greenDim),
                         const SizedBox(width: 5),
-                        Text('ТЕКСТ',
+                        Text(tr('ТЕКСТ'),
                             style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
                       ]),
                     ),
@@ -321,7 +322,7 @@ class _MilkdropScreenState extends State<MilkdropScreen> {
                   left: 0,
                   right: 0,
                   bottom: context.u(14),
-                  child: Text('нажатие / свайп — пресет · удерживать — режим',
+                  child: Text(tr('нажатие / свайп — пресет · удерживать — режим'),
                       textAlign: TextAlign.center,
                       style: Wa.mono.copyWith(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
                 ),

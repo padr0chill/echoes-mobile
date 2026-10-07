@@ -7,6 +7,7 @@ import '../services/sc.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
+import '../i18n.dart';
 
 void openAlbum(BuildContext context, ScAlbum a) {
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => AlbumScreen(album: a)));
@@ -155,7 +156,11 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   ),
                 ),
                 Text(
-                  [a.kindLabel, if (a.year != null) '${a.year}', '${a.count} тр.'].join(' · '),
+                  [
+                    a.kindLabel,
+                    if (a.year != null) '${a.year}',
+                    tr('{0} тр.', [a.count])
+                  ].join(' · '),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: dim),
                 ),
@@ -171,7 +176,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                           onPressed: list.isEmpty ? null : () => audio.playList(list, 0),
                           icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
                           label:
-                              const Text('Слушать', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                              Text(tr('Слушать'), style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
                         ),
                       ),
                     ),
@@ -192,10 +197,10 @@ class _AlbumScreenState extends State<AlbumScreen> {
                                       audio.shuffle.value = true; // список перемешает playList
                                       audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
                                     },
-                              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                                 Icon(Icons.shuffle_rounded),
                                 SizedBox(width: 6),
-                                Text('Вперемешку', style: TextStyle(fontWeight: FontWeight.w800)),
+                                Text(tr('Вперемешку'), style: TextStyle(fontWeight: FontWeight.w800)),
                               ]),
                             ),
                           ),
@@ -216,18 +221,18 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 tail = Padding(
                   padding: EdgeInsets.all(context.u(24)),
                   child: Column(children: [
-                    const Text('Не удалось загрузить треки альбома', textAlign: TextAlign.center),
+                    Text(tr('Не удалось загрузить треки альбома'), textAlign: TextAlign.center),
                     SizedBox(height: context.u(12)),
                     FilledButton(
                       onPressed: () => setState(() => _f = ScService.instance.albumTracks(a.id)),
-                      child: const Text('Повторить'),
+                      child: Text(tr('Повторить')),
                     ),
                   ]),
                 );
               } else if (list.isEmpty) {
                 tail = Padding(
                   padding: EdgeInsets.all(context.u(24)),
-                  child: const Text('В альбоме нет треков, которые можно слушать целиком', textAlign: TextAlign.center),
+                  child: Text(tr('В альбоме нет треков, которые можно слушать целиком'), textAlign: TextAlign.center),
                 );
               }
               return ListView.builder(

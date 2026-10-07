@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../glass.dart';
 import '../services/store.dart';
 import '../ui.dart';
+import '../i18n.dart';
 
 /// Пресеты эквалайзера: дБ для полос 32, 64, 125, 250, 500 Гц, 1, 2, 4, 8, 16 кГц.
 const eqPresets = <String, List<double>>{
@@ -33,7 +34,7 @@ void openEqualizer(BuildContext context) =>
 class EqualizerScreen extends StatelessWidget {
   const EqualizerScreen({super.key});
 
-  static String _hz(int f) => f >= 1000 ? '${f ~/ 1000}к' : '$f';
+  static String _hz(int f) => f >= 1000 ? tr('{0}к', [f ~/ 1000]) : '$f';
 
   @override
   Widget build(BuildContext context) {
@@ -43,11 +44,11 @@ class EqualizerScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: const Text('Эквалайзер'),
+          title: Text(tr('Эквалайзер')),
           actions: [
             TextButton(
               onPressed: () => st.setEq(gains: eqPresets['Плоский'], preamp: 0, preset: 'Плоский'),
-              child: const Text('Сбросить'),
+              child: Text(tr('Сбросить')),
             ),
           ],
         ),
@@ -59,8 +60,8 @@ class EqualizerScreen extends StatelessWidget {
               padding: EdgeInsets.only(bottom: context.u(120)),
               children: [
                 SwitchListTile(
-                  title: const Text('Эквалайзер', style: TextStyle(fontWeight: FontWeight.w800)),
-                  subtitle: Text(on ? st.eqPreset : 'Выключен'),
+                  title: Text(tr('Эквалайзер'), style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: Text(on ? tr(st.eqPreset) : tr('Выключен')),
                   value: on,
                   onChanged: (v) => st.setEq(enabled: v),
                 ),
@@ -76,7 +77,7 @@ class EqualizerScreen extends StatelessWidget {
                     itemBuilder: (context, i) {
                       final name = eqPresets.keys.elementAt(i);
                       return ChoiceChip(
-                        label: Text(name),
+                        label: Text(tr(name)),
                         selected: st.eqPreset == name,
                         onSelected: (_) {
                           final g = eqPresets[name]!;
@@ -127,7 +128,7 @@ class EqualizerScreen extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: context.u(16)),
                   child: Row(children: [
-                    const Text('Уровень'),
+                    Text(tr('Уровень')),
                     Expanded(
                       child: Slider(
                         value: st.eqPreamp.clamp(-12, 6),
@@ -139,7 +140,7 @@ class EqualizerScreen extends StatelessWidget {
                     ),
                     SizedBox(
                       width: context.u(52),
-                      child: Text('${st.eqPreamp > 0 ? '+' : ''}${st.eqPreamp.toStringAsFixed(1)} дБ',
+                      child: Text(tr('{0}{1} дБ', [st.eqPreamp > 0 ? '+' : '', st.eqPreamp.toStringAsFixed(1)]),
                           textAlign: TextAlign.end, style: TextStyle(color: dim, fontSize: 12)),
                     ),
                   ]),
@@ -147,8 +148,7 @@ class EqualizerScreen extends StatelessWidget {
                 Padding(
                   padding: EdgeInsets.fromLTRB(context.u(16), context.u(12), context.u(16), 0),
                   child: Text(
-                    'Действует на обычные потоки и скачанные треки. Часть треков SoundCloud приходит потоком HLS — '
-                    'iOS не даёт его обрабатывать, они играют без эквалайзера.',
+                    tr('Действует на обычные потоки и скачанные треки. Часть треков SoundCloud приходит потоком HLS — iOS не даёт его обрабатывать, они играют без эквалайзера.'),
                     style: TextStyle(color: dim, fontSize: 12),
                   ),
                 ),

@@ -5,6 +5,7 @@ import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'settings_screen.dart';
+import '../i18n.dart';
 
 /// Профиль: имя, статистика прослушиваний, любимые исполнители; настройки — отсюда.
 class ProfileScreen extends StatelessWidget {
@@ -13,7 +14,7 @@ class ProfileScreen extends StatelessWidget {
   String _time(int s) {
     final h = s ~/ 3600;
     final m = (s % 3600) ~/ 60;
-    return h > 0 ? '$h ч $m мин' : '$m мин';
+    return h > 0 ? tr('{0} ч {1} мин', [h, m]) : tr('{0} мин', [m]);
   }
 
   @override
@@ -32,9 +33,9 @@ class ProfileScreen extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(8), 0),
                 child: Row(children: [
-                  const Expanded(child: Text('Профиль', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900))),
+                  Expanded(child: Text(tr('Профиль'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900))),
                   IconButton(
-                    tooltip: 'Настройки',
+                    tooltip: tr('Настройки'),
                     icon: const Icon(Icons.settings_rounded),
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                       builder: (_) => Ambient(
@@ -61,13 +62,13 @@ class ProfileScreen extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(context.r(12)),
                   onTap: () async {
-                    final n = await askText(context, 'Ваше имя', 'Имя', initial: st.name);
+                    final n = await askText(context, tr('Ваше имя'), tr('Имя'), initial: st.name);
                     if (n != null) st.setName(n);
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(st.name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                      Text(tr(st.name), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                       const SizedBox(width: 6),
                       Icon(Icons.edit_rounded, size: 18, color: context.accent),
                     ]),
@@ -88,18 +89,18 @@ class ProfileScreen extends StatelessWidget {
                     mainAxisExtent: context.u(24) + MediaQuery.textScalerOf(context).scale(1) * 60,
                   ),
                   children: [
-                    _Stat('Время с музыкой', _time(st.listenSeconds), Icons.schedule_rounded),
-                    _Stat('Включено треков', '${st.plays}', Icons.play_circle_rounded),
-                    _Stat('Разных треков', '${st.listenedIds.length}', Icons.library_music_rounded),
-                    _Stat('Мне нравится', '${st.liked.length}', Icons.favorite_rounded),
+                    _Stat(tr('Время с музыкой'), _time(st.listenSeconds), Icons.schedule_rounded),
+                    _Stat(tr('Включено треков'), '${st.plays}', Icons.play_circle_rounded),
+                    _Stat(tr('Разных треков'), '${st.listenedIds.length}', Icons.library_music_rounded),
+                    _Stat(tr('Мне нравится'), '${st.liked.length}', Icons.favorite_rounded),
                   ],
                 ),
               ),
-              const SectionTitle('Любимые исполнители'),
+              SectionTitle(tr('Любимые исполнители')),
               if (top.isEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-                  child: const Text('Появятся, когда вы что-нибудь послушаете'),
+                  child: Text(tr('Появятся, когда вы что-нибудь послушаете')),
                 ),
               for (var i = 0; i < top.length; i++)
                 Padding(
@@ -136,20 +137,20 @@ class ProfileScreen extends StatelessWidget {
               SizedBox(height: context.u(12)),
               ListTile(
                 leading: const Icon(Icons.history_toggle_off_rounded),
-                title: const Text('Очистить историю'),
+                title: Text(tr('Очистить историю')),
                 onTap: () => showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Очистить историю?'),
-                    content: const Text('«Недавно играли» и подборки начнутся заново. Лайки и плейлисты останутся.'),
+                    title: Text(tr('Очистить историю?')),
+                    content: Text(tr('«Недавно играли» и подборки начнутся заново. Лайки и плейлисты останутся.')),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Отмена'))),
                       FilledButton(
                         onPressed: () {
                           st.clearHistory();
                           Navigator.pop(ctx);
                         },
-                        child: const Text('Очистить'),
+                        child: Text(tr('Очистить')),
                       ),
                     ],
                   ),

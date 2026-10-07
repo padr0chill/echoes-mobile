@@ -15,6 +15,7 @@ import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
+import '../i18n.dart';
 
 /// «Моя волна» в духе Яндекс Музыки: живое «пламя» на весь экран, по центру — «▶ Моя волна»
 /// и кнопка «Настроить», внизу — капсулы с быстрыми волнами. Цвет пламени — от настроения.
@@ -104,13 +105,13 @@ class WaveScreen extends StatelessWidget {
 
       final twoCols = MediaQuery.sizeOf(ctx).width >= 360;
       final tiles = [
-        tile(null, Icons.all_inclusive_rounded, 'Под вас', 'По лайкам и истории', _accentPalette(ctx.accent)),
-        for (final e in _moods.entries) tile(e.key, e.value.$1, e.key, e.value.$2, e.value.$3),
+        tile(null, Icons.all_inclusive_rounded, tr('Под вас'), tr('По лайкам и истории'), _accentPalette(ctx.accent)),
+        for (final e in _moods.entries) tile(e.key, e.value.$1, tr(e.key), tr(e.value.$2), e.value.$3),
       ];
       return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Настроить волну', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        Text(tr('Настроить волну'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
         SizedBox(height: ctx.u(4)),
-        Text('Выберите настроение — волна сразу перестроится',
+        Text(tr('Выберите настроение — волна сразу перестроится'),
             style: TextStyle(color: Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
         SizedBox(height: ctx.u(14)),
         if (twoCols)
@@ -133,7 +134,7 @@ class WaveScreen extends StatelessWidget {
                 w.stop();
               },
               icon: const Icon(Icons.stop_rounded),
-              label: const Text('Остановить волну'),
+              label: Text(tr('Остановить волну')),
             ),
           ),
       ]);
@@ -168,7 +169,7 @@ class WaveScreen extends StatelessWidget {
                               fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 2, color: context.accent)),
                     ),
                   ),
-                  GlassIconButton(icon: Icons.search_rounded, tooltip: 'Поиск', onTap: () => openTab.value = 1),
+                  GlassIconButton(icon: Icons.search_rounded, tooltip: tr('Поиск'), onTap: () => openTab.value = 1),
                 ]),
               ),
               Expanded(
@@ -226,7 +227,7 @@ class _Title extends StatelessWidget {
         final playing = active && (snap.data ?? false);
         return Semantics(
           button: true,
-          label: playing ? 'Пауза' : 'Запустить волну',
+          label: playing ? tr('Пауза') : tr('Запустить волну'),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
@@ -255,7 +256,7 @@ class _Title extends StatelessWidget {
                             key: ValueKey(playing), size: context.u(52), color: Colors.white),
                   ),
                   SizedBox(width: context.u(6)),
-                  Text('Моя волна',
+                  Text(tr('Моя волна'),
                       style: TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.w900,
@@ -283,7 +284,7 @@ class _TunePill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Настроить волну',
+      label: tr('Настроить волну'),
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
@@ -298,7 +299,7 @@ class _TunePill extends StatelessWidget {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.tune_rounded, size: context.u(18), color: Colors.white),
               SizedBox(width: context.u(8)),
-              Text(mood == null ? 'Настроить' : 'Настроить · $mood',
+              Text(mood == null ? tr('Настроить') : tr('Настроить · {0}', [tr(mood!)]),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             ]),
           ),
@@ -320,15 +321,15 @@ class _Capsules extends StatelessWidget {
     final items = <(Widget, String, String, VoidCallback)>[
       (
         _Orb(colors: WaveScreen._accentPalette(context.accent), icon: Icons.auto_awesome_rounded, size: context.u(40)),
-        'Для вас',
-        top.isEmpty ? 'Подборки по вкусу' : top.join(', '),
+        tr('Для вас'),
+        top.isEmpty ? tr('Подборки по вкусу') : top.join(', '),
         () => openTab.value = 2,
       ),
       for (final e in WaveScreen._moods.entries)
         (
           _Orb(colors: e.value.$3, icon: e.value.$1, size: context.u(40)),
-          e.key,
-          e.value.$2,
+          tr(e.key),
+          tr(e.value.$2),
           () => w.loading ? null : w.start(mood: e.key),
         ),
       (
@@ -336,8 +337,8 @@ class _Capsules extends StatelessWidget {
             colors: const [Color(0xFF9E9E9E), Color(0xFF616161), Color(0xFF424242), Color(0xFF212121)],
             icon: Icons.tune_rounded,
             size: context.u(40)),
-        'Ещё',
-        'Все настройки',
+        tr('Ещё'),
+        tr('Все настройки'),
         onTune,
       ),
     ];
@@ -352,7 +353,7 @@ class _Capsules extends StatelessWidget {
         separatorBuilder: (_, __) => SizedBox(width: context.u(8)),
         itemBuilder: (context, i) {
           final (orb, title, sub, onTap) = items[i];
-          final selected = w.active && w.mood == title;
+          final selected = w.active && w.mood != null && tr(w.mood!) == title;
           return GestureDetector(
             onTap: onTap,
             child: Glass(

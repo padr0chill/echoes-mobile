@@ -8,6 +8,7 @@ import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
+import '../i18n.dart';
 
 class _Section {
   final String title;
@@ -43,25 +44,25 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
     for (final s in seeds.take(3)) {
       try {
         final r = await Wave.instance.relatedFor(s);
-        if (r.length >= 4) out.add(_Section('Похоже на «${s.title}»', r.take(15).toList()));
+        if (r.length >= 4) out.add(_Section(tr('Похоже на «{0}»', [s.title]), r.take(15).toList()));
       } catch (_) {}
     }
     final artists = st.topArtists(3);
     for (final a in artists) {
       try {
         final r = await sc.searchTracks(a, limit: 20);
-        if (r.length >= 3) out.add(_Section('Ещё от $a', r.take(15).toList()));
+        if (r.length >= 3) out.add(_Section(tr('Ещё от {0}', [a]), r.take(15).toList()));
       } catch (_) {}
     }
     if (out.length < 3) {
       for (final q in const [('Популярное сейчас', 'top hits 2026'), ('Новый русский рэп', 'новый русский рэп 2026')]) {
         try {
           final r = await sc.searchTracks(q.$2, limit: 20);
-          if (r.isNotEmpty) out.add(_Section(q.$1, r.take(15).toList()));
+          if (r.isNotEmpty) out.add(_Section(tr(q.$1), r.take(15).toList()));
         } catch (_) {}
       }
     }
-    if (out.isEmpty) throw Exception('нет сети');
+    if (out.isEmpty) throw Exception(tr('нет сети'));
     return out;
   }
 
@@ -84,7 +85,7 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
           builder: (context, snap) {
             final head = Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
-              child: ScreenTitle('Для вас'),
+              child: ScreenTitle(tr('Для вас')),
             );
             if (snap.connectionState != ConnectionState.done) {
               return ListView(children: [
@@ -98,7 +99,7 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
                 head,
                 Padding(
                   padding: EdgeInsets.all(context.u(24)),
-                  child: const Text('Не получилось собрать подборки — проверьте интернет и потяните вниз',
+                  child: Text(tr('Не получилось собрать подборки — проверьте интернет и потяните вниз'),
                       textAlign: TextAlign.center),
                 ),
               ]);
