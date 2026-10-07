@@ -46,11 +46,24 @@ class YtService {
 
   /// Аудиопоток AAC (mp4) — его играет iOS; «экономия» — самый лёгкий. from — с какого способа начинать.
   Future<StreamPick> stream(String id, {bool economy = false, int from = 0}) async {
-    final key = '$id/$economy/$from';
+    Object? lastErr;
+    for (var i = from; i < clients.length; i++) {
+      try {
+        return await streamWith(id, i, economy: economy);
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw Exception('YouTube не отдал поток: ${_short(lastErr)}');
+  }
+
+  /// Поток одним способом (clients[i]); ошибка — с причиной.
+  Future<StreamPick> streamWith(String id, int i, {bool economy = false}) async {
+    final key = '$id/$economy/$i';
     final c = _cache[key];
     if (c != null && DateTime.now().difference(c.$2) < const Duration(hours: 2)) return c.$1;
     Object? lastErr;
-    for (var i = from; i < clients.length; i++) {
+    {
       try {
         final cl = clients[i];
         final m = cl == null
@@ -74,12 +87,12 @@ class YtService {
           _cache[key] = (pick, DateTime.now());
           return pick;
         }
-        lastErr = 'YouTube отдаёт только начало потока';
+        lastErr = 'отдаёт только начало потока';
       } catch (e) {
         lastErr = e;
       }
     }
-    throw Exception('YouTube не отдал поток: ${_short(lastErr)}');
+    throw Exception(_short(lastErr));
   }
 
   /// Открывается ли кусок из середины файла (не только начало) — 2 байта.

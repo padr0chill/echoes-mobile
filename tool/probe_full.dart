@@ -1,5 +1,5 @@
-// ignore_for_file: avoid_print
-// Какие клиенты отдают ВЕСЬ файл (кусок из середины и из конца), а не только начало.
+﻿// ignore_for_file: avoid_print
+// ÐšÐ°ÐºÐ¸Ðµ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ñ‹ Ð¾Ñ‚Ð´Ð°ÑŽÑ‚ Ð’Ð•Ð¡Ð¬ Ñ„Ð°Ð¹Ð» (ÐºÑƒÑÐ¾Ðº Ð¸Ð· ÑÐµÑ€ÐµÐ´Ð¸Ð½Ñ‹ Ð¸ Ð¸Ð· ÐºÐ¾Ð½Ñ†Ð°), Ð° Ð½Ðµ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð½Ð°Ñ‡Ð°Ð»Ð¾.
 import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 

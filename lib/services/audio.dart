@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../models.dart';
 import 'store.dart';
+import 'sc.dart';
 import 'stream_source.dart';
 import 'yt.dart';
 
@@ -108,7 +109,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       Store.instance.addHistory(t);
       _prefetchNext();
     } catch (e) {
-      if (my == _token) error.value = 'Не удалось открыть трек: ${_short(e)}';
+      if (my == _token) error.value = 'Не удалось открыть трек: ${_short(e, 320)}';
     } finally {
       if (my == _token) {
         loading.value = false;
@@ -117,25 +118,25 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  /// Открыть поток: через мини-прокси → напрямую → другие способы получить поток у YouTube.
-  /// Если что-то сработало — запоминаем, чтобы следующие треки сразу шли этим путём.
+  /// Открыть звук трека. Порядок: два быстрых способа YouTube → та же песня на SoundCloud → остальные
+  /// способы YouTube. YouTube бывает отказывает телефону («unplayable» — защита от ботов по IP); если так
+  /// случилось, следующие треки сразу идут через SoundCloud. Удачный путь (прокси/напрямую) запоминается.
   bool _useProxy = true; // через прокси надёжнее: googlevideo часто отказывает плееру iOS напрямую
+  bool _preferSc = false;
 
   Future<bool> _openStream(Track t, bool Function() cancelled) async {
     final eco = Store.instance.economy;
-    Object? last;
-    var from = 0;
-    for (var attempt = 0; attempt < YtService.clients.length; attempt++) {
-      if (from >= YtService.clients.length) break;
+    final errs = <String>[];
+
+    Future<bool> yt(int i) async {
       final StreamPick pick;
       try {
-        pick = await YtService.instance.stream(t.id, economy: eco, from: from);
+        pick = await YtService.instance.streamWith(t.id, i, economy: eco);
       } catch (e) {
-        last = e;
-        break;
+        errs.add('YouTube#$i: ${_short(e)}');
+        return false;
       }
       if (cancelled()) return false;
-      // два пути: через прокси и напрямую; удачный запоминается и пробуется первым
       for (final proxy in [_useProxy, !_useProxy]) {
         try {
           final src = proxy ? YtProxySource(pick) : AudioSource.uri(pick.url);
@@ -143,24 +144,57 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
           _useProxy = proxy;
           return true;
         } catch (e) {
-          last = e;
+          errs.add('YouTube#$i${proxy ? ' прокси' : ''}: ${_short(e)}');
           if (cancelled()) return false;
         }
       }
-      from = pick.client + 1; // этот способ не подошёл — следующий
+      return false;
     }
-    throw Exception(_short(last));
+
+    Future<bool> sc() async {
+      try {
+        final u = await ScService.instance.findSame(t.artist, t.title, t.seconds);
+        if (u == null) {
+          errs.add('SoundCloud: такой песни нет');
+          return false;
+        }
+        if (cancelled()) return false;
+        await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 15));
+        return true;
+      } catch (e) {
+        errs.add('SoundCloud: ${_short(e)}');
+        return false;
+      }
+    }
+
+    final n = YtService.clients.length;
+    final order = <Future<bool> Function()>[
+      if (_preferSc) sc,
+      () => yt(0),
+      () => yt(1),
+      if (!_preferSc) () async {
+        final ok = await sc();
+        if (ok) _preferSc = true; // YouTube отказал этому телефону — дальше сразу SoundCloud
+        return ok;
+      },
+      for (var i = 2; i < n; i++) () => yt(i),
+    ];
+    for (final step in order) {
+      if (cancelled()) return false;
+      if (await step()) return true;
+    }
+    throw Exception(errs.join(' · '));
   }
 
-  static String _short(Object? e) {
+  static String _short(Object? e, [int max = 110]) {
     var s = '$e'.split('\n').first.replaceFirst('Exception: ', '');
-    if (s.length > 110) s = '${s.substring(0, 110)}…';
+    if (s.length > max) s = '${s.substring(0, max)}…';
     return s;
   }
 
   /// Ссылку на поток следующего трека — заранее: «следующий» включается сразу.
   void _prefetchNext() {
-    if (shuffle.value) return;
+    if (shuffle.value || _preferSc) return;
     final j = index.value + 1;
     if (j < tracks.value.length) {
       YtService.instance.streamUrl(tracks.value[j].id, economy: Store.instance.economy).ignore();
