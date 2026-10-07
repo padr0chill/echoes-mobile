@@ -144,7 +144,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 SizedBox(height: context.u(4)),
                 Center(
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(context.r(12)),
                     onTap: () => openArtist(
                         context, Track(id: '', title: '', artist: a.artist, seconds: 0, artistId: a.artistId)),
                     child: Padding(

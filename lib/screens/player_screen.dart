@@ -617,37 +617,41 @@ class _QueueRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dim = Colors.white.withValues(alpha: 0.55);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(context.u(16), context.u(5), context.u(4), context.u(5)),
-        child: Row(children: [
-          Cover(track: track, size: context.u(46), radius: context.u(8)),
-          SizedBox(width: context.u(12)),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(track.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: playing ? context.accent : Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-              Text(track.artist,
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim, fontSize: 13)),
+    return Padding(
+        padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(context.r(14)),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(context.u(10), context.u(5), context.u(0), context.u(5)),
+            child: Row(children: [
+              Cover(track: track, size: context.u(46), radius: context.u(8)),
+              SizedBox(width: context.u(12)),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: playing ? context.accent : Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                  Text(track.artist,
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim, fontSize: 13)),
+                ]),
+              ),
+              if (queued) Icon(Icons.playlist_add_check_rounded, size: context.u(18), color: context.accent),
+              if (onRemove != null)
+                IconButton(
+                  tooltip: 'Убрать из очереди',
+                  icon: Icon(Icons.close_rounded, color: dim, size: context.u(20)),
+                  onPressed: onRemove,
+                ),
+              if (handle != null) handle!,
+              if (playing)
+                Padding(
+                    padding: EdgeInsets.all(context.u(12)),
+                    child: Icon(Icons.graphic_eq_rounded, color: context.accent)),
             ]),
           ),
-          if (queued) Icon(Icons.playlist_add_check_rounded, size: context.u(18), color: context.accent),
-          if (onRemove != null)
-            IconButton(
-              tooltip: 'Убрать из очереди',
-              icon: Icon(Icons.close_rounded, color: dim, size: context.u(20)),
-              onPressed: onRemove,
-            ),
-          if (handle != null) handle!,
-          if (playing)
-            Padding(
-                padding: EdgeInsets.all(context.u(12)), child: Icon(Icons.graphic_eq_rounded, color: context.accent)),
-        ]),
-      ),
-    );
+        ));
   }
 }

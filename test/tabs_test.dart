@@ -53,4 +53,28 @@ void main() {
     expect(find.byType(TrackListScreen), findsNothing);
     expect(find.byType(LibraryScreen), findsOneWidget);
   });
+
+  testWidgets('поиск в плейлисте: находит без учёта регистра, играет весь плейлист с найденного', (t) async {
+    t.view.physicalSize = const Size(390, 844) * 3;
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(const EchoesApp());
+    await t.pump(const Duration(milliseconds: 300));
+    await t.tap(find.text('Моя музыка').last);
+    await t.pump(const Duration(milliseconds: 300));
+    await t.tap(find.text('груз 200'));
+    await t.pumpAndSettle();
+    await t.enterText(find.widgetWithText(TextField, 'Поиск в плейлисте'), 'ВТОР');
+    await t.pump();
+    final tiles = find.descendant(of: find.byType(TrackListScreen), matching: find.byType(TrackTile));
+    expect(tiles, findsOneWidget);
+    expect(find.descendant(of: tiles, matching: find.text('Второй')), findsOneWidget);
+    await t.tap(find.descendant(of: tiles, matching: find.text('Второй')));
+    await t.pump();
+    expect(audio.tracks.value.length, 2); // весь плейлист, а не только найденное
+    expect(audio.index.value, 1); // с найденного трека
+    await t.enterText(find.widgetWithText(TextField, 'Поиск в плейлисте'), 'нет такого');
+    await t.pump();
+    expect(find.text('В этом плейлисте такого нет'), findsOneWidget);
+  });
 }

@@ -111,46 +111,53 @@ class TrackTile extends StatelessWidget {
             ));
         },
         onLeft: () => pickPlaylist(context, track),
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: () => showTrackMenu(context, track, playlist: playlist),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(7)),
-            child: Row(children: [
-              Cover(track: track, size: context.u(50), radius: context.u(8)),
-              SizedBox(width: context.u(12)),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null)),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    // имя исполнителя — ссылка на его страницу
-                    if (showArtist && track.artist.isNotEmpty)
-                      Flexible(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => openArtist(context, track),
-                          child: Text(track.artist,
-                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: sub)),
-                        ),
-                      ),
-                    if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
-                      Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
-                    if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
-                    OfflineMark(track: track),
-                  ]),
+        // подсветка нажатия — скруглённая и с отступом от краёв экрана (в Эховампе — прямая)
+        child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(context.r(16)),
+              onTap: onTap,
+              onLongPress: () => showTrackMenu(context, track, playlist: playlist),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.u(10), vertical: context.u(7)),
+                child: Row(children: [
+                  Cover(track: track, size: context.u(50), radius: context.u(8)),
+                  SizedBox(width: context.u(12)),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null)),
+                      const SizedBox(height: 2),
+                      Row(children: [
+                        // имя исполнителя — ссылка на его страницу
+                        if (showArtist && track.artist.isNotEmpty)
+                          Flexible(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => openArtist(context, track),
+                              child: Text(track.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 13, color: sub)),
+                            ),
+                          ),
+                        if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
+                          Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
+                        if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
+                        OfflineMark(track: track),
+                      ]),
+                    ]),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.more_horiz_rounded),
+                    onPressed: () => showTrackMenu(context, track, playlist: playlist),
+                  ),
                 ]),
               ),
-              IconButton(
-                icon: const Icon(Icons.more_horiz_rounded),
-                onPressed: () => showTrackMenu(context, track, playlist: playlist),
-              ),
-            ]),
-          ),
-        ));
+            )));
   }
 }
 

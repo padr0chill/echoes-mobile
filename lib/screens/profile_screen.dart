@@ -59,7 +59,7 @@ class ProfileScreen extends StatelessWidget {
               SizedBox(height: context.u(10)),
               Center(
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(context.r(12)),
                   onTap: () async {
                     final n = await askText(context, 'Ваше имя', 'Имя', initial: st.name);
                     if (n != null) st.setName(n);
@@ -173,7 +173,7 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(context.u(12)),
-      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(context.r(14))),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(context.r(20))),
       child:
           Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
         Row(children: [

@@ -174,7 +174,12 @@ ThemeData buildTheme(Color accent, bool light, {bool winamp = false}) {
     bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
     // окна и меню — непрозрачные (surface полупрозрачный ради карточек)
     dialogTheme: DialogThemeData(backgroundColor: light ? Colors.white : const Color(0xFF1E1E23)),
-    popupMenuTheme: PopupMenuThemeData(color: light ? Colors.white : const Color(0xFF1E1E23)),
+    popupMenuTheme: PopupMenuThemeData(
+      color: light ? Colors.white : const Color(0xFF1E1E23),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    ),
+    // строки меню, настроек, списков — подсветка нажатия скруглённая, а не прямоугольная
+    listTileTheme: ListTileThemeData(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       backgroundColor: light ? const Color(0xEE1C1C20) : const Color(0xEE2A2A30),

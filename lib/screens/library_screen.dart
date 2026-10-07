@@ -5,6 +5,7 @@ import '../models.dart';
 import '../services/audio.dart';
 import '../services/offline.dart';
 import '../services/store.dart';
+import '../services/text_match.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'import_flow.dart';
@@ -99,9 +100,9 @@ class _Card extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(16), 0),
       child: Material(
         color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(context.r(14)),
+        borderRadius: BorderRadius.circular(context.r(22)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(context.r(14)),
+          borderRadius: BorderRadius.circular(context.r(22)),
           onTap: onTap,
           child: Padding(
             padding: EdgeInsets.all(context.u(12)),
@@ -111,7 +112,7 @@ class _Card extends StatelessWidget {
                 height: context.u(48),
                 decoration: BoxDecoration(
                   color: context.accent.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(context.r(10)),
+                  borderRadius: BorderRadius.circular(context.r(14)),
                 ),
                 child: Icon(icon, color: context.accent),
               ),
@@ -132,12 +133,41 @@ class _Card extends StatelessWidget {
   }
 }
 
-class TrackListScreen extends StatelessWidget {
+class TrackListScreen extends StatefulWidget {
   final String title;
   final List<Track> Function() tracks;
   final Playlist? playlist;
   final bool offline; // список «Скачанное»
   const TrackListScreen({super.key, required this.title, required this.tracks, this.playlist, this.offline = false});
+
+  @override
+  State<TrackListScreen> createState() => _TrackListScreenState();
+}
+
+class _TrackListScreenState extends State<TrackListScreen> {
+  final _q = TextEditingController();
+  String _query = '';
+
+  String get title => widget.title;
+  List<Track> Function() get tracks => widget.tracks;
+  Playlist? get playlist => widget.playlist;
+  bool get offline => widget.offline;
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  /// Поиск в плейлисте: все слова запроса есть в «название исполнитель» (без учёта регистра и
+  /// транслитерации — «кишлак» найдёт и «Kishlak»).
+  static String _norm(String s) => TextMatch.translit(s).replaceAll(RegExp(r'[^a-z0-9]+'), ' ');
+
+  bool _match(Track t, List<String> words) {
+    final hay = _norm('${t.title} ${t.artist}');
+    final compact = hay.replaceAll(' ', '');
+    return words.every((w) => hay.contains(w) || compact.contains(w));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,38 +203,80 @@ class TrackListScreen extends StatelessWidget {
           if (list.isEmpty) {
             return const Center(child: Text('Пока пусто'));
           }
-          return ListView(
-            padding: EdgeInsets.only(bottom: context.u(200)),
-            children: [
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
-                // кнопки делят ширину; на узком экране / крупном шрифте подпись ужимается, а не вылезает
-                child: Row(children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => audio.playList(list, 0),
-                      icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
-                      label: const FittedBox(
-                          fit: BoxFit.scaleDown, child: Text('Слушать', style: TextStyle(color: Colors.black))),
-                    ),
+          final words = _norm(_query).split(' ').where((w) => w.isNotEmpty).toList();
+          // индексы найденных треков в полном списке (играем весь плейлист — с выбранного трека)
+          final shown = [
+            for (var i = 0; i < list.length; i++)
+              if (words.isEmpty || _match(list[i], words)) i
+          ];
+          final head = <Widget>[
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
+              // кнопки делят ширину; на узком экране / крупном шрифте подпись ужимается, а не вылезает
+              child: Row(children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => audio.playList(list, 0),
+                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
+                    label: const FittedBox(
+                        fit: BoxFit.scaleDown, child: Text('Слушать', style: TextStyle(color: Colors.black))),
                   ),
-                  SizedBox(width: context.u(8)),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        audio.shuffle.value = true; // список перемешает playList
-                        audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
-                      },
-                      icon: const Icon(Icons.shuffle_rounded),
-                      label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Вперемешку')),
-                    ),
+                ),
+                SizedBox(width: context.u(8)),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      audio.shuffle.value = true; // список перемешает playList
+                      audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
+                    },
+                    icon: const Icon(Icons.shuffle_rounded),
+                    label: const FittedBox(fit: BoxFit.scaleDown, child: Text('Вперемешку')),
                   ),
-                  if (!offline) _DownloadAll(list: list),
-                ]),
+                ),
+                if (!offline) _DownloadAll(list: list),
+              ]),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(6)),
+              child: TextField(
+                controller: _q,
+                onChanged: (v) => setState(() => _query = v),
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'Поиск в плейлисте',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => setState(() {
+                            _q.clear();
+                            _query = '';
+                          }),
+                        ),
+                  isDense: true,
+                  filled: true,
+                  fillColor: Theme.of(context).cardColor,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(context.r(28)), borderSide: BorderSide.none),
+                ),
               ),
-              for (var i = 0; i < list.length; i++)
-                TrackTile(track: list[i], playlist: playlist, onTap: () => audio.playList(list, i)),
-            ],
+            ),
+            if (words.isNotEmpty && shown.isEmpty)
+              Padding(
+                padding: EdgeInsets.all(context.u(24)),
+                child: const Text('В этом плейлисте такого нет', textAlign: TextAlign.center),
+              ),
+          ];
+          // список строится по мере прокрутки — быстро даже на 500+ треках
+          return ListView.builder(
+            padding: EdgeInsets.only(bottom: context.u(200)),
+            itemCount: head.length + shown.length,
+            itemBuilder: (context, k) {
+              if (k < head.length) return head[k];
+              final i = shown[k - head.length];
+              return TrackTile(track: list[i], playlist: playlist, onTap: () => audio.playList(list, i));
+            },
           );
         },
       ),

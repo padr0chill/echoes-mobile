@@ -41,7 +41,7 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
                   onPressed: () => setS(() => future = run(ctl.text)),
                 ),
                 filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(ctx.r(14)), borderSide: BorderSide.none),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(ctx.r(28)), borderSide: BorderSide.none),
               ),
             ),
           ),
@@ -84,7 +84,7 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: c.hasSynced ? ctx.accent.withValues(alpha: 0.2) : Colors.white10,
-                          borderRadius: BorderRadius.circular(ctx.r(8)),
+                          borderRadius: BorderRadius.circular(ctx.r(99)),
                         ),
                         child: Text(c.hasSynced ? 'синхр.' : 'текст',
                             style: TextStyle(fontSize: 12, color: c.hasSynced ? ctx.accent : dim)),
