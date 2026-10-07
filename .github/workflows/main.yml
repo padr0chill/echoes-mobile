@@ -39,6 +39,11 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ECHOES" "$P" || \
             /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string ECHOES" "$P"
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$P" || true
+          # фото для фона из галереи (image_picker); камеру и микрофон приложение не использует,
+          # но плагин требует описания
+          /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string ECHOES берёт выбранное вами фото для фона приложения" "$P" || true
+          /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string ECHOES не снимает фото и видео" "$P" || true
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string ECHOES не использует микрофон" "$P" || true
           sed -i '' "s/^# platform :ios.*/platform :ios, '13.0'/" ios/Podfile || true
 
       - name: Tests

@@ -1,0 +1,25 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec_overrides.yaml
+
+# платформенные папки создаются при сборке (flutter create)
+ios/
+android/
+macos/
+linux/
+windows/
+web/
+.metadata
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# итоговые файлы
+*.ipa
+Payload/
