@@ -1,0 +1,5 @@
+tags:
+  network:
+    skip: "нужен интернет — запуск вручную: flutter test test/proxy_test.dart --run-skipped"
+  screenshots:
+    skip: "снимки экранов — только вручную: flutter test test/screenshots_test.dart --run-skipped --update-goldens"
