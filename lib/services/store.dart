@@ -213,6 +213,9 @@ class Store extends ChangeNotifier {
     return added;
   }
 
+  String? get scClientId => _p.getString('sc_cid');
+  void setScClientId(String v) => _p.setString('sc_cid', v);
+
   void setAccent(int i) {
     accentIndex = i;
     _save();

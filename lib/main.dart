@@ -14,6 +14,7 @@ import 'screens/profile_screen.dart';
 import 'screens/wave_screen.dart';
 import 'services/audio.dart';
 import 'services/offline.dart';
+import 'services/sc.dart';
 import 'services/store.dart';
 import 'ui.dart';
 import 'widgets.dart';
@@ -22,6 +23,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Store.instance.load();
   await Offline.instance.load();
+  ScService.instance
+    ..seedClientId(Store.instance.scClientId)
+    ..onClientId = Store.instance.setScClientId;
   final session = await AudioSession.instance;
   await session.configure(const AudioSessionConfiguration.music());
   audio = await AudioService.init(

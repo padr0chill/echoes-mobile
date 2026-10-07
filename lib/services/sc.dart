@@ -80,6 +80,14 @@ class ScService {
   String? _clientId;
   final _byId = <int, ScTrack>{};
 
+  /// Ключ с прошлого запуска (хранится в настройках): не искать его заново на сайте — минус секунда-две
+  /// на первом треке. Устарел — _api сам возьмёт новый.
+  void seedClientId(String? id) {
+    if (id != null && RegExp(r'^[0-9a-zA-Z]{32}$').hasMatch(id)) _clientId = id;
+  }
+
+  void Function(String id)? onClientId;
+
   Future<String> clientId({bool fresh = false}) async {
     if (_clientId != null && !fresh) return _clientId!;
     final home = await http.get(Uri.https('soundcloud.com', '/'), headers: {'User-Agent': _ua}).timeout(
@@ -94,7 +102,11 @@ class ScService {
       try {
         final js = await http.get(Uri.parse(src), headers: {'User-Agent': _ua}).timeout(const Duration(seconds: 12));
         final m = RegExp(r'client_id\s*:\s*"([0-9a-zA-Z]{32})"').firstMatch(js.body);
-        if (m != null) return _clientId = m.group(1)!;
+        if (m != null) {
+          _clientId = m.group(1)!;
+          onClientId?.call(_clientId!);
+          return _clientId!;
+        }
       } catch (_) {}
     }
     throw Exception('SoundCloud: не найден client_id');

@@ -27,7 +27,15 @@ extension TrackMedia on Track {
 
 /// Плеер: очередь, фон и экран блокировки (audio_service), звук — потоком (just_audio, без файлов на диске).
 class EchoesAudio extends BaseAudioHandler with SeekHandler {
-  final AudioPlayer player = AudioPlayer();
+  // iOS: начинать играть сразу, а не копить буфер «на всякий случай» (иначе старт трека — секунды)
+  final AudioPlayer player = AudioPlayer(
+    audioLoadConfiguration: const AudioLoadConfiguration(
+      darwinLoadControl: DarwinLoadControl(
+        automaticallyWaitsToMinimizeStalling: false,
+        preferredForwardBufferDuration: Duration(seconds: 20),
+      ),
+    ),
+  );
 
   final ValueNotifier<List<Track>> tracks = ValueNotifier([]);
   final ValueNotifier<int> index = ValueNotifier(-1);
@@ -141,9 +149,10 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
   }
 
-  /// Открыть звук трека. Порядок: два быстрых способа YouTube → та же песня на SoundCloud → остальные
-  /// способы YouTube. YouTube бывает отказывает телефону («unplayable» — защита от ботов по IP); если так
-  /// случилось, следующие треки сразу идут через SoundCloud. Удачный путь (прокси/напрямую) запоминается.
+  /// Открыть звук трека. YouTube (два способа сразу) и та же песня на SoundCloud ищутся ПАРАЛЛЕЛЬНО —
+  /// играет то, что готово первым (YouTube получает небольшую фору); не открылось — второе уже под рукой.
+  /// YouTube бывает отказывает телефону («unplayable» — защита от ботов по IP); тогда SoundCloud без форы.
+  /// Удачный путь (прокси/напрямую) запоминается.
   bool _useProxy = true; // через прокси надёжнее: googlevideo часто отказывает плееру iOS напрямую
   bool _preferSc = false;
 
@@ -164,10 +173,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
 
     // трек SoundCloud — звук прямо оттуда (mp3 или HLS)
     if (t.isSc) {
-      final st = await ScService.instance.track(t.scId);
-      final u = await ScService.instance.streamUrl(st);
+      final u = (await _resolveSc(t))!;
       if (cancelled()) return false;
-      await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 15));
+      await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
       return true;
     }
 
@@ -184,38 +192,39 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       if (cancelled()) return false;
     }
 
-    Future<bool> yt(int i) async {
-      final StreamPick pick;
-      try {
-        pick = await YtService.instance.streamWith(vid, i, economy: eco);
-      } catch (e) {
-        errs.add('YouTube#$i: ${_short(e)}');
-        return false;
-      }
-      if (cancelled()) return false;
+    // обе площадки — сразу и параллельно
+    final ytF = _resolveYt(vid, eco).then<StreamPick?>((p) => p, onError: (Object e) {
+      errs.add('YouTube: ${_short(e)}');
+      return null;
+    });
+    final scF = (t.isPreview ? Future<Uri?>.value(null) : _resolveSc(t)).then<Uri?>((u) {
+      if (u == null && !t.isPreview) errs.add('SoundCloud: такой песни нет');
+      return u;
+    }, onError: (Object e) {
+      errs.add('SoundCloud: ${_short(e)}');
+      return null;
+    });
+
+    Future<bool> playYt(StreamPick pick) async {
       for (final proxy in [_useProxy, !_useProxy]) {
+        if (cancelled()) return false;
         try {
           final src = proxy ? YtProxySource(pick) : AudioSource.uri(pick.url);
-          await player.setAudioSource(src).timeout(const Duration(seconds: 15));
+          await player.setAudioSource(src).timeout(const Duration(seconds: 8));
           _useProxy = proxy;
+          _preferSc = false; // YouTube снова работает
           return true;
         } catch (e) {
-          errs.add('YouTube#$i${proxy ? ' прокси' : ''}: ${_short(e)}');
-          if (cancelled()) return false;
+          errs.add('YouTube${proxy ? ' прокси' : ''}: ${_short(e)}');
         }
       }
       return false;
     }
 
-    Future<bool> sc() async {
+    Future<bool> playSc(Uri u) async {
+      if (cancelled()) return false;
       try {
-        final u = await ScService.instance.findSame(t.artist, t.title, t.seconds);
-        if (u == null) {
-          errs.add('SoundCloud: такой песни нет');
-          return false;
-        }
-        if (cancelled()) return false;
-        await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 15));
+        await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
         return true;
       } catch (e) {
         errs.add('SoundCloud: ${_short(e)}');
@@ -223,24 +232,104 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       }
     }
 
-    final n = YtService.clients.length;
-    final order = <Future<bool> Function()>[
-      if (_preferSc) sc,
-      () => yt(0),
-      () => yt(1),
-      if (!_preferSc)
-        () async {
-          final ok = await sc();
-          if (ok) _preferSc = true; // YouTube отказал этому телефону — дальше сразу SoundCloud
-          return ok;
-        },
-      for (var i = 2; i < n; i++) () => yt(i),
-    ];
-    for (final step in order) {
+    // кто первый: YouTube — сразу; SoundCloud — через 0,8 с форы YouTube (оригинал), а если YouTube
+    // этому телефону уже отказывал — сразу
+    final first = Completer<bool>(); // true — YouTube, false — SoundCloud
+    var left = 2;
+    void settle() {
+      if (--left == 0 && !first.isCompleted) first.complete(true);
+    }
+
+    ytF.then((p) {
+      if (p != null && !first.isCompleted) first.complete(true);
+      settle();
+    });
+    scF.then((u) {
+      if (u != null) {
+        if (_preferSc) {
+          if (!first.isCompleted) first.complete(false);
+        } else {
+          Timer(const Duration(milliseconds: 800), () {
+            if (!first.isCompleted) first.complete(false);
+          });
+        }
+      }
+      settle();
+    });
+    final ytFirst = await first.future;
+    if (cancelled()) return false;
+    for (final useYt in [ytFirst, !ytFirst]) {
+      if (useYt) {
+        final p = await ytF;
+        if (p != null && await playYt(p)) return true;
+      } else {
+        final u = await scF;
+        if (u != null && await playSc(u)) {
+          // YouTube не смог — дальше SoundCloud без форы (проверка — в фоне, звук уже идёт)
+          if (ytFirst) {
+            _preferSc = true;
+          } else {
+            ytF.then((p) => _preferSc = p == null);
+          }
+          return true;
+        }
+      }
       if (cancelled()) return false;
-      if (await step()) return true;
     }
     throw Exception(errs.join(' · '));
+  }
+
+  /// Поток YouTube: способы 0 и 1 — одновременно (первый удачный), потом остальные по очереди.
+  /// Каждый не дольше 7 с — зависший запрос не держит трек.
+  Future<StreamPick> _resolveYt(String vid, bool eco) async {
+    Future<StreamPick> one(int i) =>
+        YtService.instance.streamWith(vid, i, economy: eco).timeout(const Duration(seconds: 7));
+    try {
+      return await _firstOk([one(0), one(1)]);
+    } catch (_) {}
+    Object? last;
+    for (var i = 2; i < YtService.clients.length; i++) {
+      try {
+        return await one(i);
+      } catch (e) {
+        last = e;
+      }
+    }
+    throw Exception(_short(last ?? 'нет потока'));
+  }
+
+  /// Первый успешный из нескольких; все упали — ошибка последнего.
+  static Future<T> _firstOk<T>(List<Future<T>> fs) {
+    final c = Completer<T>();
+    var left = fs.length;
+    for (final f in fs) {
+      f.then((v) {
+        if (!c.isCompleted) c.complete(v);
+      }, onError: (Object e) {
+        if (--left == 0 && !c.isCompleted) c.completeError(e);
+      });
+    }
+    return c.future;
+  }
+
+  /// Та же песня на SoundCloud → ссылка на звук. Запоминается на 10 минут (ссылки SoundCloud временные):
+  /// следующий трек готовится заранее и включается мгновенно.
+  final _scLinks = <String, (Future<Uri?>, DateTime)>{};
+  Future<Uri?> _resolveSc(Track t) {
+    final c = _scLinks[t.id];
+    if (c != null && DateTime.now().difference(c.$2) < const Duration(minutes: 10)) return c.$1;
+    final f = () async {
+      if (t.isSc) return ScService.instance.streamUrl(await ScService.instance.track(t.scId));
+      final m = await ScService.instance.match(t.artist, t.title, t.seconds);
+      return m == null ? null : await ScService.instance.streamUrl(m);
+    }();
+    _scLinks[t.id] = (f, DateTime.now());
+    f.catchError((_) {
+      _scLinks.remove(t.id); // ошибка сети — в следующий раз заново
+      return null;
+    });
+    if (_scLinks.length > 60) _scLinks.remove(_scLinks.keys.first);
+    return f;
   }
 
   static String _short(Object? e, [int max = 110]) {
@@ -249,12 +338,18 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     return s;
   }
 
-  /// Ссылку на поток следующего трека — заранее: «следующий» включается сразу.
+  /// Следующий трек — заранее (обе площадки): «следующий» включается почти сразу.
   void _prefetchNext() {
-    if (shuffle.value || _preferSc) return;
+    if (shuffle.value) return;
     final j = index.value + 1;
-    if (j < tracks.value.length && tracks.value[j].isYt && !Offline.instance.has(tracks.value[j])) {
-      YtService.instance.streamUrl(tracks.value[j].id, economy: Store.instance.economy).ignore();
+    if (j >= tracks.value.length) return;
+    final n = tracks.value[j];
+    if (Offline.instance.has(n)) return;
+    if (n.isSc) {
+      _resolveSc(n).ignore();
+    } else if (n.isYt) {
+      if (!n.isPreview) _resolveSc(n).ignore();
+      if (!_preferSc) _resolveYt(n.id, Store.instance.economy).ignore();
     }
   }
 
