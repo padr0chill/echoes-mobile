@@ -54,7 +54,7 @@ class SettingsScreen extends StatelessWidget {
             const SectionTitle('Звук'),
             SwitchListTile(
               title: const Text('Экономия трафика'),
-              subtitle: const Text('Лёгкий поток (~0,4 МБ/мин вместо ~1 МБ/мин)'),
+              subtitle: const Text('Лёгкий аудиопоток, если YouTube его отдаёт'),
               value: st.economy,
               onChanged: st.setEconomy,
             ),

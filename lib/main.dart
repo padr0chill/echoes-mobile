@@ -76,6 +76,26 @@ class _ShellState extends State<Shell> {
   int _tab = 0;
   static const _pages = [SearchScreen(), LibraryScreen(), SettingsScreen()];
 
+  @override
+  void initState() {
+    super.initState();
+    audio.error.addListener(_showError); // ошибка трека — сразу видно, с причиной
+  }
+
+  @override
+  void dispose() {
+    audio.error.removeListener(_showError);
+    super.dispose();
+  }
+
+  void _showError() {
+    final e = audio.error.value;
+    if (e == null || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(e), duration: const Duration(seconds: 6)));
+  }
+
   void _openPlayer() {
     Navigator.of(context).push(PageRouteBuilder(
       opaque: true,

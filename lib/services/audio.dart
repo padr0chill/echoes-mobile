@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../models.dart';
 import 'store.dart';
+import 'stream_source.dart';
 import 'yt.dart';
 
 enum RepeatState { off, all, one }
@@ -101,21 +102,60 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     _broadcast();
     try {
       await player.stop();
-      final url = await YtService.instance.streamUrl(t.id, economy: Store.instance.economy);
-      if (my != _token) return;
-      await player.setAudioSource(AudioSource.uri(url));
-      if (my != _token) return;
+      final ok = await _openStream(t, () => my != _token);
+      if (my != _token || !ok) return;
       player.play(); // без await: завершается только в конце трека
       Store.instance.addHistory(t);
       _prefetchNext();
     } catch (e) {
-      if (my == _token) error.value = 'Не удалось открыть трек';
+      if (my == _token) error.value = 'Не удалось открыть трек: ${_short(e)}';
     } finally {
       if (my == _token) {
         loading.value = false;
         _broadcast();
       }
     }
+  }
+
+  /// Открыть поток: через мини-прокси → напрямую → другие способы получить поток у YouTube.
+  /// Если что-то сработало — запоминаем, чтобы следующие треки сразу шли этим путём.
+  bool _useProxy = true; // через прокси надёжнее: googlevideo часто отказывает плееру iOS напрямую
+
+  Future<bool> _openStream(Track t, bool Function() cancelled) async {
+    final eco = Store.instance.economy;
+    Object? last;
+    var from = 0;
+    for (var attempt = 0; attempt < YtService.clients.length; attempt++) {
+      if (from >= YtService.clients.length) break;
+      final StreamPick pick;
+      try {
+        pick = await YtService.instance.stream(t.id, economy: eco, from: from);
+      } catch (e) {
+        last = e;
+        break;
+      }
+      if (cancelled()) return false;
+      // два пути: через прокси и напрямую; удачный запоминается и пробуется первым
+      for (final proxy in [_useProxy, !_useProxy]) {
+        try {
+          final src = proxy ? YtProxySource(pick) : AudioSource.uri(pick.url);
+          await player.setAudioSource(src).timeout(const Duration(seconds: 15));
+          _useProxy = proxy;
+          return true;
+        } catch (e) {
+          last = e;
+          if (cancelled()) return false;
+        }
+      }
+      from = pick.client + 1; // этот способ не подошёл — следующий
+    }
+    throw Exception(_short(last));
+  }
+
+  static String _short(Object? e) {
+    var s = '$e'.split('\n').first.replaceFirst('Exception: ', '');
+    if (s.length > 110) s = '${s.substring(0, 110)}…';
+    return s;
   }
 
   /// Ссылку на поток следующего трека — заранее: «следующий» включается сразу.
