@@ -26,6 +26,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # «Моя волна» — облако и каустики считаются на видеокарте
+  shaders:
+    - shaders/wave.frag
 
 # иконка приложения (генерируется при сборке: dart run flutter_launcher_icons)
 flutter_launcher_icons:

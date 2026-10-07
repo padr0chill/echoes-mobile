@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../models.dart';
@@ -86,12 +84,15 @@ class _Backdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
-      ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-        child: Cover.debugImage != null
-            ? Image(image: Cover.debugImage!(track), fit: BoxFit.cover)
-            : Image.network(track.thumb,
-                fit: BoxFit.cover, cacheWidth: 120, errorBuilder: (_, __, ___) => const SizedBox()),
+      // размытый фон — маленькая картинка, растянутая со сглаживанием (без фильтра размытия: он пересчитывался
+      // каждый кадр вместе с полосой прогресса)
+      Image(
+        image: ResizeImage(Cover.debugImage?.call(track) ?? NetworkImage(track.art ?? track.thumb),
+            width: 14, height: 14, policy: ResizeImagePolicy.fit),
+        fit: BoxFit.cover,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => const SizedBox(),
       ),
       Container(color: Colors.black.withValues(alpha: 0.55)),
     ]);

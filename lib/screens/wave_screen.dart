@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../cover_color.dart';
 import '../glass.dart';
@@ -353,7 +355,7 @@ class _Capsules extends StatelessWidget {
             onTap: onTap,
             child: Glass(
               radius: h / 2,
-              blur: 18,
+              blur: 0, // поверх анимации размытие пересчитывалось бы каждый кадр — заливки достаточно
               tint: selected ? 1.6 : 1.0,
               shadow: false,
               padding: EdgeInsets.fromLTRB(context.u(6), 0, context.u(18), 0),
@@ -410,9 +412,10 @@ class _Orb extends StatelessWidget {
   }
 }
 
-/// «Плазма», как у волны Яндекс Музыки: облако цвета обложки текущего трека (или настроения) с яркими
-/// тонкими «нитями», которые медленно извиваются; пока играет — быстрее и «дышит». Смена трека —
-/// плавный перелив в новый цвет.
+/// «Плазма», как у волны Яндекс Музыки: облако цвета обложки текущего трека (или настроения),
+/// по нему текут мягкие прожилки света («каустики»). Рисует шейдер на видеокарте (shaders/wave.frag);
+/// кадры идут через repaint, без перестройки виджетов. Пока играет — течёт быстрее и «дышит».
+/// Смена трека — плавный перелив цвета.
 class _Flame extends StatefulWidget {
   final List<Color> colors; // цвета, пока нет обложки (настроение / акцент)
   final Track? track;
@@ -422,20 +425,40 @@ class _Flame extends StatefulWidget {
   State<_Flame> createState() => _FlameState();
 }
 
-class _FlameState extends State<_Flame> with TickerProviderStateMixin {
-  late final AnimationController _time = AnimationController(vsync: this, duration: const Duration(seconds: 40))
-    ..repeat();
-  late final AnimationController _mix = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-    ..value = 1;
+class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
+  static Future<ui.FragmentProgram?>? _program;
+  ui.FragmentShader? _shader;
+  late final Ticker _ticker;
+  final _frame = ValueNotifier<int>(0);
+  Duration _prev = Duration.zero;
+  double _time = 0, _energy = 0, _mixT = 1;
+  bool _playing = false;
+  StreamSubscription<bool>? _sub;
   late List<Color> _from = widget.colors;
   late List<Color> _to = widget.colors;
   List<Color>? _cover;
-  double _phase = 0, _last = 0, _energy = 0;
 
   @override
   void initState() {
     super.initState();
+    _program ??=
+        ui.FragmentProgram.fromAsset('shaders/wave.frag').then<ui.FragmentProgram?>((p) => p).catchError((_) => null);
+    _program!.then((p) {
+      if (mounted && p != null) setState(() => _shader = p.fragmentShader());
+    });
+    _sub = audio.player.playingStream.listen((v) => _playing = v);
+    _ticker = createTicker(_onTick)..start();
     _loadCover();
+  }
+
+  void _onTick(Duration now) {
+    final dt = ((now - _prev).inMicroseconds / 1e6).clamp(0.0, 0.05);
+    _prev = now;
+    final playing = _playing && Wave.instance.active;
+    _energy += ((playing ? 1.0 : 0.0) - _energy) * (1 - math.exp(-dt * 2.5));
+    _time += dt * (1 + 1.6 * _energy);
+    if (_mixT < 1) _mixT = math.min(1, _mixT + dt / 1.4);
+    _frame.value++;
   }
 
   @override
@@ -462,7 +485,7 @@ class _FlameState extends State<_Flame> with TickerProviderStateMixin {
     if (_same(target, _to)) return;
     _from = _current();
     _to = target;
-    _mix.forward(from: 0);
+    _mixT = 0;
   }
 
   static bool _same(List<Color> a, List<Color> b) {
@@ -474,14 +497,15 @@ class _FlameState extends State<_Flame> with TickerProviderStateMixin {
   }
 
   List<Color> _current() {
-    final k = Curves.easeInOut.transform(_mix.value);
+    final k = Curves.easeInOut.transform(_mixT);
     return [for (var i = 0; i < _to.length; i++) Color.lerp(_from[i], _to[i], k)!];
   }
 
   @override
   void dispose() {
-    _time.dispose();
-    _mix.dispose();
+    _ticker.dispose();
+    _sub?.cancel();
+    _frame.dispose();
     super.dispose();
   }
 
@@ -489,138 +513,73 @@ class _FlameState extends State<_Flame> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: RepaintBoundary(
-        child: StreamBuilder<bool>(
-          stream: audio.player.playingStream,
-          builder: (context, snap) {
-            final playing = (snap.data ?? false) && Wave.instance.active;
-            return AnimatedBuilder(
-              animation: Listenable.merge([_time, _mix]),
-              builder: (context, _) {
-                // время копится: при игре течёт быстрее, без рывков; «энергия» плавно растёт/спадает
-                var d = _time.value - _last;
-                if (d < 0) d += 1;
-                _last = _time.value;
-                _phase += d * (1 + 2.2 * _energy);
-                _energy += ((playing ? 1.0 : 0.0) - _energy) * 0.04;
-                return CustomPaint(
-                  painter: _FlamePainter(_phase * 2 * math.pi, _current(), _energy),
-                  size: Size.infinite,
-                );
-              },
-            );
-          },
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: _shader != null
+              ? _ShaderPainter(_frame, _shader!, () => (_time, _energy, _current()))
+              : _BlobPainter(_frame, () => (_time, _energy, _current())),
         ),
       ),
     );
   }
 }
 
-class _FlamePainter extends CustomPainter {
-  final double t;
-  final List<Color> c;
-  final double energy;
-  _FlamePainter(this.t, this.c, this.energy);
+typedef _FlameState3 = (double, double, List<Color>) Function();
 
-  /// Бесформенное пятно: окружность, радиус которой «колышется» гармониками.
-  Path _blob(Offset o, double r, double seed) {
-    final p = Path();
-    const n = 48;
-    for (var i = 0; i <= n; i++) {
-      final a = i / n * 2 * math.pi;
-      final k = 1 +
-          0.16 * math.sin(3 * a + t * 1.3 + seed) +
-          0.10 * math.sin(5 * a - t * 1.7 + seed * 2) +
-          0.06 * math.sin(2 * a + t * 0.9 + seed * 3);
-      final pt = o + Offset(math.cos(a), math.sin(a)) * r * k;
-      i == 0 ? p.moveTo(pt.dx, pt.dy) : p.lineTo(pt.dx, pt.dy);
-    }
-    return p..close();
-  }
-
-  /// Нить плазмы: от ядра наружу, изгибается и «плывёт».
-  Path _wisp(Offset o, double s, int i) {
-    final base = i / 9 * 2 * math.pi + math.sin(t * 0.3 + i) * 0.5;
-    final len = s * (0.42 + 0.12 * math.sin(t * 0.7 + i * 1.9));
-    Offset at(double f, double bend) {
-      final a = base + bend * math.sin(t * (0.8 + i * 0.07) + f * 3 + i);
-      return o + Offset(math.cos(a), math.sin(a)) * len * f;
-    }
-
-    final p0 = at(0.08, 0.2), p1 = at(0.4, 0.6), p2 = at(0.7, 0.9), p3 = at(1.0, 1.1);
-    return Path()
-      ..moveTo(p0.dx, p0.dy)
-      ..cubicTo(p1.dx, p1.dy, p2.dx, p2.dy, p3.dx, p3.dy);
-  }
+class _ShaderPainter extends CustomPainter {
+  final ui.FragmentShader shader;
+  final _FlameState3 state;
+  _ShaderPainter(Listenable frame, this.shader, this.state) : super(repaint: frame);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width, h = size.height;
-    final s = math.min(w, h * 0.75);
-    final center = Offset(w / 2, h * 0.40);
-    final beat = 1 + energy * 0.05 * math.sin(t * 9);
-    // широкое свечение края экрана цветом трека (как заливка фона у Яндекса)
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = RadialGradient(
-          center: const Alignment(0, -0.2),
-          radius: 1.1,
-          colors: [c[2].withValues(alpha: 0.55), c[3].withValues(alpha: 0.35), c[3].withValues(alpha: 0)],
-          stops: const [0, 0.55, 1],
-        ).createShader(Offset.zero & size),
-    );
-    // облако: слои снаружи внутрь — тёмный край → глубже → основной цвет → светлое ядро
-    final layers = [
-      (c[3], 0.66, 0.20, 0.0, 0.85),
-      (c[2], 0.52, 0.16, 1.7, 0.95),
-      (c[1], 0.40, 0.13, 3.1, 1.0),
-      (c[1], 0.30, 0.18, 5.3, 0.8),
-      (c[0], 0.24, 0.10, 4.6, 1.0),
-    ];
-    for (final (color, r, drift, seed, alpha) in layers) {
-      final o = center + Offset(math.sin(t * 0.7 + seed) * s * drift, math.cos(t * 0.5 + seed * 1.3) * s * drift * 0.8);
-      final rad = s * r * beat;
-      canvas.drawPath(
-        _blob(o, rad, seed),
-        Paint()
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, rad * 0.35)
-          ..shader = RadialGradient(
-            colors: [color.withValues(alpha: alpha), color.withValues(alpha: alpha * 0.55), color.withValues(alpha: 0)],
-            stops: const [0, 0.6, 1],
-          ).createShader(Rect.fromCircle(center: o, radius: rad * 1.25)),
-      );
+    final (t, e, c) = state();
+    var i = 0;
+    void f(double v) => shader.setFloat(i++, v);
+    f(size.width);
+    f(size.height);
+    f(t);
+    f(e);
+    for (final col in c) {
+      f(col.r);
+      f(col.g);
+      f(col.b);
     }
-    // нити: широкое мягкое свечение + тонкая яркая середина
-    final glow = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = s * 0.03
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.025)
-      ..color = Color.lerp(c[0], Colors.white, 0.5)!.withValues(alpha: 0.18 + 0.12 * energy);
-    final line = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = math.max(1.2, s * 0.004)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.003)
-      ..color = Color.lerp(c[0], Colors.white, 0.75)!.withValues(alpha: 0.30 + 0.25 * energy);
-    for (var i = 0; i < 9; i++) {
-      final path = _wisp(center, s, i);
-      canvas.drawPath(path, glow);
-      canvas.drawPath(path, line);
-    }
-    // светлое ядро
-    final core = center + Offset(math.sin(t * 1.1) * s * 0.05, math.cos(t * 0.8) * s * 0.04);
-    canvas.drawCircle(
-      core,
-      s * 0.13,
-      Paint()
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.09)
-        ..color = Color.lerp(c[0], Colors.white, 0.55)!.withValues(alpha: 0.40 + 0.15 * energy),
-    );
+    canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 
   @override
-  bool shouldRepaint(_FlamePainter old) => true;
+  bool shouldRepaint(_ShaderPainter old) => old.shader != shader;
+}
+
+/// Запасной вариант без шейдера: мягкие пятна палитры (без прожилок).
+class _BlobPainter extends CustomPainter {
+  final _FlameState3 state;
+  _BlobPainter(Listenable frame, this.state) : super(repaint: frame);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final (t, energy, c) = state();
+    final w = size.width, h = size.height;
+    final s = math.min(w, h * 0.75);
+    final center = Offset(w / 2, h * 0.42);
+    canvas.drawRect(Offset.zero & size, Paint()..color = c[3].withValues(alpha: 0.5));
+    final layers = [(c[3], 0.70, 0.20, 0.0), (c[2], 0.55, 0.16, 1.7), (c[1], 0.42, 0.13, 3.1), (c[0], 0.26, 0.10, 4.6)];
+    for (final (color, r, drift, seed) in layers) {
+      final o = center + Offset(math.sin(t * 0.7 + seed) * s * drift, math.cos(t * 0.5 + seed * 1.3) * s * drift * 0.8);
+      final rad = s * r * (1 + energy * 0.04 * math.sin(t * 6));
+      canvas.drawCircle(
+        o,
+        rad,
+        Paint()
+          ..shader = RadialGradient(colors: [color, color.withValues(alpha: 0.55), color.withValues(alpha: 0)])
+              .createShader(Rect.fromCircle(center: o, radius: rad)),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BlobPainter old) => false;
 }
 
 /// Смена трека: старое расплывается и тает, новое проступает из размытия (как заголовок у Яндекса).

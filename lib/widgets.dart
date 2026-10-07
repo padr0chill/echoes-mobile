@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'glass.dart';
 import 'models.dart';
@@ -77,46 +78,164 @@ class TrackTile extends StatelessWidget {
     final cur = audio.current == track;
     final sub = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
     final dur = track.seconds > 0 ? fmtDuration(track.duration) : '';
-    return InkWell(
-      onTap: onTap,
-      onLongPress: () => showTrackMenu(context, track, playlist: playlist),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(7)),
-        child: Row(children: [
-          Cover(track: track, size: context.u(50), radius: context.u(8)),
-          SizedBox(width: context.u(12)),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(track.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null)),
-              const SizedBox(height: 2),
-              Row(children: [
-                // имя исполнителя — ссылка на его страницу
-                if (showArtist && track.artist.isNotEmpty)
-                  Flexible(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => openArtist(context, track),
-                      child: Text(track.artist,
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: sub)),
-                    ),
-                  ),
-                if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
-                  Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
-                if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
-                OfflineMark(track: track),
-              ]),
+    // свайп вправо — в очередь, влево — в плейлист (как в Spotify)
+    return SwipeActions(
+        onRight: () {
+          audio.addToQueue(track);
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(
+              content: Text('«${track.title}» — в очереди'),
+              duration: const Duration(seconds: 2),
+            ));
+        },
+        onLeft: () => pickPlaylist(context, track),
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: () => showTrackMenu(context, track, playlist: playlist),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(7)),
+            child: Row(children: [
+              Cover(track: track, size: context.u(50), radius: context.u(8)),
+              SizedBox(width: context.u(12)),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null)),
+                  const SizedBox(height: 2),
+                  Row(children: [
+                    // имя исполнителя — ссылка на его страницу
+                    if (showArtist && track.artist.isNotEmpty)
+                      Flexible(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => openArtist(context, track),
+                          child: Text(track.artist,
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: sub)),
+                        ),
+                      ),
+                    if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
+                      Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
+                    if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
+                    OfflineMark(track: track),
+                  ]),
+                ]),
+              ),
+              IconButton(
+                icon: const Icon(Icons.more_horiz_rounded),
+                onPressed: () => showTrackMenu(context, track, playlist: playlist),
+              ),
             ]),
           ),
-          IconButton(
-            icon: const Icon(Icons.more_horiz_rounded),
-            onPressed: () => showTrackMenu(context, track, playlist: playlist),
+        ));
+  }
+}
+
+/// Свайп по строке, как в Spotify: вправо — зелёная полоса «В очередь», влево — «В плейлист».
+/// Строка тянется за пальцем, после порога — лёгкая вибрация, отпустили — действие и пружинкой назад.
+class SwipeActions extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onRight;
+  final VoidCallback onLeft;
+  const SwipeActions({super.key, required this.child, required this.onRight, required this.onLeft});
+
+  @override
+  State<SwipeActions> createState() => _SwipeActionsState();
+}
+
+class _SwipeActionsState extends State<SwipeActions> with SingleTickerProviderStateMixin {
+  late final AnimationController _back = AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
+  double _dx = 0, _raw = 0, _from = 0, _w = 360;
+  bool _armed = false;
+
+  double get _threshold => (_w * 0.26).clamp(72.0, 140.0);
+
+  @override
+  void initState() {
+    super.initState();
+    _back.addListener(() => setState(() => _dx = _from * (1 - Curves.easeOutBack.transform(_back.value))));
+  }
+
+  @override
+  void dispose() {
+    _back.dispose();
+    super.dispose();
+  }
+
+  void _update(DragUpdateDetails d) {
+    if (_back.isAnimating) {
+      _back.stop();
+      _raw = _dx;
+    }
+    // палец — _raw; строка идёт за ним 1:1 до порога, дальше — туже (только сверх порога)
+    _raw = (_raw + d.delta.dx).clamp(-_w, _w);
+    final over = _raw.abs() - _threshold;
+    final dx = over <= 0 ? _raw : _raw.sign * (_threshold + over * 0.45);
+    final armed = dx.abs() >= _threshold;
+    if (armed != _armed) {
+      _armed = armed;
+      HapticFeedback.mediumImpact();
+    }
+    setState(() => _dx = dx);
+  }
+
+  void _end(DragEndDetails d) {
+    if (_dx >= _threshold) widget.onRight();
+    if (_dx <= -_threshold) widget.onLeft();
+    _armed = false;
+    _raw = 0;
+    _from = _dx;
+    _back.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, box) {
+      _w = box.maxWidth;
+      final right = _dx > 0;
+      final p = (_dx.abs() / _threshold).clamp(0.0, 1.0);
+      final color = right ? const Color(0xFF1DB954) : context.accent;
+      return GestureDetector(
+        onHorizontalDragUpdate: _update,
+        onHorizontalDragEnd: _end,
+        onHorizontalDragCancel: () => _end(DragEndDetails()),
+        child: Stack(children: [
+          if (_dx != 0)
+            Positioned.fill(
+              child: Container(
+                color: color.withValues(alpha: 0.25 + 0.6 * p),
+                alignment: right ? Alignment.centerLeft : Alignment.centerRight,
+                padding: EdgeInsets.symmetric(horizontal: context.u(22)),
+                child: Transform.scale(
+                  scale: 0.7 + 0.3 * p + (_dx.abs() >= _threshold ? 0.12 : 0),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (!right && p > 0.6)
+                      Text('В плейлист',
+                          style: TextStyle(color: Colors.black.withValues(alpha: p), fontWeight: FontWeight.w800)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+                      child: Icon(right ? Icons.queue_music_rounded : Icons.playlist_add_rounded,
+                          color: Colors.black.withValues(alpha: 0.5 + 0.5 * p)),
+                    ),
+                    if (right && p > 0.6)
+                      Text('В очередь',
+                          style: TextStyle(color: Colors.black.withValues(alpha: p), fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+            ),
+          Transform.translate(
+            offset: Offset(_dx, 0),
+            child: ColoredBox(
+              color: _dx == 0 ? Colors.transparent : Theme.of(context).scaffoldBackgroundColor,
+              child: widget.child,
+            ),
           ),
         ]),
-      ),
-    );
+      );
+    });
   }
 }
 

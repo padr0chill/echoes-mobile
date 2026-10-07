@@ -45,7 +45,10 @@ class Glass extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: r,
-        child: BackdropFilter(
+        // grouped: панели на одном экране (мини-плеер, вкладки) берут один общий снимок фона, а не каждая свой;
+        // blur 0 — без размытия вовсе (капсулы поверх анимации — иначе фон размывался бы каждый кадр)
+        child: BackdropFilter.grouped(
+          enabled: blur > 0,
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Container(
             padding: padding,
@@ -157,25 +160,30 @@ class Ambient extends StatelessWidget {
                   size: 420,
                 ),
               ),
-              if (src != null && Cover.debugImage == null)
+              // «размытая» обложка почти даром: картинка 12 px, растянутая со сглаживанием, — вместо
+              // фильтра размытия, который видеокарта пересчитывала бы каждый кадр
+              if (src != null || (Cover.debugImage != null && audio.current != null))
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 600),
-                  child: ImageFiltered(
-                    key: ValueKey(src),
-                    imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60, tileMode: TileMode.decal),
-                    child: Opacity(
-                      opacity: light ? 0.35 : 0.55,
-                      child: Image.network(src,
-                          fit: BoxFit.cover, cacheWidth: 96, errorBuilder: (_, __, ___) => const SizedBox()),
-                    ),
-                  ),
-                ),
-              if (src != null && Cover.debugImage != null && audio.current != null)
-                ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 60, sigmaY: 60, tileMode: TileMode.decal),
+                  // растянуть на весь фон (по умолчанию AnimatedSwitcher оставил бы картинку её размера — 12 px)
+                  layoutBuilder: (cur, prev) => Stack(fit: StackFit.expand, children: [...prev, if (cur != null) cur]),
                   child: Opacity(
+                    key: ValueKey(src),
                     opacity: light ? 0.35 : 0.55,
-                    child: Image(image: Cover.debugImage!(audio.current!), fit: BoxFit.cover),
+                    child: Image(
+                      image: ResizeImage(
+                        Cover.debugImage != null && audio.current != null
+                            ? Cover.debugImage!(audio.current!)
+                            : NetworkImage(src!),
+                        width: 12,
+                        height: 12,
+                        policy: ResizeImagePolicy.fit,
+                      ),
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.high,
+                      gaplessPlayback: true,
+                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    ),
                   ),
                 ),
               Container(color: base.withValues(alpha: light ? 0.35 : 0.45)),

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 import 'services/store.dart';
@@ -66,5 +67,12 @@ ThemeData buildTheme(Color accent, bool light) {
     textTheme: base.textTheme.apply(bodyColor: text, displayColor: text),
     iconTheme: IconThemeData(color: text),
     splashFactory: InkSparkle.splashFactory,
+    // переходы между экранами — как в iOS (плавный сдвиг и «свайп назад» от края)
+    pageTransitionsTheme: const PageTransitionsTheme(builders: {
+      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+    }),
   );
 }

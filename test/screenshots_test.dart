@@ -82,7 +82,12 @@ void main() {
     await tester.runAsync(() async {
       await tester.pumpWidget(const EchoesApp());
       for (final img in images.values) {
-        await precacheImage(img, tester.element(find.byType(Scaffold).first));
+        final ctx = tester.element(find.byType(Scaffold).first);
+        await precacheImage(img, ctx);
+        // маленькие копии для размытого фона (плеер, «атмосфера»)
+        for (final s in [12, 14]) {
+          await precacheImage(ResizeImage(img, width: s, height: s, policy: ResizeImagePolicy.fit), ctx);
+        }
       }
     });
     await tester.pump(const Duration(milliseconds: 300));

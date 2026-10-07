@@ -126,7 +126,10 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
-    final body = IndexedStack(index: _tab, children: _pages);
+    // скрытые вкладки не анимируются (волна не крутит шейдер, пока вы в поиске)
+    final body = IndexedStack(index: _tab, children: [
+      for (var i = 0; i < _pages.length; i++) TickerMode(enabled: i == _tab, child: _pages[i]),
+    ]);
     final mini = MiniPlayer(onOpen: _openPlayer);
     const items = [
       (Icons.waves_rounded, 'Волна'),
@@ -186,7 +189,8 @@ class _ShellState extends State<Shell> {
     return Ambient(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Stack(children: [
+        body: BackdropGroup(
+            child: Stack(children: [
           Positioned.fill(child: body),
           // плавающие мини-плеер и панель вкладок — стекло поверх содержимого
           Positioned(
@@ -198,7 +202,7 @@ class _ShellState extends State<Shell> {
               GlassTabBar(items: items, index: _tab, onTap: (i) => setState(() => _tab = i)),
             ]),
           ),
-        ]),
+        ])),
       ),
     );
   }
