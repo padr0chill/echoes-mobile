@@ -29,6 +29,14 @@ class Store extends ChangeNotifier {
   bool economy = false; // экономия трафика: самый лёгкий поток
   bool light = false;
 
+  // оформление
+  String skin = 'glass'; // 'glass' — обычная (жидкое стекло), 'winamp' — как Winamp 2 на ПК
+  bool vinyl = false; // в плеере вместо обложки — крутящийся винил с текстом песни под ним
+  String? bgPath; // своё фото на фон (обычная тема)
+  bool bgBlur = true;
+
+  bool get winamp => skin == 'winamp';
+
   // профиль и статистика
   String name = 'Слушатель';
   int plays = 0; // сколько треков включали
@@ -36,7 +44,7 @@ class Store extends ChangeNotifier {
   final Map<String, int> artistSeconds = {}; // исполнитель → секунды
   final Set<String> listenedIds = {}; // разные треки (для «уникальных»)
 
-  Color get accent => accents[accentIndex.clamp(0, accents.length - 1)];
+  Color get accent => winamp ? const Color(0xFF00E000) : accents[accentIndex.clamp(0, accents.length - 1)];
 
   Future<void> load() async {
     _p = await SharedPreferences.getInstance();
@@ -63,6 +71,10 @@ class Store extends ChangeNotifier {
     accentIndex = _p.getInt('accent') ?? 0;
     economy = _p.getBool('economy') ?? false;
     light = _p.getBool('light') ?? false;
+    skin = _p.getString('skin') ?? 'glass';
+    vinyl = _p.getBool('vinyl') ?? false;
+    bgPath = _p.getString('bg');
+    bgBlur = _p.getBool('bg_blur') ?? true;
     name = _p.getString('name') ?? 'Слушатель';
     plays = _p.getInt('plays') ?? 0;
     listenSeconds = _p.getInt('listen_s') ?? 0;
@@ -84,6 +96,14 @@ class Store extends ChangeNotifier {
     _p.setInt('accent', accentIndex);
     _p.setBool('economy', economy);
     _p.setBool('light', light);
+    _p.setString('skin', skin);
+    _p.setBool('vinyl', vinyl);
+    if (bgPath == null) {
+      _p.remove('bg');
+    } else {
+      _p.setString('bg', bgPath!);
+    }
+    _p.setBool('bg_blur', bgBlur);
     _p.setString('name', name);
     _p.setInt('plays', plays);
     _p.setInt('listen_s', listenSeconds);
@@ -223,6 +243,26 @@ class Store extends ChangeNotifier {
 
   void setEconomy(bool v) {
     economy = v;
+    _save();
+  }
+
+  void setSkin(String v) {
+    skin = v;
+    _save();
+  }
+
+  void setVinyl(bool v) {
+    vinyl = v;
+    _save();
+  }
+
+  void setBackground(String? path) {
+    bgPath = path;
+    _save();
+  }
+
+  void setBgBlur(bool v) {
+    bgBlur = v;
     _save();
   }
 

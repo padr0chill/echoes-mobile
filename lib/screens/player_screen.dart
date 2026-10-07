@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../models.dart';
@@ -5,6 +8,8 @@ import '../services/audio.dart';
 import '../services/lyrics.dart';
 import '../services/store.dart';
 import '../ui.dart';
+import '../skins/winamp.dart';
+import '../vinyl.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
 
@@ -22,6 +27,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (Store.instance.winamp) return const WinampPlayer();
     return ValueListenableBuilder<int>(
       valueListenable: audio.index,
       builder: (context, _, __) {
@@ -37,24 +43,34 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   lyrics: _lyrics,
                   onLyrics: () => setState(() => _lyrics = !_lyrics),
                 );
+                final coverSize =
+                    (wide ? box.maxHeight * 0.62 : box.maxWidth - context.u(56)).clamp(120.0, 520.0).toDouble();
                 final main = _lyrics && t != null
                     ? _LyricsView(track: t)
-                    : Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(context.u(12)),
-                          child: Hero(
-                            tag: 'cover',
-                            child: Cover(
-                              track: t,
-                              size: (wide ? box.maxHeight * 0.62 : box.maxWidth - context.u(56))
-                                  .clamp(120.0, 520.0)
-                                  .toDouble(),
-                              radius: context.u(18),
-                              big: true,
+                    : Store.instance.vinyl
+                        // винил: пластинка крутится, под ней — текущая строка текста песни
+                        ? LayoutBuilder(builder: (context, b) {
+                            final ticker = MediaQuery.textScalerOf(context).scale(64) + context.u(8);
+                            final s = math.min(coverSize, b.maxHeight - ticker - context.u(24)).clamp(100.0, 520.0);
+                            return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              VinylDisc(track: t, size: s),
+                              SizedBox(height: context.u(14)),
+                              if (t != null)
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: context.u(24)),
+                                  child: LyricsTicker(track: t),
+                                ),
+                            ]);
+                          })
+                        : Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(context.u(12)),
+                              child: Hero(
+                                tag: 'cover',
+                                child: Cover(track: t, size: coverSize, radius: context.u(18), big: true),
+                              ),
                             ),
-                          ),
-                        ),
-                      );
+                          );
                 final controls = _Controls(track: t);
                 if (wide) {
                   return Column(children: [
@@ -368,45 +384,161 @@ class _LyricsViewState extends State<_LyricsView> {
   }
 }
 
+/// Очередь (как в Spotify): сильно размытое стекло поверх плеера — ничего не просвечивает;
+/// «Сейчас играет», «Далее в очереди» (добавленные вручную), «Далее»; перетаскивание за ручку, ✕ — убрать.
 void _showQueue(BuildContext context) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    showDragHandle: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (ctx) => DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.7,
-      maxChildSize: 0.95,
-      builder: (ctx, sc) => ValueListenableBuilder<List<Track>>(
-        valueListenable: audio.tracks,
-        builder: (ctx, list, _) => ValueListenableBuilder<int>(
-          valueListenable: audio.index,
-          builder: (ctx, cur, _) => ListView.builder(
-            controller: sc,
-            itemCount: list.length + 1,
-            itemBuilder: (ctx, i) {
-              if (i == 0) {
-                return const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text('Очередь', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                );
-              }
-              final j = i - 1;
-              return Dismissible(
-                key: ValueKey('${list[j].id}$j'),
-                direction: j == cur ? DismissDirection.none : DismissDirection.endToStart,
-                onDismissed: (_) => audio.removeAt(j),
-                background: Container(
-                    color: Colors.redAccent,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(Icons.delete_outline)),
-                child: TrackTile(track: list[j], onTap: () => audio.jumpTo(j)),
-              );
-            },
+      initialChildSize: 0.86,
+      minChildSize: 0.4,
+      maxChildSize: 0.96,
+      builder: (ctx, sc) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+          child: ColoredBox(
+            color: const Color(0xFF111114).withValues(alpha: 0.82),
+            child: _QueueList(controller: sc),
           ),
         ),
       ),
     ),
   );
+}
+
+class _QueueList extends StatelessWidget {
+  final ScrollController controller;
+  const _QueueList({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([audio.tracks, audio.index, audio.upNext, audio.shuffle]),
+      builder: (context, _) {
+        final list = audio.tracks.value;
+        final cur = audio.index.value;
+        final up = audio.upNext.value.clamp(0, (list.length - cur - 1).clamp(0, list.length));
+        // показываем текущий и всё, что после него (не больше 300 — длинные плейлисты)
+        final first = cur + 1;
+        final count = (list.length - first).clamp(0, 300);
+        final dim = Colors.white.withValues(alpha: 0.55);
+        Widget label(String s) => Padding(
+              padding: EdgeInsets.fromLTRB(context.u(18), context.u(16), context.u(18), context.u(6)),
+              child: Text(s, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+            );
+        return CustomScrollView(controller: controller, slivers: [
+          SliverToBoxAdapter(
+            child: Center(
+              child: Container(
+                margin: EdgeInsets.only(top: context.u(10)),
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.circular(3)),
+              ),
+            ),
+          ),
+          if (cur >= 0 && cur < list.length) ...[
+            SliverToBoxAdapter(child: label('Сейчас играет')),
+            SliverToBoxAdapter(child: _QueueRow(track: list[cur], playing: true)),
+          ],
+          if (count == 0)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(context.u(24)),
+                child: Text('Дальше ничего нет — добавьте треки свайпом вправо', style: TextStyle(color: dim)),
+              ),
+            ),
+          if (count > 0)
+            SliverReorderableList(
+              itemCount: count,
+              onReorderItem: (a, b) {
+                // перенос внутри/в «Далее в очереди» — пересчитать, сколько там треков
+                final inUpA = a < up, inUpB = b < up || (b == up && !inUpA);
+                audio.move(first + a, first + b);
+                if (!inUpA && inUpB) audio.upNext.value = up + 1;
+                if (inUpA && !inUpB) audio.upNext.value = up - 1;
+              },
+              itemBuilder: (context, i) {
+                final j = first + i;
+                return Column(
+                  key: ValueKey('q${list[j].id}'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (i == 0 && up > 0) label('Далее в очереди'),
+                    if (i == up) label(audio.shuffle.value ? 'Далее (вперемешку)' : 'Далее'),
+                    _QueueRow(
+                      track: list[j],
+                      queued: i < up,
+                      onTap: () => audio.jumpTo(j),
+                      onRemove: () => audio.removeAt(j),
+                      handle: ReorderableDragStartListener(
+                        index: i,
+                        child: Padding(
+                          padding: EdgeInsets.all(context.u(10)),
+                          child: Icon(Icons.drag_handle_rounded, color: dim),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          SliverToBoxAdapter(child: SizedBox(height: context.u(40) + MediaQuery.paddingOf(context).bottom)),
+        ]);
+      },
+    );
+  }
+}
+
+class _QueueRow extends StatelessWidget {
+  final Track track;
+  final bool playing;
+  final bool queued;
+  final VoidCallback? onTap;
+  final VoidCallback? onRemove;
+  final Widget? handle;
+  const _QueueRow(
+      {required this.track, this.playing = false, this.queued = false, this.onTap, this.onRemove, this.handle});
+
+  @override
+  Widget build(BuildContext context) {
+    final dim = Colors.white.withValues(alpha: 0.55);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(context.u(16), context.u(5), context.u(4), context.u(5)),
+        child: Row(children: [
+          Cover(track: track, size: context.u(46), radius: context.u(8)),
+          SizedBox(width: context.u(12)),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(track.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: playing ? context.accent : Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+              Text(track.artist,
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim, fontSize: 13)),
+            ]),
+          ),
+          if (queued) Icon(Icons.playlist_add_check_rounded, size: context.u(18), color: context.accent),
+          if (onRemove != null)
+            IconButton(
+              tooltip: 'Убрать из очереди',
+              icon: Icon(Icons.close_rounded, color: dim, size: context.u(20)),
+              onPressed: onRemove,
+            ),
+          if (handle != null) handle!,
+          if (playing)
+            Padding(
+                padding: EdgeInsets.all(context.u(12)), child: Icon(Icons.graphic_eq_rounded, color: context.accent)),
+        ]),
+      ),
+    );
+  }
 }

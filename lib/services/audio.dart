@@ -42,6 +42,10 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   final ValueNotifier<bool> loading = ValueNotifier(false);
   final ValueNotifier<String?> error = ValueNotifier(null);
   final ValueNotifier<bool> shuffle = ValueNotifier(false);
+
+  /// «Далее в очереди» (как в Spotify): сколько треков сразу после текущего добавлены вручную —
+  /// они играют следующими по порядку, даже при «вперемешку».
+  final ValueNotifier<int> upNext = ValueNotifier(0);
   final ValueNotifier<RepeatState> repeat = ValueNotifier(RepeatState.off);
 
   int _token = 0;
@@ -74,6 +78,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   /// Играть список с позиции start (поиск, плейлист, «Мне нравится»). wave — очередь «Моей волны».
   Future<void> playList(List<Track> list, int start, {Future<void> Function()? wave}) async {
     nearEnd = wave;
+    upNext.value = 0;
     tracks.value = List.of(list);
     queue.add(tracks.value.map((t) => t.toMediaItem()).toList());
     await _playIndex(start);
@@ -94,27 +99,55 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     if (s > 0 && current != null) Store.instance.addListened(current!, s);
   }
 
-  void playNext(Track t) {
+  /// Поставить трек в «Далее в очереди»: first — самым первым («Играть следующим»), иначе — после
+  /// уже добавленных («В очередь»). Если трек уже есть в списке — переезжает (не дублируется).
+  void _enqueue(Track t, {required bool first}) {
     final l = List.of(tracks.value);
-    final at = index.value + 1;
-    l.remove(t);
-    l.insert(at.clamp(0, l.length), t);
+    var cur = index.value;
+    if (cur >= 0 && cur < l.length && l[cur] == t) return; // это и так играет
+    final old = l.indexOf(t);
+    var up = upNext.value;
+    if (old >= 0) {
+      l.removeAt(old);
+      if (old < cur) {
+        cur--;
+      } else if (old <= cur + up) {
+        up--; // был среди «Далее в очереди»
+      }
+    }
+    final at = (first ? cur + 1 : cur + 1 + up).clamp(0, l.length);
+    l.insert(at, t);
+    index.value = cur;
     tracks.value = l;
+    upNext.value = up + 1;
     queue.add(l.map((x) => x.toMediaItem()).toList());
-    if (index.value < 0) _playIndex(0);
+    if (cur < 0) _playIndex(0);
   }
 
-  void addToQueue(Track t) {
-    if (tracks.value.contains(t)) return;
-    tracks.value = [...tracks.value, t];
-    queue.add(tracks.value.map((x) => x.toMediaItem()).toList());
-    if (index.value < 0) _playIndex(0);
-  }
+  void playNext(Track t) => _enqueue(t, first: true);
+
+  void addToQueue(Track t) => _enqueue(t, first: false);
 
   void removeAt(int i) {
     if (i == index.value || i < 0 || i >= tracks.value.length) return;
     final l = List.of(tracks.value)..removeAt(i);
     if (i < index.value) index.value -= 1;
+    if (i > index.value && i <= index.value + upNext.value) upNext.value -= 1;
+    tracks.value = l;
+    queue.add(l.map((x) => x.toMediaItem()).toList());
+  }
+
+  /// Перенести трек в очереди (перетаскивание в списке «Далее»).
+  void move(int from, int to) {
+    final l = List.of(tracks.value);
+    if (from < 0 || from >= l.length || from == index.value) return;
+    final t = l.removeAt(from);
+    to = to.clamp(0, l.length);
+    l.insert(to, t);
+    var cur = index.value;
+    if (from < cur && to >= cur) cur--;
+    if (from > cur && to <= cur) cur++;
+    index.value = cur;
     tracks.value = l;
     queue.add(l.map((x) => x.toMediaItem()).toList());
   }
@@ -123,6 +156,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final l = tracks.value;
     if (i < 0 || i >= l.length) return;
     if (player.playing || player.processingState == ProcessingState.completed) _countListened();
+    // следующий из «Далее в очереди» — счётчик уменьшается; переход в другое место — очередь «растворяется»
+    if (upNext.value > 0 && i != index.value) upNext.value = i == index.value + 1 ? upNext.value - 1 : 0;
     index.value = i;
     final t = l[i];
     final my = ++_token;
@@ -175,7 +210,14 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     if (t.isSc) {
       final u = (await _resolveSc(t))!;
       if (cancelled()) return false;
-      await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
+      try {
+        await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
+      } catch (e) {
+        // плеер iOS не открыл ссылку — играем из быстро скачанного временного файла
+        final f = await Offline.instance.playbackFile(t, url: u);
+        if (cancelled()) return false;
+        await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
+      }
       return true;
     }
 
@@ -218,6 +260,17 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
           errs.add('YouTube${proxy ? ' прокси' : ''}: ${_short(e)}');
         }
       }
+      // ни напрямую, ни через прокси — скачать во временный файл и играть из него
+      if (cancelled()) return false;
+      try {
+        final f = await Offline.instance.playbackFile(t, pick: pick).timeout(const Duration(seconds: 25));
+        if (cancelled()) return false;
+        await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
+        _preferSc = false;
+        return true;
+      } catch (e) {
+        errs.add('YouTube файл: ${_short(e)}');
+      }
       return false;
     }
 
@@ -228,6 +281,16 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         return true;
       } catch (e) {
         errs.add('SoundCloud: ${_short(e)}');
+      }
+      // плеер iOS не открыл ссылку («unsupported URL») — через временный файл
+      if (cancelled()) return false;
+      try {
+        final f = await Offline.instance.playbackFile(t, url: u).timeout(const Duration(seconds: 20));
+        if (cancelled()) return false;
+        await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
+        return true;
+      } catch (e) {
+        errs.add('SoundCloud файл: ${_short(e)}');
         return false;
       }
     }
@@ -356,6 +419,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   int? _nextIndex({bool user = false}) {
     final n = tracks.value.length;
     if (n == 0) return null;
+    // добавленные вручную — всегда следующими, даже «вперемешку»
+    if (upNext.value > 0 && index.value + 1 < n) return index.value + 1;
     if (shuffle.value && n > 1) {
       var j = index.value;
       while (j == index.value) {

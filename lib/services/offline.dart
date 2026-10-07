@@ -188,7 +188,7 @@ class Offline extends ChangeNotifier {
   }
 
   /// YouTube отдаёт файл только кусками (Range) — качаем по 1 МБ.
-  Future<void> _ranged(StreamPick pick, Track t, File tmp) async {
+  Future<void> _ranged(StreamPick pick, Track t, File tmp, {bool report = true}) async {
     final sink = tmp.openWrite();
     try {
       const chunk = 1 << 20;
@@ -205,7 +205,7 @@ class Offline extends ChangeNotifier {
           throw Exception('HTTP ${r.statusCode}');
         }
         await sink.addStream(r.stream);
-        _tick(t, (e + 1) / pick.size);
+        if (report) _tick(t, (e + 1) / pick.size);
       }
     } finally {
       await sink.close();
@@ -213,8 +213,10 @@ class Offline extends ChangeNotifier {
   }
 
   /// SoundCloud: обычный mp3 — одним файлом; HLS — сегменты подряд (mp3-куски или fMP4 с init-сегментом).
-  Future<String> _sc(ScTrack st, Track t, File tmp) async {
-    final u = await ScService.instance.streamUrl(st);
+  Future<String> _sc(ScTrack st, Track t, File tmp) async => _fetchUrl(await ScService.instance.streamUrl(st), t, tmp);
+
+  /// Скачать по ссылке SoundCloud: обычный mp3 — потоком, HLS — сегменты подряд.
+  Future<String> _fetchUrl(Uri u, Track t, File tmp, {bool report = true}) async {
     if (!u.path.contains('.m3u8') && !u.toString().contains('playlist.m3u8')) {
       final r = await _client.send(http.Request('GET', u));
       if (r.statusCode != 200) {
@@ -228,7 +230,7 @@ class Offline extends ChangeNotifier {
         await for (final b in r.stream) {
           sink.add(b);
           got += b.length;
-          if (total > 0) _tick(t, got / total);
+          if (total > 0 && report) _tick(t, got / total);
         }
       } finally {
         await sink.close();
@@ -255,12 +257,45 @@ class Offline extends ChangeNotifier {
         final r = await _client.get(segs[i]);
         if (r.statusCode != 200) throw Exception('SoundCloud: HTTP ${r.statusCode}');
         sink.add(r.bodyBytes);
-        _tick(t, (i + 1) / segs.length);
+        if (report) _tick(t, (i + 1) / segs.length);
       }
     } finally {
       await sink.close();
     }
     return mp4 || segs.first.path.contains('.m4s') ? 'm4a' : 'mp3';
+  }
+}
+
+extension PlaybackCache on Offline {
+  /// Запасной путь для игры: плеер iOS не открыл ссылку (бывает «unsupported URL», а после фона —
+  /// «не удалось подключиться» к его внутреннему прокси) — быстро качаем трек во временный кэш
+  /// (Caches, iOS чистит его сам; держим последние 25) и играем из файла.
+  Future<File> playbackFile(Track t, {Uri? url, StreamPick? pick}) async {
+    final base = await getTemporaryDirectory();
+    final d = Directory('${base.path}/echoes_play');
+    if (!d.existsSync()) d.createSync(recursive: true);
+    final name = Offline._safe(t.id);
+    for (final f in d.listSync().whereType<File>()) {
+      if (f.uri.pathSegments.last.startsWith('$name.') && !f.path.endsWith('.part')) return f;
+    }
+    final tmp = File('${d.path}/$name.part');
+    String ext;
+    if (pick != null) {
+      await _ranged(pick, t, tmp, report: false);
+      ext = pick.mime.contains('video') ? 'mp4' : 'm4a';
+    } else {
+      ext = await _fetchUrl(url!, t, tmp, report: false);
+    }
+    final out = tmp.renameSync('${d.path}/$name.$ext');
+    // старые — прочь
+    final all = d.listSync().whereType<File>().toList()
+      ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+    for (final f in all.skip(25)) {
+      try {
+        f.deleteSync();
+      } catch (_) {}
+    }
+    return out;
   }
 }
 

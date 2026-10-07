@@ -23,11 +23,14 @@ extension UiScale on BuildContext {
 /// Переключить вкладку из глубины экрана (например, капсула «Для вас» на волне). Слушает Shell.
 final openTab = ValueNotifier<int?>(null);
 
-ThemeData buildTheme(Color accent, bool light) {
+ThemeData buildTheme(Color accent, bool light, {bool winamp = false}) {
+  if (winamp) light = false; // Winamp — только тёмный
   final base = light ? ThemeData.light(useMaterial3: true) : ThemeData.dark(useMaterial3: true);
-  final bg = light ? const Color(0xFFF4F3F0) : const Color(0xFF0E0E10);
-  // карточки — полупрозрачные (стекло без размытия: дёшево даже в длинных списках)
-  final card = light ? Colors.white.withValues(alpha: 0.62) : Colors.white.withValues(alpha: 0.075);
+  final bg = winamp ? const Color(0xFF1B1B29) : (light ? const Color(0xFFF4F3F0) : const Color(0xFF0E0E10));
+  // карточки — полупрозрачные (стекло без размытия: дёшево даже в длинных списках); в Winamp — плоские серые
+  final card = winamp
+      ? const Color(0xFF2A2A36)
+      : (light ? Colors.white.withValues(alpha: 0.62) : Colors.white.withValues(alpha: 0.075));
   final text = light ? const Color(0xFF141416) : Colors.white;
   return base.copyWith(
     scaffoldBackgroundColor: bg,

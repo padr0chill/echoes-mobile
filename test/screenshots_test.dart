@@ -121,6 +121,30 @@ void main() {
     addTearDown(() => audio.nearEnd = null);
     await shoot(t, phone, 'phone_wave_playing', () => t.pump(const Duration(milliseconds: 1600)));
   });
+  testWidgets('phone vinyl', (t) async {
+    Store.instance.setVinyl(true);
+    addTearDown(() => Store.instance.setVinyl(false));
+    await shoot(t, phone, 'phone_vinyl', () => openPlayer(t));
+  });
+  testWidgets('phone queue', (t) async {
+    audio.addToQueue(audio.tracks.value.last);
+    await shoot(t, phone, 'phone_queue', () async {
+      await openPlayer(t);
+      await t.tap(find.byTooltip('Очередь'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 500));
+    });
+  });
+  testWidgets('winamp player', (t) async {
+    Store.instance.setSkin('winamp');
+    addTearDown(() => Store.instance.setSkin('glass'));
+    await shoot(t, phone, 'winamp_player', () => openPlayer(t));
+  });
+  testWidgets('winamp library', (t) async {
+    Store.instance.setSkin('winamp');
+    addTearDown(() => Store.instance.setSkin('glass'));
+    await shoot(t, phone, 'winamp_library', () => openTab(t, 'Моя музыка'));
+  });
   testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () => openTab(t, 'Поиск')));
   testWidgets('phone player', (t) => shoot(t, phone, 'phone_player', () => openPlayer(t)));
   testWidgets('se library', (t) => shoot(t, se, 'se_library', () => openTab(t, 'Моя музыка')));

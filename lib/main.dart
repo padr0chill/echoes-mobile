@@ -51,7 +51,7 @@ class EchoesApp extends StatelessWidget {
         return MaterialApp(
           title: 'ECHOES',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(st.accent, st.light),
+          theme: buildTheme(st.accent, st.light, winamp: st.winamp),
           // текст растёт вместе с экраном (iPad), системный «крупный шрифт» — не больше ×1.3
           builder: (context, child) {
             final mq = MediaQuery.of(context);
@@ -61,7 +61,7 @@ class EchoesApp extends StatelessWidget {
             return MediaQuery(
               data: mq.copyWith(textScaler: TextScaler.linear(sys * k)),
               child: AnnotatedRegion<SystemUiOverlayStyle>(
-                value: st.light ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+                value: st.light && !st.winamp ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
                 child: child!,
               ),
             );

@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:file_selector/file_selector.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/material.dart';
 
 import '../services/offline.dart';
@@ -23,6 +27,55 @@ class SettingsScreen extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
               child: const Text('Настройки', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
             ),
+            const SectionTitle('Оформление'),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'glass', icon: Icon(Icons.blur_on_rounded), label: Text('Обычная')),
+                  ButtonSegment(value: 'winamp', icon: Icon(Icons.graphic_eq_rounded), label: Text('Winamp')),
+                ],
+                selected: {st.skin},
+                onSelectionChanged: (s) => st.setSkin(s.first),
+                showSelectedIcon: false,
+              ),
+            ),
+            if (st.winamp)
+              Padding(
+                padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(16), 0),
+                child: Text('Как Winamp 2 на ПК: ЖК-дисплей, спектр, плейлист. Без размытий — самая лёгкая тема.',
+                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+              ),
+            if (!st.winamp) ...[
+              SwitchListTile(
+                secondary: const Icon(Icons.album_rounded),
+                title: const Text('Винил вместо обложки'),
+                subtitle: const Text('В плеере крутится пластинка, под ней — строка текста песни'),
+                value: st.vinyl,
+                onChanged: st.setVinyl,
+              ),
+              ListTile(
+                leading: const Icon(Icons.wallpaper_rounded),
+                title: const Text('Своё фото на фон'),
+                subtitle: Text(st.bgPath == null ? 'Сейчас — размытая обложка трека' : 'Выбрано своё фото'),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (st.bgPath != null)
+                    IconButton(
+                      tooltip: 'Убрать фото',
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => _clearBackground(st),
+                    ),
+                  FilledButton.tonal(onPressed: () => _pickBackground(context), child: const Text('Выбрать')),
+                ]),
+              ),
+              if (st.bgPath != null)
+                SwitchListTile(
+                  secondary: const Icon(Icons.blur_linear_rounded),
+                  title: const Text('Размыть фото'),
+                  value: st.bgBlur,
+                  onChanged: st.setBgBlur,
+                ),
+            ],
             const SectionTitle('Цвет'),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: context.u(16)),
@@ -101,5 +154,47 @@ class SettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Фото для фона: копия во внутреннюю папку приложения (оригинал из «Фото»/«Файлов» может пропасть).
+Future<void> _pickBackground(BuildContext context) async {
+  final XFile? f;
+  try {
+    f = await openFile(acceptedTypeGroups: const [
+      XTypeGroup(
+        label: 'Фото',
+        extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
+        uniformTypeIdentifiers: ['public.image'],
+      ),
+    ]);
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть фото: $e')));
+    }
+    return;
+  }
+  if (f == null) return;
+  final dir = await getApplicationSupportDirectory();
+  final ext = f.name.contains('.') ? f.name.split('.').last.toLowerCase() : 'jpg';
+  final dst = File('${dir.path}/background_${DateTime.now().millisecondsSinceEpoch}.$ext');
+  await dst.writeAsBytes(await f.readAsBytes());
+  final st = Store.instance;
+  final old = st.bgPath;
+  st.setBackground(dst.path);
+  if (old != null && old != dst.path) {
+    try {
+      File(old).deleteSync();
+    } catch (_) {}
+  }
+}
+
+void _clearBackground(Store st) {
+  final old = st.bgPath;
+  st.setBackground(null);
+  if (old != null) {
+    try {
+      File(old).deleteSync();
+    } catch (_) {}
   }
 }

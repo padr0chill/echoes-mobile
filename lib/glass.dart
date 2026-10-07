@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import 'services/audio.dart';
+import 'skins/winamp.dart';
 import 'services/store.dart';
 import 'ui.dart';
 import 'widgets.dart';
@@ -29,6 +31,10 @@ class Glass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // тема Winamp: плоская панель с фаской, без размытия (дёшево)
+    if (Store.instance.winamp) {
+      return WaBevel(padding: padding, child: child);
+    }
     final light = Store.instance.light;
     final r = BorderRadius.circular(radius);
     return Container(
@@ -133,8 +139,47 @@ class Ambient extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final light = Store.instance.light;
+    final st = Store.instance;
+    // Winamp — ровный тёмный фон, без картинок
+    if (st.winamp) {
+      return Stack(fit: StackFit.expand, children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF22223A), Color(0xFF14141E)],
+            ),
+          ),
+        ),
+        child,
+      ]);
+    }
+    final light = st.light;
     final base = light ? const Color(0xFFF2F1EE) : const Color(0xFF0B0B0E);
+    // своё фото на фоне (страница исполнителя — всё равно его аватар)
+    final bg = image == null ? st.bgPath : null;
+    if (bg != null && File(bg).existsSync()) {
+      return Stack(fit: StackFit.expand, children: [
+        ColoredBox(color: base),
+        RepaintBoundary(
+          child: Image(
+            // «размыто» — маленькая копия, растянутая со сглаживанием (почти даром); чётко — по размеру экрана
+            image: ResizeImage(FileImage(File(bg)),
+                width: st.bgBlur
+                    ? 40
+                    : (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
+                policy: ResizeImagePolicy.fit),
+            fit: BoxFit.cover,
+            filterQuality: st.bgBlur ? FilterQuality.high : FilterQuality.medium,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => const SizedBox(),
+          ),
+        ),
+        ColoredBox(color: base.withValues(alpha: light ? 0.30 : 0.42)),
+        child,
+      ]);
+    }
     return Stack(fit: StackFit.expand, children: [
       ColoredBox(color: base),
       RepaintBoundary(
