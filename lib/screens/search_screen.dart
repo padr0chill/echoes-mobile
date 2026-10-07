@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../services/audio.dart';
+import '../services/sc.dart';
 import '../services/store.dart';
 import '../services/yt.dart';
 import '../ui.dart';
@@ -23,6 +24,8 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   bool _busy = false;
   String? _err;
   int _token = 0;
+  bool _sc = false; // источник поиска: YouTube или SoundCloud (SoundCloud играет всегда)
+  String _last = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -32,13 +35,14 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
     if (q.isEmpty) return;
     _focus.unfocus();
     Store.instance.addSearch(q);
+    _last = q;
     final my = ++_token;
     setState(() {
       _busy = true;
       _err = null;
     });
     try {
-      final r = await YtService.instance.search(q);
+      final r = _sc ? await ScService.instance.searchTracks(q) : await YtService.instance.search(q);
       if (my != _token) return;
       setState(() => _results = r);
       if (r.isEmpty) _err = 'Ничего не нашлось';
@@ -83,6 +87,23 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
             ),
             onChanged: (_) => setState(() {}),
           ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(4)),
+          child: Wrap(children: [
+            for (final s in const [(false, 'YouTube'), (true, 'SoundCloud')])
+              Padding(
+                padding: EdgeInsets.only(right: context.u(8)),
+                child: ChoiceChip(
+                  label: Text(s.$2),
+                  selected: _sc == s.$1,
+                  onSelected: (_) {
+                    setState(() => _sc = s.$1);
+                    if (_last.isNotEmpty) _search(_last);
+                  },
+                ),
+              ),
+          ]),
         ),
         if (_busy) LinearProgressIndicator(minHeight: 2, color: context.accent, backgroundColor: Colors.transparent),
         Expanded(

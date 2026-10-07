@@ -5,10 +5,12 @@ import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'screens/for_you_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/player_screen.dart';
 import 'screens/search_screen.dart';
-import 'screens/settings_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/wave_screen.dart';
 import 'services/audio.dart';
 import 'services/store.dart';
 import 'ui.dart';
@@ -74,7 +76,7 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int _tab = 0;
-  static const _pages = [SearchScreen(), LibraryScreen(), SettingsScreen()];
+  static const _pages = [WaveScreen(), SearchScreen(), ForYouScreen(), LibraryScreen(), ProfileScreen()];
 
   @override
   void initState() {
@@ -115,21 +117,27 @@ class _ShellState extends State<Shell> {
     final body = IndexedStack(index: _tab, children: _pages);
     final mini = MiniPlayer(onOpen: _openPlayer);
     const items = [
+      (Icons.waves_rounded, 'Волна'),
       (Icons.search_rounded, 'Поиск'),
+      (Icons.auto_awesome_rounded, 'Для вас'),
       (Icons.library_music_rounded, 'Моя музыка'),
-      (Icons.tune_rounded, 'Настройки'),
+      (Icons.person_rounded, 'Профиль'),
     ];
     if (context.wide) {
+      // невысокий экран (телефон боком) — только значки, без подписей и логотипа
+      final low = MediaQuery.sizeOf(context).height < 560;
       return Scaffold(
         body: Row(children: [
           NavigationRail(
             selectedIndex: _tab,
             onDestinationSelected: (i) => setState(() => _tab = i),
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Icon(Icons.graphic_eq_rounded, color: context.accent, size: 32),
-            ),
+            labelType: low ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+            leading: low
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Icon(Icons.graphic_eq_rounded, color: context.accent, size: 32),
+                  ),
             destinations: [
               for (final it in items) NavigationRailDestination(icon: Icon(it.$1), label: Text(it.$2)),
             ],

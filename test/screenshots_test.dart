@@ -58,6 +58,10 @@ void main() {
     for (final t in tracks.reversed) {
       Store.instance.addHistory(t);
     }
+    Store.instance.setName('Игорь');
+    for (final t in tracks) {
+      Store.instance.addListened(t, 600 + t.seconds * 3);
+    }
     Store.instance.toggleLike(tracks[0]);
     Store.instance.toggleLike(tracks[2]);
     Store.instance.addToPlaylist(Store.instance.createPlaylist('В дорогу'), tracks[1]);
@@ -101,9 +105,10 @@ void main() {
   const pad = Size(1024, 1366);
   const padLand = Size(1366, 1024);
 
-  testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () async {}));
   testWidgets('phone library', (t) => shoot(t, phone, 'phone_library', () => openTab(t, 'Моя музыка')));
-  testWidgets('phone settings', (t) => shoot(t, phone, 'phone_settings', () => openTab(t, 'Настройки')));
+  testWidgets('phone profile', (t) => shoot(t, phone, 'phone_profile', () => openTab(t, 'Профиль')));
+  testWidgets('phone wave', (t) => shoot(t, phone, 'phone_wave', () async {}));
+  testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () => openTab(t, 'Поиск')));
   testWidgets('phone player', (t) => shoot(t, phone, 'phone_player', () => openPlayer(t)));
   testWidgets('se library', (t) => shoot(t, se, 'se_library', () => openTab(t, 'Моя музыка')));
   testWidgets('se player', (t) => shoot(t, se, 'se_player', () => openPlayer(t)));

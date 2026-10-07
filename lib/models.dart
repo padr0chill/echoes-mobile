@@ -1,24 +1,30 @@
-/// Трек — только сведения и ссылка на видео YouTube; сам звук не хранится, а стримится.
+/// Трек — только сведения и ссылка на источник (YouTube или SoundCloud); звук не хранится, а стримится.
+/// id: «xxxxxxxxxxx» — видео YouTube, «sc:12345» — трек SoundCloud.
 class Track {
   final String id;
   final String title;
   final String artist;
   final int seconds;
+  final String? art; // обложка (SoundCloud); у YouTube — миниатюра видео
 
-  const Track({required this.id, required this.title, required this.artist, this.seconds = 0});
+  const Track({required this.id, required this.title, required this.artist, this.seconds = 0, this.art});
 
-  String get thumb => 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
-  String get cover => 'https://i.ytimg.com/vi/$id/maxresdefault.jpg';
+  bool get isSc => id.startsWith('sc:');
+  int get scId => int.parse(id.substring(3));
+
+  String get thumb => art ?? 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
+  String get cover => art ?? 'https://i.ytimg.com/vi/$id/maxresdefault.jpg';
 
   Duration get duration => Duration(seconds: seconds);
 
-  Map<String, dynamic> toJson() => {'id': id, 't': title, 'a': artist, 's': seconds};
+  Map<String, dynamic> toJson() => {'id': id, 't': title, 'a': artist, 's': seconds, if (art != null) 'art': art};
 
   factory Track.fromJson(Map<String, dynamic> j) => Track(
         id: j['id'] as String,
         title: (j['t'] ?? '') as String,
         artist: (j['a'] ?? '') as String,
         seconds: (j['s'] ?? 0) as int,
+        art: j['art'] as String?,
       );
 
   @override

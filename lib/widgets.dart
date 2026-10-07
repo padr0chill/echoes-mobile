@@ -32,6 +32,9 @@ class Cover extends StatelessWidget {
         height: size,
         child: t == null
             ? ph()
+            : t.isSc && debugImage == null
+                ? Image.network(t.cover, fit: BoxFit.cover, cacheWidth: (size * 3).round(),
+                    errorBuilder: (_, __, ___) => ph()) // квадратная обложка SoundCloud — без подрезки
             : FittedBox(
                 fit: BoxFit.cover,
                 clipBehavior: Clip.hardEdge,

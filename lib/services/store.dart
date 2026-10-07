@@ -29,6 +29,13 @@ class Store extends ChangeNotifier {
   bool economy = false; // экономия трафика: самый лёгкий поток
   bool light = false;
 
+  // профиль и статистика
+  String name = 'Слушатель';
+  int plays = 0; // сколько треков включали
+  int listenSeconds = 0; // сколько секунд реально слушали
+  final Map<String, int> artistSeconds = {}; // исполнитель → секунды
+  final Set<String> listenedIds = {}; // разные треки (для «уникальных»)
+
   Color get accent => accents[accentIndex.clamp(0, accents.length - 1)];
 
   Future<void> load() async {
@@ -50,6 +57,17 @@ class Store extends ChangeNotifier {
     accentIndex = _p.getInt('accent') ?? 0;
     economy = _p.getBool('economy') ?? false;
     light = _p.getBool('light') ?? false;
+    name = _p.getString('name') ?? 'Слушатель';
+    plays = _p.getInt('plays') ?? 0;
+    listenSeconds = _p.getInt('listen_s') ?? 0;
+    artistSeconds.clear();
+    final as = _p.getString('artist_s');
+    if (as != null) {
+      (jsonDecode(as) as Map).forEach((k, v) => artistSeconds['$k'] = (v as num).toInt());
+    }
+    listenedIds
+      ..clear()
+      ..addAll(_p.getStringList('listened') ?? []);
   }
 
   void _save() {
@@ -60,7 +78,42 @@ class Store extends ChangeNotifier {
     _p.setInt('accent', accentIndex);
     _p.setBool('economy', economy);
     _p.setBool('light', light);
+    _p.setString('name', name);
+    _p.setInt('plays', plays);
+    _p.setInt('listen_s', listenSeconds);
+    _p.setString('artist_s', jsonEncode(artistSeconds));
+    _p.setStringList('listened', listenedIds.toList());
     notifyListeners();
+  }
+
+  void setName(String v) {
+    if (v.trim().isEmpty) return;
+    name = v.trim();
+    _save();
+  }
+
+  /// Трек слушали s секунд (при переключении или в конце).
+  void addListened(Track t, int s) {
+    if (s <= 0) return;
+    listenSeconds += s;
+    final a = t.artist.trim().isEmpty ? '—' : t.artist.trim();
+    artistSeconds[a] = (artistSeconds[a] ?? 0) + s;
+    if (artistSeconds.length > 300) {
+      final keep = topArtists(200);
+      artistSeconds.removeWhere((k, _) => !keep.contains(k));
+    }
+    _save();
+  }
+
+  /// Любимые исполнители по времени прослушивания.
+  List<String> topArtists([int n = 5]) {
+    final e = artistSeconds.entries.where((e) => e.key != '—').toList()..sort((a, b) => b.value.compareTo(a.value));
+    return e.take(n).map((e) => e.key).toList();
+  }
+
+  void clearHistory() {
+    history.clear();
+    _save();
   }
 
   bool isLiked(Track t) => liked.contains(t);
@@ -71,6 +124,9 @@ class Store extends ChangeNotifier {
   }
 
   void addHistory(Track t) {
+    plays++;
+    listenedIds.add(t.id);
+    if (listenedIds.length > 5000) listenedIds.remove(listenedIds.first);
     history.remove(t);
     history.insert(0, t);
     if (history.length > 100) history.removeRange(100, history.length);

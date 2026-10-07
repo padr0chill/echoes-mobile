@@ -59,11 +59,30 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     return i >= 0 && i < l.length ? l[i] : null;
   }
 
-  /// Играть список с позиции start (поиск, плейлист, «Мне нравится»).
-  Future<void> playList(List<Track> list, int start) async {
+  /// Конец очереди близко (волна): что подгрузить. Сбрасывается, когда включают обычный список.
+  Future<void> Function()? nearEnd;
+
+  /// Играть список с позиции start (поиск, плейлист, «Мне нравится»). wave — очередь «Моей волны».
+  Future<void> playList(List<Track> list, int start, {Future<void> Function()? wave}) async {
+    nearEnd = wave;
     tracks.value = List.of(list);
     queue.add(tracks.value.map((t) => t.toMediaItem()).toList());
     await _playIndex(start);
+  }
+
+  /// Дописать треки в конец очереди (без повторов).
+  void append(List<Track> more) {
+    final have = tracks.value.toSet();
+    final add = more.where((t) => !have.contains(t)).toList();
+    if (add.isEmpty) return;
+    tracks.value = [...tracks.value, ...add];
+    queue.add(tracks.value.map((x) => x.toMediaItem()).toList());
+  }
+
+  // сколько секунд реально слушали трек — для профиля
+  void _countListened() {
+    final s = player.position.inSeconds;
+    if (s > 0 && current != null) Store.instance.addListened(current!, s);
   }
 
   void playNext(Track t) {
@@ -94,6 +113,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   Future<void> _playIndex(int i) async {
     final l = tracks.value;
     if (i < 0 || i >= l.length) return;
+    if (player.playing || player.processingState == ProcessingState.completed) _countListened();
     index.value = i;
     final t = l[i];
     final my = ++_token;
@@ -108,6 +128,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       player.play(); // без await: завершается только в конце трека
       Store.instance.addHistory(t);
       _prefetchNext();
+      final ne = nearEnd;
+      if (ne != null && tracks.value.length - index.value <= 4) ne().ignore(); // волна: подгрузить ещё
     } catch (e) {
       if (my == _token) error.value = 'Не удалось открыть трек: ${_short(e, 320)}';
     } finally {
@@ -127,6 +149,15 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   Future<bool> _openStream(Track t, bool Function() cancelled) async {
     final eco = Store.instance.economy;
     final errs = <String>[];
+
+    // трек SoundCloud — звук прямо оттуда (mp3 или HLS)
+    if (t.isSc) {
+      final st = await ScService.instance.track(t.scId);
+      final u = await ScService.instance.streamUrl(st);
+      if (cancelled()) return false;
+      await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 15));
+      return true;
+    }
 
     Future<bool> yt(int i) async {
       final StreamPick pick;
@@ -196,7 +227,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   void _prefetchNext() {
     if (shuffle.value || _preferSc) return;
     final j = index.value + 1;
-    if (j < tracks.value.length) {
+    if (j < tracks.value.length && !tracks.value[j].isSc) {
       YtService.instance.streamUrl(tracks.value[j].id, economy: Store.instance.economy).ignore();
     }
   }

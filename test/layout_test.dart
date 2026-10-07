@@ -42,9 +42,10 @@ void main() {
 
         await tester.pumpWidget(const EchoesApp());
         await tester.pump(const Duration(milliseconds: 300));
-        for (final tab in ['Моя музыка', 'Настройки', 'Поиск']) {
+        for (final tab in ['Поиск', 'Для вас', 'Моя музыка', 'Профиль', 'Волна']) {
           await tester.tap(find.text(tab).last);
           await tester.pump(const Duration(milliseconds: 300));
+          expect(tester.takeException(), isNull, reason: 'вкладка «$tab»');
         }
         // полный плеер
         await tester.tap(find.byType(MiniPlayer));
