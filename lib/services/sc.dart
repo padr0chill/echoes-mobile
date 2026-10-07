@@ -21,7 +21,8 @@ class ScTrack {
 
   bool get playable => !snippet && transcodings.any((t) => !_isOpus(t));
 
-  Track toTrack() => Track(id: 'sc:$id', title: title, artist: artist, seconds: seconds, art: art, artistId: userId);
+  Track toTrack() => Track(
+      id: snippet ? 'scp:$id' : 'sc:$id', title: title, artist: artist, seconds: seconds, art: art, artistId: userId);
 }
 
 /// Аккаунт исполнителя на SoundCloud.
@@ -38,6 +39,28 @@ class ScArtist {
 
   ScArtist(this.id, this.name, this.avatar, this.followers, this.trackCount, this.verified, this.city, this.about,
       this.banner);
+}
+
+/// Альбом / EP / сингл на SoundCloud.
+class ScAlbum {
+  final int id;
+  final String title;
+  final String artist;
+  final int? artistId;
+  final String? art;
+  final int count;
+  final int? year;
+  final String kind; // album, ep, single, compilation или пусто (обычный плейлист)
+
+  ScAlbum(this.id, this.title, this.artist, this.artistId, this.art, this.count, this.year, this.kind);
+
+  String get kindLabel => switch (kind) {
+        'album' => 'Альбом',
+        'ep' => 'EP',
+        'single' => 'Сингл',
+        'compilation' => 'Сборник',
+        _ => 'Плейлист',
+      };
 }
 
 bool _isOpus(Map t) {
@@ -291,22 +314,72 @@ class ScService {
 
   Future<List<Track>> artistTop(int id) async {
     final j = await _api('/users/$id/toptracks', {'limit': '20'});
-    return ((j as Map)['collection'] as List? ?? [])
-        .cast<Map>()
-        .map(_parse)
-        .where((t) => t.playable)
-        .map((t) => t.toTrack())
-        .toList();
+    return _playable(((j as Map)['collection'] as List? ?? []).cast<Map>());
   }
 
-  Future<List<Track>> artistTracks(int id) async {
-    final j = await _api('/users/$id/tracks', {'limit': '60'});
-    return ((j as Map)['collection'] as List? ?? [])
-        .cast<Map>()
-        .map(_parse)
-        .where((t) => t.playable)
-        .map((t) => t.toTrack())
-        .toList();
+  /// Для страниц исполнителя и альбомов: полные треки и отрывки Go+ (их звук берётся с YouTube).
+  List<Track> _playable(Iterable<Map> raw) =>
+      raw.map(_parse).where((t) => t.playable || t.snippet).map((t) => t.toTrack()).toList();
+
+  /// Постраничная выдача api-v2: идём по next_href, пока не наберём max.
+  Future<List<Map>> _pages(String path, Map<String, String> q, int max) async {
+    final out = <Map>[];
+    dynamic j = await _api(path, {...q, 'linked_partitioning': '1'});
+    while (true) {
+      out.addAll(((j as Map)['collection'] as List? ?? []).cast<Map>());
+      final next = j['next_href'] as String?;
+      if (next == null || out.length >= max) break;
+      final u = Uri.parse(next);
+      j = await _api(u.path, {...u.queryParameters}..remove('client_id'));
+    }
+    return out;
+  }
+
+  /// Все треки исполнителя (по 200 за запрос, до max).
+  Future<List<Track>> artistTracks(int id, {int max = 1000}) async =>
+      _playable(await _pages('/users/$id/tracks', {'limit': '200'}, max));
+
+  ScAlbum _album(Map p) {
+    final tracks = (p['tracks'] as List? ?? []).cast<Map>();
+    String? art = (p['artwork_url'] ??
+        tracks.map((t) => t['artwork_url']).firstWhere((a) => a != null, orElse: () => null) ??
+        (p['user'] as Map?)?['avatar_url']) as String?;
+    final date = '${p['release_date'] ?? p['published_at'] ?? p['created_at'] ?? ''}';
+    return ScAlbum(
+      (p['id'] as num).toInt(),
+      '${p['title'] ?? ''}',
+      '${(p['user'] as Map?)?['username'] ?? ''}',
+      ((p['user'] as Map?)?['id'] as num?)?.toInt(),
+      art?.replaceAll('-large.', '-t500x500.'),
+      ((p['track_count'] ?? tracks.length) as num).toInt(),
+      date.length >= 4 ? int.tryParse(date.substring(0, 4)) : null,
+      '${p['set_type'] ?? ''}',
+    );
+  }
+
+  /// Альбомы, EP и синглы исполнителя (новые сверху).
+  Future<List<ScAlbum>> artistAlbums(int id) async =>
+      (await _pages('/users/$id/albums', {'limit': '50'}, 300)).map(_album).where((a) => a.count > 0).toList();
+
+  Future<List<ScAlbum>> searchAlbums(String q, {int limit = 12}) async {
+    final j = await _api('/search/albums', {'q': q, 'limit': '$limit'});
+    return ((j as Map)['collection'] as List? ?? []).cast<Map>().map(_album).where((a) => a.count > 0).toList();
+  }
+
+  /// Треки альбома по порядку. SoundCloud отдаёт полностью только первые ~5, остальные — дозапрашиваем по id.
+  Future<List<Track>> albumTracks(int id) async {
+    final p = await _api('/playlists/$id') as Map;
+    final raw = (p['tracks'] as List? ?? []).cast<Map>();
+    final full = <int, Map>{for (final t in raw.where((t) => t['title'] != null)) (t['id'] as num).toInt(): t};
+    final missing = raw.map((t) => (t['id'] as num).toInt()).where((i) => !full.containsKey(i)).toList();
+    for (var i = 0; i < missing.length; i += 50) {
+      final ids = missing.skip(i).take(50).join(',');
+      final r = await _api('/tracks', {'ids': ids}) as List;
+      for (final t in r.cast<Map>()) {
+        full[(t['id'] as num).toInt()] = t;
+      }
+    }
+    return _playable(raw.map((t) => full[(t['id'] as num).toInt()]).whereType<Map>());
   }
 
   /// Ссылка на ту же песню (запасной источник для YouTube) или null.

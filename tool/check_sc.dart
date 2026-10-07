@@ -21,7 +21,8 @@ Future<void> main(List<String> args) async {
       }
       final isHls = u.path.endsWith('.m3u8') || u.toString().contains('playlist');
       final r = await http.get(u, headers: isHls ? {} : {'Range': 'bytes=200000-201023'});
-      print('${q[1]}: ${isHls ? 'HLS' : 'progressive'} -> HTTP ${r.statusCode} ${r.headers['content-type']} (${sw.elapsedMilliseconds} ms)');
+      print(
+          '${q[1]}: ${isHls ? 'HLS' : 'progressive'} -> HTTP ${r.statusCode} ${r.headers['content-type']} (${sw.elapsedMilliseconds} ms)');
     } catch (e) {
       print('${q[1]}: FAIL $e');
     }

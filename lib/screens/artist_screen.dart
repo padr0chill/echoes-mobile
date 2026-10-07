@@ -7,6 +7,7 @@ import '../services/sc.dart';
 import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'album_screen.dart';
 
 /// Открыть страницу исполнителя трека (аккаунт на SoundCloud: у трека SoundCloud — сразу, иначе — поиском по имени).
 void openArtist(BuildContext context, Track t) {
@@ -17,8 +18,9 @@ void openArtist(BuildContext context, Track t) {
 class _ArtistData {
   final ScArtist artist;
   final List<Track> top;
+  final List<ScAlbum> albums;
   final List<Track> all;
-  const _ArtistData(this.artist, this.top, this.all);
+  const _ArtistData(this.artist, this.top, this.albums, this.all);
 }
 
 /// Страница исполнителя: аватар, подписчики, «Слушать», «Волна по исполнителю», популярное и все треки.
@@ -34,15 +36,16 @@ class ArtistScreen extends StatefulWidget {
 class _ArtistScreenState extends State<ArtistScreen> {
   late Future<_ArtistData> _f = _load();
   bool _aboutOpen = false;
+  bool _topMore = false;
 
   Future<_ArtistData> _load() async {
     final sc = ScService.instance;
     final a = widget.id != null ? await sc.artist(widget.id!) : await sc.findArtist(widget.name);
     if (a == null) throw Exception('Исполнитель «${widget.name}» не найден на SoundCloud');
+    // альбомы не обязательны: если не загрузились — страница всё равно откроется
+    final albums = sc.artistAlbums(a.id).catchError((_) => <ScAlbum>[]);
     final r = await Future.wait([sc.artistTop(a.id), sc.artistTracks(a.id)]);
-    final top = r[0];
-    final topIds = top.map((t) => t.id).toSet();
-    return _ArtistData(a, top, r[1].where((t) => !topIds.contains(t.id)).toList());
+    return _ArtistData(a, r[0], await albums, r[1]);
   }
 
   String _count(int n) {
@@ -98,7 +101,10 @@ class _ArtistScreenState extends State<ArtistScreen> {
 
   Widget _body(BuildContext context, _ArtistData d) {
     final a = d.artist;
-    final all = [...d.top, ...d.all];
+    final all = d.all.isNotEmpty ? d.all : d.top;
+    final albums = d.albums.where((x) => x.kind == 'album' || x.kind == 'compilation').toList();
+    final singles = d.albums.where((x) => x.kind != 'album' && x.kind != 'compilation').toList();
+    final topN = _topMore ? 10 : 5;
     final sub = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.65);
     return ListView(
       padding: EdgeInsets.only(bottom: context.u(140)),
@@ -155,7 +161,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
                 icon: Icons.play_arrow_rounded,
                 label: 'Слушать',
                 filled: true,
-                onTap: all.isEmpty ? null : () => audio.playList(all, 0),
+                onTap: all.isEmpty ? null : () => audio.playList(d.top.isNotEmpty ? d.top : all, 0),
               ),
             ),
             SizedBox(width: context.u(12)),
@@ -179,8 +185,23 @@ class _ArtistScreenState extends State<ArtistScreen> {
           ),
         if (d.top.isNotEmpty) ...[
           const SectionTitle('Популярное'),
-          for (var i = 0; i < d.top.length && i < 10; i++)
+          for (var i = 0; i < d.top.length && i < topN; i++)
             TrackTile(track: d.top[i], onTap: () => audio.playList(d.top, i), showArtist: false),
+          if (d.top.length > 5)
+            Center(
+              child: TextButton(
+                onPressed: () => setState(() => _topMore = !_topMore),
+                child: Text(_topMore ? 'Свернуть' : 'Показать ещё'),
+              ),
+            ),
+        ],
+        if (albums.isNotEmpty) ...[
+          SectionTitle('Альбомы · ${albums.length}'),
+          AlbumRow(albums: albums),
+        ],
+        if (singles.isNotEmpty) ...[
+          SectionTitle('Синглы и EP · ${singles.length}'),
+          AlbumRow(albums: singles),
         ],
         if (d.all.isNotEmpty) ...[
           SectionTitle('Все треки · ${d.all.length}'),

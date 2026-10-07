@@ -9,6 +9,7 @@ import '../services/store.dart';
 import '../services/yt.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'album_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -21,6 +22,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   final _c = TextEditingController();
   final _focus = FocusNode();
   List<Track> _results = [];
+  List<ScAlbum> _albums = [];
   bool _busy = false;
   String? _err;
   int _token = 0;
@@ -42,16 +44,24 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
       _err = null;
     });
     try {
+      // альбомы — всегда с SoundCloud, параллельно с треками; их ошибка поиску не мешает
+      final albumsF = ScService.instance.searchAlbums(q).catchError((_) => <ScAlbum>[]);
       final r = _sc ? await ScService.instance.searchTracks(q) : await YtService.instance.search(q);
+      final al = await albumsF;
       if (my != _token) return;
-      setState(() => _results = r);
-      if (r.isEmpty) _err = 'Ничего не нашлось';
+      setState(() {
+        _results = r;
+        _albums = al;
+      });
+      if (r.isEmpty && al.isEmpty) _err = 'Ничего не нашлось';
     } catch (e) {
       if (my == _token) _err = 'Нет соединения или поиск недоступен';
     } finally {
       if (my == _token && mounted) setState(() => _busy = false);
     }
   }
+
+  int get _head => (_albums.isNotEmpty ? 2 : 0) + (_results.isNotEmpty && _albums.isNotEmpty ? 1 : 0);
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +87,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                       onPressed: () => setState(() {
                         _c.clear();
                         _results = [];
+                        _albums = [];
                         _err = null;
                       }),
                     ),
@@ -108,14 +119,17 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
         ),
         if (_busy) LinearProgressIndicator(minHeight: 2, color: context.accent, backgroundColor: Colors.transparent),
         Expanded(
-          child: _results.isNotEmpty
+          child: _results.isNotEmpty || _albums.isNotEmpty
               ? ListView.builder(
                   padding: EdgeInsets.only(bottom: context.u(200)),
-                  itemCount: _results.length,
-                  itemBuilder: (context, i) => TrackTile(
-                    track: _results[i],
-                    onTap: () => audio.playList(_results, i),
-                  ),
+                  itemCount: _head + _results.length,
+                  itemBuilder: (context, i) {
+                    if (_albums.isNotEmpty && i == 0) return const SectionTitle('Альбомы');
+                    if (_albums.isNotEmpty && i == 1) return AlbumRow(albums: _albums, showArtist: true);
+                    if (_results.isNotEmpty && i == _head - 1) return const SectionTitle('Треки');
+                    final j = i - _head;
+                    return TrackTile(track: _results[j], onTap: () => audio.playList(_results, j));
+                  },
                 )
               : ListenableBuilder(
                   listenable: st,

@@ -1,5 +1,6 @@
 /// Трек — только сведения и ссылка на источник (YouTube или SoundCloud); звук не хранится, а стримится.
-/// id: «xxxxxxxxxxx» — видео YouTube, «sc:12345» — трек SoundCloud.
+/// id: «xxxxxxxxxxx» — видео YouTube, «sc:12345» — трек SoundCloud,
+/// «scp:12345» — на SoundCloud только 30-секундный отрывок (Go+): звук ищем на YouTube по названию.
 class Track {
   final String id;
   final String title;
@@ -11,7 +12,9 @@ class Track {
   const Track({required this.id, required this.title, required this.artist, this.seconds = 0, this.art, this.artistId});
 
   bool get isSc => id.startsWith('sc:');
-  int get scId => int.parse(id.substring(3));
+  int get scId => int.parse(id.substring(id.indexOf(':') + 1));
+  bool get isPreview => id.startsWith('scp:');
+  bool get isYt => !isSc && !isPreview;
 
   String get thumb => art ?? 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
   String get cover => art ?? 'https://i.ytimg.com/vi/$id/maxresdefault.jpg';

@@ -16,9 +16,12 @@ Future<void> main(List<String> args) async {
           : await yt.videos.streamsClient.getManifest(id, ytClients: e.value);
       for (final s in m.audioOnly.where((s) => s.container == StreamContainer.mp4)) {
         final h = await http.get(s.url, headers: {'Range': 'bytes=0-65535'}).timeout(const Duration(seconds: 15));
-        final p = await http.get(s.url.replace(queryParameters: {...s.url.queryParameters, 'range': '0-65535'})).timeout(const Duration(seconds: 15));
+        final p = await http
+            .get(s.url.replace(queryParameters: {...s.url.queryParameters, 'range': '0-65535'}))
+            .timeout(const Duration(seconds: 15));
         const full = '-';
-        print('${e.key} itag ${s.tag} c=${s.url.queryParameters['c']}: header ${h.statusCode}, param ${p.statusCode}, explode.get chunks $full');
+        print(
+            '${e.key} itag ${s.tag} c=${s.url.queryParameters['c']}: header ${h.statusCode}, param ${p.statusCode}, explode.get chunks $full');
       }
     } catch (err) {
       print('${e.key}: FAIL ${'$err'.split('\n').first}');

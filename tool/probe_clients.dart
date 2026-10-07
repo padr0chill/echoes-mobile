@@ -35,7 +35,8 @@ Future<void> main(List<String> args) async {
           'Range': 'bytes=0-65535',
           'User-Agent': 'AppleCoreMedia/1.0.0.21E236 (iPhone; U; CPU OS 17_4 like Mac OS X; en_us)'
         });
-        print('$id ${e.key}: itag ${s.tag} -> HTTP ${r.statusCode} / ios-UA ${r2.statusCode} (${sw.elapsedMilliseconds} ms) c=${s.url.queryParameters['c']}');
+        print(
+            '$id ${e.key}: itag ${s.tag} -> HTTP ${r.statusCode} / ios-UA ${r2.statusCode} (${sw.elapsedMilliseconds} ms) c=${s.url.queryParameters['c']}');
       } catch (err) {
         print('$id ${e.key}: FAIL ${'$err'.split('\n').first} (${sw.elapsedMilliseconds} ms)');
       }

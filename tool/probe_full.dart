@@ -1,4 +1,4 @@
-﻿// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print
 // ÐšÐ°ÐºÐ¸Ðµ ÐºÐ»Ð¸ÐµÐ½Ñ‚Ñ‹ Ð¾Ñ‚Ð´Ð°ÑŽÑ‚ Ð’Ð•Ð¡Ð¬ Ñ„Ð°Ð¹Ð» (ÐºÑƒÑÐ¾Ðº Ð¸Ð· ÑÐµÑ€ÐµÐ´Ð¸Ð½Ñ‹ Ð¸ Ð¸Ð· ÐºÐ¾Ð½Ñ†Ð°), Ð° Ð½Ðµ Ñ‚Ð¾Ð»ÑŒÐºÐ¾ Ð½Ð°Ñ‡Ð°Ð»Ð¾.
 import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
@@ -23,7 +23,8 @@ Future<void> main(List<String> args) async {
         final size = s.size.totalBytes;
         final mid = size ~/ 2;
         Future<int> h(int from, int to) async =>
-            (await http.get(s.url, headers: {'Range': 'bytes=$from-$to'}).timeout(const Duration(seconds: 15))).statusCode;
+            (await http.get(s.url, headers: {'Range': 'bytes=$from-$to'}).timeout(const Duration(seconds: 15)))
+                .statusCode;
         Future<int> p(int from, int to) async => (await http
                 .get(s.url.replace(queryParameters: {...s.url.queryParameters, 'range': '$from-$to'}))
                 .timeout(const Duration(seconds: 15)))

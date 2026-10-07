@@ -24,7 +24,8 @@ Future<void> main() async {
     final res = await ScService.instance.search('Miyagi Kosandra');
     final id = res.first.id;
     final cid = await ScService.instance.clientId();
-    final r = await http.get(Uri.https('api-v2.soundcloud.com', '/tracks/$id/related', {'client_id': cid, 'limit': '20'}));
+    final r =
+        await http.get(Uri.https('api-v2.soundcloud.com', '/tracks/$id/related', {'client_id': cid, 'limit': '20'}));
     final col = (jsonDecode(r.body)['collection'] as List);
     print('SC related: HTTP ${r.statusCode}, ${col.length} in ${sw.elapsedMilliseconds} ms');
     for (final t in col.take(5)) {

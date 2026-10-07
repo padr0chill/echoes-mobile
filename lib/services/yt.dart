@@ -45,6 +45,55 @@ class YtService {
   }
 
   /// Аудиопоток AAC (mp4) — его играет iOS; «экономия» — самый лёгкий. from — с какого способа начинать.
+  final _ytIds = <String, String>{};
+  static const _junk = [
+    'live',
+    'remix',
+    'cover',
+    'extended',
+    'reanimation',
+    'karaoke',
+    'sped up',
+    'slowed',
+    'nightcore',
+    'instrumental',
+    'кавер',
+    'ремикс'
+  ];
+
+  /// Видео YouTube с той же песней: слова названия, исполнитель и близкая длительность.
+  Future<String> findSame(Track t) async {
+    final c = _ytIds[t.id];
+    if (c != null) return c;
+    final res = await search('${t.artist} ${t.title}');
+    if (res.isEmpty) throw Exception('пусто');
+    List<String> words(String s) =>
+        s.toLowerCase().split(RegExp(r'[^\p{L}\p{N}]+', unicode: true)).where((w) => w.length > 1).toList();
+    final want = words(t.title).toSet();
+    final who = words(t.artist).toSet();
+    Track? best;
+    var bestScore = -1e9;
+    for (final r in res.take(10)) {
+      final have = words('${r.artist} ${r.title}').toSet();
+      final hit = want.isEmpty ? 1.0 : want.where(have.contains).length / want.length;
+      if (hit < 0.5) continue;
+      final byArtist = who.isEmpty ? 1.0 : who.where(have.contains).length / who.length;
+      final dd = t.seconds > 0 && r.seconds > 0 ? (r.seconds - t.seconds).abs() : 30;
+      // концертные, ремиксы, каверы и т. п. — не та запись, если их не просили
+      final raw = '${r.artist} ${r.title}'.toLowerCase();
+      final want0 = '${t.artist} ${t.title}'.toLowerCase();
+      final junk = _junk.where((j) => raw.contains(j) && !want0.contains(j)).length;
+      final score = hit * 10 + byArtist * 6 - dd / 6 - junk * 8;
+      if (score > bestScore) {
+        bestScore = score;
+        best = r;
+      }
+    }
+    final id = (best ?? res.first).id;
+    _ytIds[t.id] = id;
+    return id;
+  }
+
   Future<StreamPick> stream(String id, {bool economy = false, int from = 0}) async {
     Object? lastErr;
     for (var i = from; i < clients.length; i++) {

@@ -34,7 +34,7 @@ class Cover extends StatelessWidget {
         height: size,
         child: t == null
             ? ph()
-            : t.isSc && debugImage == null
+            : !t.isYt && debugImage == null
                 ? Image.network(t.cover,
                     fit: BoxFit.cover,
                     cacheWidth: (size * 3).round(),

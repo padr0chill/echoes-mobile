@@ -159,10 +159,21 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       return true;
     }
 
+    // отрывок SoundCloud — сначала найти эту песню на YouTube
+    var vid = t.id;
+    if (t.isPreview) {
+      try {
+        vid = await YtService.instance.findSame(t);
+      } catch (e) {
+        throw Exception('на SoundCloud только отрывок, а на YouTube песня не нашлась: ${_short(e)}');
+      }
+      if (cancelled()) return false;
+    }
+
     Future<bool> yt(int i) async {
       final StreamPick pick;
       try {
-        pick = await YtService.instance.streamWith(t.id, i, economy: eco);
+        pick = await YtService.instance.streamWith(vid, i, economy: eco);
       } catch (e) {
         errs.add('YouTube#$i: ${_short(e)}');
         return false;
@@ -228,7 +239,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   void _prefetchNext() {
     if (shuffle.value || _preferSc) return;
     final j = index.value + 1;
-    if (j < tracks.value.length && !tracks.value[j].isSc) {
+    if (j < tracks.value.length && tracks.value[j].isYt) {
       YtService.instance.streamUrl(tracks.value[j].id, economy: Store.instance.economy).ignore();
     }
   }
