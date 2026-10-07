@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
+import '../services/offline.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
@@ -30,6 +31,17 @@ class LibraryScreen extends StatelessWidget {
               title: 'Мне нравится',
               sub: '${st.liked.length} тр.',
               onTap: () => _open(context, 'Мне нравится', () => st.liked),
+            ),
+            ListenableBuilder(
+              listenable: Offline.instance,
+              builder: (context, _) => _Card(
+                icon: Icons.download_done_rounded,
+                title: 'Скачанное',
+                sub: Offline.instance.count == 0
+                    ? 'Играет без интернета — «Скачать» в меню трека'
+                    : '${Offline.instance.count} тр. · ${fmtBytes(Offline.instance.bytes)}',
+                onTap: () => _open(context, 'Скачанное', () => Offline.instance.tracks, offline: true),
+              ),
             ),
             _Card(
               icon: Icons.computer_rounded,
@@ -66,9 +78,10 @@ class LibraryScreen extends StatelessWidget {
     );
   }
 
-  void _open(BuildContext context, String title, List<Track> Function() tracks, {Playlist? playlist}) {
+  void _open(BuildContext context, String title, List<Track> Function() tracks,
+      {Playlist? playlist, bool offline = false}) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => TrackListScreen(title: title, tracks: tracks, playlist: playlist),
+      builder: (_) => TrackListScreen(title: title, tracks: tracks, playlist: playlist, offline: offline),
     ));
   }
 }
@@ -123,7 +136,8 @@ class TrackListScreen extends StatelessWidget {
   final String title;
   final List<Track> Function() tracks;
   final Playlist? playlist;
-  const TrackListScreen({super.key, required this.title, required this.tracks, this.playlist});
+  final bool offline; // список «Скачанное»
+  const TrackListScreen({super.key, required this.title, required this.tracks, this.playlist, this.offline = false});
 
   @override
   Widget build(BuildContext context) {
@@ -153,7 +167,7 @@ class TrackListScreen extends StatelessWidget {
         ],
       ),
       body: ListenableBuilder(
-        listenable: st,
+        listenable: Listenable.merge([st, Offline.instance]),
         builder: (context, _) {
           final list = tracks();
           if (list.isEmpty) {
@@ -179,6 +193,8 @@ class TrackListScreen extends StatelessWidget {
                     icon: const Icon(Icons.shuffle_rounded),
                     label: const Text('Вперемешку'),
                   ),
+                  const Spacer(),
+                  if (!offline) _DownloadAll(list: list),
                 ]),
               ),
               for (var i = 0; i < list.length; i++)
@@ -188,5 +204,40 @@ class TrackListScreen extends StatelessWidget {
         },
       ),
     ));
+  }
+}
+
+/// «Скачать всё»: значок со счётчиком; когда всё скачано — галочка (нажатие — удалить загрузки списка).
+class _DownloadAll extends StatelessWidget {
+  final List<Track> list;
+  const _DownloadAll({required this.list});
+
+  @override
+  Widget build(BuildContext context) {
+    final o = Offline.instance;
+    final done = list.where(o.has).length;
+    final busy = list.where(o.busy).length;
+    if (done == list.length) {
+      return IconButton(
+        tooltip: 'Скачано — удалить загрузки списка',
+        icon: Icon(Icons.download_done_rounded, color: context.accent),
+        onPressed: () => list.forEach(o.remove),
+      );
+    }
+    if (busy > 0) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: context.u(8)),
+        child: Text('$done/${list.length}', style: TextStyle(color: context.accent, fontWeight: FontWeight.w700)),
+      );
+    }
+    return IconButton(
+      tooltip: 'Скачать всё в приложение',
+      icon: const Icon(Icons.download_rounded),
+      onPressed: () {
+        o.downloadAll(list);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Скачиваю ${list.length - done} тр. — потом будут играть без интернета')));
+      },
+    );
   }
 }

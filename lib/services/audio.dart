@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../models.dart';
 import 'store.dart';
+import 'offline.dart';
 import 'sc.dart';
 import 'stream_source.dart';
 import 'yt.dart';
@@ -150,6 +151,17 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final eco = Store.instance.economy;
     final errs = <String>[];
 
+    // скачан в приложение — играем из памяти телефона, без сети
+    final local = Offline.instance.fileFor(t);
+    if (local != null) {
+      try {
+        await player.setAudioSource(AudioSource.file(local.path)).timeout(const Duration(seconds: 10));
+        return true;
+      } catch (e) {
+        errs.add('файл в загрузках: ${_short(e)}'); // повреждён — пробуем онлайн
+      }
+    }
+
     // трек SoundCloud — звук прямо оттуда (mp3 или HLS)
     if (t.isSc) {
       final st = await ScService.instance.track(t.scId);
@@ -241,7 +253,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   void _prefetchNext() {
     if (shuffle.value || _preferSc) return;
     final j = index.value + 1;
-    if (j < tracks.value.length && tracks.value[j].isYt) {
+    if (j < tracks.value.length && tracks.value[j].isYt && !Offline.instance.has(tracks.value[j])) {
       YtService.instance.streamUrl(tracks.value[j].id, economy: Store.instance.economy).ignore();
     }
   }

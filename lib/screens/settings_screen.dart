@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/offline.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
@@ -57,6 +58,38 @@ class SettingsScreen extends StatelessWidget {
               subtitle: const Text('Лёгкий аудиопоток, если YouTube его отдаёт'),
               value: st.economy,
               onChanged: st.setEconomy,
+            ),
+            const SectionTitle('Загрузки'),
+            ListenableBuilder(
+              listenable: Offline.instance,
+              builder: (context, _) {
+                final o = Offline.instance;
+                return ListTile(
+                  leading: const Icon(Icons.download_done_rounded),
+                  title: Text('Скачано: ${o.count} тр. · ${fmtBytes(o.bytes)}'),
+                  subtitle: const Text('Хранятся внутри приложения и играют без интернета'),
+                  trailing: o.count == 0
+                      ? null
+                      : TextButton(
+                          onPressed: () async {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Очистить загрузки?'),
+                                content: Text('Удалить ${o.count} тр. (${fmtBytes(o.bytes)}) из памяти телефона? '
+                                    'Плейлисты и лайки останутся.'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Отмена')),
+                                  FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Удалить')),
+                                ],
+                              ),
+                            );
+                            if (ok == true) await o.clear();
+                          },
+                          child: const Text('Очистить'),
+                        ),
+                );
+              },
             ),
             const SectionTitle('О приложении'),
             const ListTile(

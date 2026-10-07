@@ -4,6 +4,7 @@ import 'glass.dart';
 import 'models.dart';
 import 'screens/artist_screen.dart';
 import 'services/audio.dart';
+import 'services/offline.dart';
 import 'services/store.dart';
 import 'ui.dart';
 
@@ -105,6 +106,7 @@ class TrackTile extends StatelessWidget {
                 if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
                   Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
                 if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
+                OfflineMark(track: track),
               ]),
             ]),
           ),
@@ -114,6 +116,44 @@ class TrackTile extends StatelessWidget {
           ),
         ]),
       ),
+    );
+  }
+}
+
+/// Значок у трека: скачан (галочка) или качается (кольцо прогресса).
+class OfflineMark extends StatelessWidget {
+  final Track track;
+  const OfflineMark({super.key, required this.track});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Offline.instance,
+      builder: (context, _) {
+        final o = Offline.instance;
+        final s = context.u(14);
+        Widget? w;
+        if (o.has(track)) {
+          w = Icon(Icons.download_done_rounded, size: s, color: context.accent);
+        } else if (o.busy(track)) {
+          w = SizedBox(
+            width: s * 0.9,
+            height: s * 0.9,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              value: (o.progress[track.id] ?? 0) > 0 ? o.progress[track.id] : null,
+              color: context.accent,
+            ),
+          );
+        } else if (o.failed.containsKey(track.id)) {
+          w = Tooltip(
+            message: o.failed[track.id]!,
+            child: Icon(Icons.error_outline_rounded, size: s, color: const Color(0xFFFF8A80)),
+          );
+        }
+        if (w == null) return const SizedBox.shrink();
+        return Padding(padding: EdgeInsets.only(left: context.u(6)), child: w);
+      },
     );
   }
 }
@@ -147,6 +187,25 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
             Navigator.pop(ctx);
           },
         ),
+        if (Offline.instance.has(t))
+          ListTile(
+            leading: const Icon(Icons.delete_outline_rounded),
+            title: const Text('Удалить из загрузок'),
+            onTap: () {
+              Offline.instance.remove(t);
+              Navigator.pop(ctx);
+            },
+          )
+        else
+          ListTile(
+            leading: const Icon(Icons.download_rounded),
+            title: Text(Offline.instance.busy(t) ? 'Скачивается…' : 'Скачать в приложение'),
+            subtitle: const Text('Будет играть без интернета'),
+            onTap: () {
+              Offline.instance.download(t);
+              Navigator.pop(ctx);
+            },
+          ),
         ListTile(
           leading: const Icon(Icons.playlist_play_rounded),
           title: const Text('Играть следующим'),

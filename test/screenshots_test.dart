@@ -7,7 +7,9 @@ import 'dart:io';
 
 import 'package:echoes_mobile/main.dart';
 import 'package:echoes_mobile/models.dart';
+import 'package:echoes_mobile/cover_color.dart';
 import 'package:echoes_mobile/services/audio.dart';
+import 'package:echoes_mobile/services/wave.dart';
 import 'package:echoes_mobile/services/store.dart';
 import 'package:echoes_mobile/widgets.dart';
 import 'package:flutter/material.dart';
@@ -108,6 +110,12 @@ void main() {
   testWidgets('phone library', (t) => shoot(t, phone, 'phone_library', () => openTab(t, 'Моя музыка')));
   testWidgets('phone profile', (t) => shoot(t, phone, 'phone_profile', () => openTab(t, 'Профиль')));
   testWidgets('phone wave', (t) => shoot(t, phone, 'phone_wave', () async {}));
+  testWidgets('phone wave playing', (t) async {
+    await t.runAsync(() => coverColor(audio.current!)); // цвет обложки — заранее (в тесте нет фоновой загрузки)
+    audio.nearEnd = Wave.instance.extend;
+    addTearDown(() => audio.nearEnd = null);
+    await shoot(t, phone, 'phone_wave_playing', () => t.pump(const Duration(milliseconds: 1600)));
+  });
   testWidgets('phone search', (t) => shoot(t, phone, 'phone_search', () => openTab(t, 'Поиск')));
   testWidgets('phone player', (t) => shoot(t, phone, 'phone_player', () => openPlayer(t)));
   testWidgets('se library', (t) => shoot(t, se, 'se_library', () => openTab(t, 'Моя музыка')));

@@ -1,12 +1,16 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../cover_color.dart';
 import '../glass.dart';
+import '../models.dart';
 import '../services/audio.dart';
 import '../services/store.dart';
 import '../services/wave.dart';
 import '../ui.dart';
+import '../widgets.dart';
 import 'artist_screen.dart';
 
 /// «Моя волна» в духе Яндекс Музыки: живое «пламя» на весь экран, по центру — «▶ Моя волна»
@@ -144,7 +148,7 @@ class WaveScreen extends StatelessWidget {
         final pal = paletteFor(active ? w.mood : null, context.accent);
         final bottom = MediaQuery.paddingOf(context).bottom;
         return Stack(children: [
-          Positioned.fill(child: _Flame(colors: pal)),
+          Positioned.fill(child: _Flame(colors: pal, track: t)),
           SafeArea(
             bottom: false,
             child: Column(children: [
@@ -174,25 +178,8 @@ class WaveScreen extends StatelessWidget {
                         SizedBox(height: context.u(14)),
                         _TunePill(mood: active ? w.mood : null, onTap: () => _tune(context)),
                         if (t != null) ...[
-                          SizedBox(height: context.u(18)),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: context.u(32)),
-                            child: Text(t.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
-                          ),
-                          GestureDetector(
-                            onTap: () => openArtist(context, t),
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: context.u(32), vertical: context.u(2)),
-                              child: Text(t.artist,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75))),
-                            ),
-                          ),
+                          SizedBox(height: context.u(22)),
+                          _NowPlaying(track: t),
                         ],
                         if (w.error != null)
                           Padding(
@@ -350,7 +337,8 @@ class _Capsules extends StatelessWidget {
         onTune,
       ),
     ];
-    final h = context.u(48) + MediaQuery.textScalerOf(context).scale(20);
+    // высота — по кружку или по двум строкам текста (что больше), содержимое — строго по центру
+    final h = math.max(context.u(52), MediaQuery.textScalerOf(context).scale(38) + context.u(12));
     return SizedBox(
       height: h,
       child: ListView.separated(
@@ -368,27 +356,31 @@ class _Capsules extends StatelessWidget {
               blur: 18,
               tint: selected ? 1.6 : 1.0,
               shadow: false,
-              padding: EdgeInsets.fromLTRB(context.u(6), context.u(4), context.u(18), context.u(4)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                orb,
-                SizedBox(width: context.u(10)),
-                ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: context.u(150)),
-                  child:
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                    Text(sub,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.65))),
-                  ]),
-                ),
-              ]),
+              padding: EdgeInsets.fromLTRB(context.u(6), 0, context.u(18), 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: 1,
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  orb,
+                  SizedBox(width: context.u(10)),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: context.u(150)),
+                    child:
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                      Text(title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                      Text(sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.65))),
+                    ]),
+                  ),
+                ]),
+              ),
             ),
           );
         },
@@ -418,11 +410,13 @@ class _Orb extends StatelessWidget {
   }
 }
 
-/// «Пламя»: несколько мягких бесформенных пятен палитры, переливаются и плывут; пока играет — быстрее и
-/// «дышат» в такт. Смена настроения — плавный переход цветов.
+/// «Плазма», как у волны Яндекс Музыки: облако цвета обложки текущего трека (или настроения) с яркими
+/// тонкими «нитями», которые медленно извиваются; пока играет — быстрее и «дышит». Смена трека —
+/// плавный перелив в новый цвет.
 class _Flame extends StatefulWidget {
-  final List<Color> colors;
-  const _Flame({required this.colors});
+  final List<Color> colors; // цвета, пока нет обложки (настроение / акцент)
+  final Track? track;
+  const _Flame({required this.colors, this.track});
 
   @override
   State<_Flame> createState() => _FlameState();
@@ -431,21 +425,47 @@ class _Flame extends StatefulWidget {
 class _FlameState extends State<_Flame> with TickerProviderStateMixin {
   late final AnimationController _time = AnimationController(vsync: this, duration: const Duration(seconds: 40))
     ..repeat();
-  late final AnimationController _mix = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+  late final AnimationController _mix = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
     ..value = 1;
   late List<Color> _from = widget.colors;
+  late List<Color> _to = widget.colors;
+  List<Color>? _cover;
   double _phase = 0, _last = 0, _energy = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCover();
+  }
 
   @override
   void didUpdateWidget(_Flame old) {
     super.didUpdateWidget(old);
-    if (!listEquals(old.colors, widget.colors)) {
-      _from = _current();
-      _mix.forward(from: 0);
+    if (old.track?.id != widget.track?.id) {
+      _cover = null;
+      _loadCover();
     }
+    _retarget();
   }
 
-  static bool listEquals(List<Color> a, List<Color> b) {
+  Future<void> _loadCover() async {
+    final t = widget.track;
+    if (t == null) return;
+    final c = await coverColor(t);
+    if (!mounted || widget.track?.id != t.id) return;
+    _cover = c == null ? null : paletteFromColor(c);
+    _retarget();
+  }
+
+  void _retarget() {
+    final target = _cover ?? widget.colors;
+    if (_same(target, _to)) return;
+    _from = _current();
+    _to = target;
+    _mix.forward(from: 0);
+  }
+
+  static bool _same(List<Color> a, List<Color> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
@@ -455,7 +475,7 @@ class _FlameState extends State<_Flame> with TickerProviderStateMixin {
 
   List<Color> _current() {
     final k = Curves.easeInOut.transform(_mix.value);
-    return [for (var i = 0; i < widget.colors.length; i++) Color.lerp(_from[i], widget.colors[i], k)!];
+    return [for (var i = 0; i < _to.length; i++) Color.lerp(_from[i], _to[i], k)!];
   }
 
   @override
@@ -517,17 +537,44 @@ class _FlamePainter extends CustomPainter {
     return p..close();
   }
 
+  /// Нить плазмы: от ядра наружу, изгибается и «плывёт».
+  Path _wisp(Offset o, double s, int i) {
+    final base = i / 9 * 2 * math.pi + math.sin(t * 0.3 + i) * 0.5;
+    final len = s * (0.42 + 0.12 * math.sin(t * 0.7 + i * 1.9));
+    Offset at(double f, double bend) {
+      final a = base + bend * math.sin(t * (0.8 + i * 0.07) + f * 3 + i);
+      return o + Offset(math.cos(a), math.sin(a)) * len * f;
+    }
+
+    final p0 = at(0.08, 0.2), p1 = at(0.4, 0.6), p2 = at(0.7, 0.9), p3 = at(1.0, 1.1);
+    return Path()
+      ..moveTo(p0.dx, p0.dy)
+      ..cubicTo(p1.dx, p1.dy, p2.dx, p2.dy, p3.dx, p3.dy);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
     final s = math.min(w, h * 0.75);
     final center = Offset(w / 2, h * 0.40);
     final beat = 1 + energy * 0.05 * math.sin(t * 9);
-    // слои снаружи внутрь: пурпурный ореол → красный → оранжевый → яркое ядро
+    // широкое свечение края экрана цветом трека (как заливка фона у Яндекса)
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(0, -0.2),
+          radius: 1.1,
+          colors: [c[2].withValues(alpha: 0.55), c[3].withValues(alpha: 0.35), c[3].withValues(alpha: 0)],
+          stops: const [0, 0.55, 1],
+        ).createShader(Offset.zero & size),
+    );
+    // облако: слои снаружи внутрь — тёмный край → глубже → основной цвет → светлое ядро
     final layers = [
-      (c[3], 0.62, 0.20, 0.0, 0.85),
-      (c[2], 0.48, 0.16, 1.7, 0.95),
-      (c[1], 0.36, 0.13, 3.1, 1.0),
+      (c[3], 0.66, 0.20, 0.0, 0.85),
+      (c[2], 0.52, 0.16, 1.7, 0.95),
+      (c[1], 0.40, 0.13, 3.1, 1.0),
+      (c[1], 0.30, 0.18, 5.3, 0.8),
       (c[0], 0.24, 0.10, 4.6, 1.0),
     ];
     for (final (color, r, drift, seed, alpha) in layers) {
@@ -537,28 +584,113 @@ class _FlamePainter extends CustomPainter {
         _blob(o, rad, seed),
         Paint()
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, rad * 0.35)
-          ..shader = RadialGradient(colors: [
-            color.withValues(alpha: alpha),
-            color.withValues(alpha: alpha * 0.55),
-            color.withValues(alpha: 0),
-          ], stops: const [
-            0,
-            0.6,
-            1
-          ]).createShader(Rect.fromCircle(center: o, radius: rad * 1.25)),
+          ..shader = RadialGradient(
+            colors: [color.withValues(alpha: alpha), color.withValues(alpha: alpha * 0.55), color.withValues(alpha: 0)],
+            stops: const [0, 0.6, 1],
+          ).createShader(Rect.fromCircle(center: o, radius: rad * 1.25)),
       );
     }
-    // светлый блик в ядре
+    // нити: широкое мягкое свечение + тонкая яркая середина
+    final glow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = s * 0.03
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.025)
+      ..color = Color.lerp(c[0], Colors.white, 0.5)!.withValues(alpha: 0.18 + 0.12 * energy);
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = math.max(1.2, s * 0.004)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.003)
+      ..color = Color.lerp(c[0], Colors.white, 0.75)!.withValues(alpha: 0.30 + 0.25 * energy);
+    for (var i = 0; i < 9; i++) {
+      final path = _wisp(center, s, i);
+      canvas.drawPath(path, glow);
+      canvas.drawPath(path, line);
+    }
+    // светлое ядро
     final core = center + Offset(math.sin(t * 1.1) * s * 0.05, math.cos(t * 0.8) * s * 0.04);
     canvas.drawCircle(
       core,
-      s * 0.12,
+      s * 0.13,
       Paint()
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.08)
-        ..color = Colors.white.withValues(alpha: 0.35 + 0.15 * energy),
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, s * 0.09)
+        ..color = Color.lerp(c[0], Colors.white, 0.55)!.withValues(alpha: 0.40 + 0.15 * energy),
     );
   }
 
   @override
   bool shouldRepaint(_FlamePainter old) => true;
+}
+
+/// Смена трека: старое расплывается и тает, новое проступает из размытия (как заголовок у Яндекса).
+Widget _blurSwitch(Widget child, Animation<double> a) => AnimatedBuilder(
+      animation: a,
+      child: child,
+      builder: (context, child) {
+        final v = Curves.easeOut.transform(a.value);
+        return Opacity(
+          opacity: v,
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: (1 - v) * 10, sigmaY: (1 - v) * 10),
+            child: Transform.scale(scale: 0.94 + 0.06 * v, child: child),
+          ),
+        );
+      },
+    );
+
+/// Текущий трек волны: маленькая обложка, название в стеклянной плашке, исполнитель — ссылка.
+class _NowPlaying extends StatelessWidget {
+  final Track track;
+  const _NowPlaying({required this.track});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = track;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 700),
+      transitionBuilder: _blurSwitch,
+      child: Column(key: ValueKey(t.id), mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(context.u(12)),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 24, offset: const Offset(0, 8))
+            ],
+          ),
+          child: Cover(track: t, size: context.u(72), radius: context.u(12)),
+        ),
+        SizedBox(height: context.u(12)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: context.u(28)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: context.u(20), vertical: context.u(9)),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+              ),
+              child: Text(t.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+            ),
+          ),
+        ),
+        GestureDetector(
+          onTap: () => openArtist(context, t),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.u(32), vertical: context.u(6)),
+            child: Text(t.artist,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ]),
+    );
+  }
 }
