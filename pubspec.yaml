@@ -29,7 +29,8 @@ flutter:
   # «Моя волна» — облако и каустики считаются на видеокарте
   shaders:
     - shaders/wave.frag
-    - shaders/milkdrop.frag
+    - shaders/md_warp.frag
+    - shaders/md_comp.frag
 
 # иконка приложения (генерируется при сборке: dart run flutter_launcher_icons)
 flutter_launcher_icons:
