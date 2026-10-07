@@ -11,6 +11,7 @@ import '../services/store.dart';
 import '../ui.dart';
 import '../skins/winamp.dart';
 import '../vinyl.dart';
+import '../blurred_cover.dart';
 import 'lyrics_tools.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
@@ -102,15 +103,10 @@ class _Backdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
-      // размытый фон — маленькая картинка, растянутая со сглаживанием (без фильтра размытия: он пересчитывался
-      // каждый кадр вместе с полосой прогресса)
-      Image(
-        image: ResizeImage(Cover.debugImage?.call(track) ?? NetworkImage(track.art ?? track.thumb),
-            width: 14, height: 14, policy: ResizeImagePolicy.fit),
-        fit: BoxFit.cover,
-        filterQuality: FilterQuality.high,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const SizedBox(),
+      // размытый фон — размыт один раз на трек (гладко, без «пикселей» и без нагрузки каждый кадр)
+      BlurredCover(
+        image: Cover.debugImage?.call(track) ?? NetworkImage(track.art ?? track.thumb),
+        cacheKey: track.id,
       ),
       Container(color: Colors.black.withValues(alpha: 0.55)),
     ]);

@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'blurred_cover.dart';
 import 'services/audio.dart';
 import 'skins/winamp.dart';
 import 'services/store.dart';
@@ -155,18 +156,17 @@ class Ambient extends StatelessWidget {
       return Stack(fit: StackFit.expand, children: [
         ColoredBox(color: base),
         RepaintBoundary(
-          child: Image(
-            // «размыто» — маленькая копия, растянутая со сглаживанием (почти даром); чётко — по размеру экрана
-            image: ResizeImage(FileImage(File(bg)),
-                width: st.bgBlur
-                    ? 40
-                    : (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
-                policy: ResizeImagePolicy.fit),
-            fit: BoxFit.cover,
-            filterQuality: st.bgBlur ? FilterQuality.high : FilterQuality.medium,
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => const SizedBox(),
-          ),
+          child: st.bgBlur
+              ? BlurredCover(image: FileImage(File(bg)), cacheKey: 'bg:$bg')
+              : Image(
+                  image: ResizeImage(FileImage(File(bg)),
+                      width: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
+                      policy: ResizeImagePolicy.fit),
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.medium,
+                  gaplessPlayback: true,
+                  errorBuilder: (_, __, ___) => const SizedBox(),
+                ),
         ),
         ColoredBox(color: base.withValues(alpha: light ? 0.30 : 0.42)),
         child,
@@ -207,19 +207,11 @@ class Ambient extends StatelessWidget {
                   child: Opacity(
                     key: ValueKey(src),
                     opacity: light ? 0.35 : 0.55,
-                    child: Image(
-                      image: ResizeImage(
-                        Cover.debugImage != null && audio.current != null
-                            ? Cover.debugImage!(audio.current!)
-                            : NetworkImage(src!),
-                        width: 12,
-                        height: 12,
-                        policy: ResizeImagePolicy.fit,
-                      ),
-                      fit: BoxFit.cover,
-                      filterQuality: FilterQuality.high,
-                      gaplessPlayback: true,
-                      errorBuilder: (_, __, ___) => const SizedBox(),
+                    child: BlurredCover(
+                      image: Cover.debugImage != null && audio.current != null
+                          ? Cover.debugImage!(audio.current!)
+                          : NetworkImage(src!),
+                      cacheKey: src ?? audio.current?.id ?? '',
                     ),
                   ),
                 ),

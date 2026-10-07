@@ -87,7 +87,7 @@ void main() {
         final ctx = tester.element(find.byType(Scaffold).first);
         await precacheImage(img, ctx);
         // маленькие копии для размытого фона (плеер, «атмосфера»)
-        for (final s in [12, 14]) {
+        for (final s in [12, 14, 96]) {
           await precacheImage(ResizeImage(img, width: s, height: s, policy: ResizeImagePolicy.fit), ctx);
         }
       }

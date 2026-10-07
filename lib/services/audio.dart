@@ -223,25 +223,31 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
 
     // трек SoundCloud — звук прямо оттуда (mp3 или HLS)
     if (t.isSc) {
-      final u = (await _resolveSc(t))!;
-      if (cancelled()) return false;
       try {
-        await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
-      } catch (e) {
-        // плеер iOS не открыл ссылку — играем из быстро скачанного временного файла
-        final f = await Offline.instance.playbackFile(t, url: u);
+        final u = (await _resolveSc(t))!;
         if (cancelled()) return false;
-        await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
+        try {
+          await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
+        } catch (e) {
+          // плеер iOS не открыл ссылку — играем из быстро скачанного временного файла
+          final f = await Offline.instance.playbackFile(t, url: u);
+          if (cancelled()) return false;
+          await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
+        }
+        return true;
+      } catch (e) {
+        // SoundCloud не отдал звук (защищённый трек, удалён, ошибка) — та же песня с YouTube
+        errs.add('SoundCloud: ${_short(e)}');
+        if (cancelled()) return false;
       }
-      return true;
     }
-
     // отрывок SoundCloud — сначала найти эту песню на YouTube
     var vid = t.id;
-    if (t.needsLookup) {
+    if (t.needsLookup || t.isSc) {
       try {
         vid = await YtService.instance.findSame(t);
       } catch (e) {
+        if (t.isSc) throw Exception('${errs.join(' · ')} · на YouTube не нашлась: ${_short(e)}');
         throw Exception(t.isPreview
             ? 'на SoundCloud только отрывок, а на YouTube песня не нашлась: ${_short(e)}'
             : 'песня не нашлась на YouTube: ${_short(e)}');
@@ -254,8 +260,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       errs.add('YouTube: ${_short(e)}');
       return null;
     });
-    final scF = (t.isPreview ? Future<Uri?>.value(null) : _resolveSc(t)).then<Uri?>((u) {
-      if (u == null && !t.isPreview) errs.add('SoundCloud: такой песни нет');
+    final scF = (t.isPreview || t.isSc ? Future<Uri?>.value(null) : _resolveSc(t)).then<Uri?>((u) {
+      if (u == null && !t.isPreview && !t.isSc) errs.add('SoundCloud: такой песни нет');
       return u;
     }, onError: (Object e) {
       errs.add('SoundCloud: ${_short(e)}');

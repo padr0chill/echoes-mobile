@@ -63,8 +63,12 @@ class ScAlbum {
       };
 }
 
+/// Непригодный поток: opus (iPhone не играет) или зашифрованный HLS (DRM — расшифровать может только
+/// приложение SoundCloud; плеер iOS выдаёт ошибку -11800).
 bool _isOpus(Map t) {
-  final mime = '${(t['format'] as Map?)?['mime_type'] ?? ''}';
+  final f = (t['format'] as Map?) ?? const {};
+  final mime = '${f['mime_type'] ?? ''}';
+  if ('${f['protocol'] ?? ''}'.contains('encrypted')) return true;
   return mime.contains('opus') || mime.contains('ogg');
 }
 
@@ -320,6 +324,14 @@ class ScService {
 
     list.sort((a, b) => score(b).compareTo(score(a)));
     return list.first;
+  }
+
+  /// Поиск исполнителей (для экрана поиска): с аватаркой и подписчиками, популярные — выше.
+  Future<List<ScArtist>> searchArtists(String q, {int limit = 10}) async {
+    final j = await _api('/search/users', {'q': q, 'limit': '$limit'});
+    final list =
+        ((j as Map)['collection'] as List? ?? []).cast<Map>().map(_artist).where((a) => a.trackCount > 0).toList();
+    return list;
   }
 
   Future<ScArtist> artist(int id) async => _artist(await _api('/users/$id') as Map);

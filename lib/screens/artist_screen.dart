@@ -4,6 +4,7 @@ import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../services/sc.dart';
+import '../services/spotify.dart';
 import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
@@ -35,6 +36,8 @@ class ArtistScreen extends StatefulWidget {
 
 class _ArtistScreenState extends State<ArtistScreen> {
   late Future<_ArtistData> _f = _load();
+  // статистика Spotify — отдельно и не задерживает страницу
+  late final Future<SpotifyArtist?> _sp = SpotifyService.instance.forArtist(widget.name);
   bool _aboutOpen = false;
   bool _topMore = false;
 
@@ -118,11 +121,18 @@ class _ArtistScreenState extends State<ArtistScreen> {
               border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.5),
               boxShadow: [BoxShadow(color: context.accent.withValues(alpha: 0.35), blurRadius: 40)],
             ),
-            child: CircleAvatar(
-              radius: context.u(70),
-              backgroundColor: Theme.of(context).cardColor,
-              backgroundImage: a.avatar != null ? NetworkImage(a.avatar!) : null,
-              child: a.avatar == null ? Icon(Icons.person_rounded, size: context.u(64)) : null,
+            // фото: со Spotify (обычно лучше качеством), иначе — с SoundCloud
+            child: FutureBuilder<SpotifyArtist?>(
+              future: _sp,
+              builder: (context, s) {
+                final img = s.data?.image ?? a.avatar;
+                return CircleAvatar(
+                  radius: context.u(70),
+                  backgroundColor: Theme.of(context).cardColor,
+                  backgroundImage: img != null ? NetworkImage(img) : null,
+                  child: img == null ? Icon(Icons.person_rounded, size: context.u(64)) : null,
+                );
+              },
             ),
           ),
         ),
@@ -143,14 +153,35 @@ class _ArtistScreenState extends State<ArtistScreen> {
             ],
           ]),
         ),
-        SizedBox(height: context.u(4)),
-        Text(
-          [
-            '${_count(a.followers)} подписчиков',
-            if (a.city != null && a.city!.isNotEmpty) a.city!,
-          ].join('  ·  '),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: sub),
+        if (a.city != null && a.city!.isNotEmpty) ...[
+          SizedBox(height: context.u(2)),
+          Text(a.city!, textAlign: TextAlign.center, style: TextStyle(color: sub)),
+        ],
+        SizedBox(height: context.u(12)),
+        // слушатели за месяц (Spotify) и подписчики (SoundCloud — Spotify без аккаунта их не отдаёт)
+        FutureBuilder<SpotifyArtist?>(
+          future: _sp,
+          builder: (context, s) {
+            final ml = s.data?.monthlyListeners;
+            Widget stat(String value, String label, String src) => Expanded(
+                  child: Column(children: [
+                    Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+                    Text(label, textAlign: TextAlign.center, style: TextStyle(color: sub, fontSize: 12)),
+                    Text(src, style: TextStyle(color: sub?.withValues(alpha: 0.45), fontSize: 11)),
+                  ]),
+                );
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.u(20)),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                stat(
+                  s.connectionState != ConnectionState.done ? '…' : (ml == null ? '—' : _count(ml)),
+                  'слушателей в месяц',
+                  'Spotify',
+                ),
+                stat(_count(a.followers), 'подписчиков', 'SoundCloud'),
+              ]),
+            );
+          },
         ),
         SizedBox(height: context.u(18)),
         Padding(
