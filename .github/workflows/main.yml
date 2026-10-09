@@ -6,6 +6,8 @@ name: Build IPA
 on:
   push:
     branches: [main]
+    # описание и скриншоты не требуют новой сборки
+    paths-ignore: ['README.md', 'docs/**']
   workflow_dispatch:
 
 jobs:
