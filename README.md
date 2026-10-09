@@ -110,6 +110,11 @@ flutter test test/screenshots_test.dart --run-skipped --update-goldens   # сн�
 Платформенные папки (`ios/`) не хранятся в репозитории, сборка создаёт их сама (`flutter create`).
 Эквалайзер — свой нативный плагин в `packages/echoes_eq` (MTAudioProcessingTap).
 
+## Авторы
+
+- [padr0chill](https://github.com/padr0chill)
+- [Rop1ms](https://github.com/rop1ms)
+
 ---
 
 ## English
