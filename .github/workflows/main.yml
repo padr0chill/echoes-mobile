@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
     # описание и скриншоты не требуют новой сборки
-    paths-ignore: ['README.md', 'docs/**']
+    paths-ignore: ['README.md', 'docs/**', '.github/FUNDING.yml']
   workflow_dispatch:
 
 jobs:

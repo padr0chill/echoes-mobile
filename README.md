@@ -110,6 +110,12 @@ flutter test test/screenshots_test.dart --run-skipped --update-goldens   # сн�
 Платформенные папки (`ios/`) не хранятся в репозитории, сборка создаёт их сама (`flutter create`).
 Эквалайзер — свой нативный плагин в `packages/echoes_eq` (MTAudioProcessingTap).
 
+## Поддержать проект
+
+Если приложение вам нравится, можно поддержать разработку:
+
+- ☕ **Buy Me a Coffee** — https://buymeacoffee.com/blesstilean
+- 🇺🇦 **Банка monobank** (для Украины) — https://send.monobank.ua/jar/4q4PTVtKMb
 ## Авторы
 
 - [padr0chill](https://github.com/padr0chill)
@@ -132,6 +138,8 @@ YouTube Music, YouTube or SoundCloud. You can also download tracks inside the ap
 - Liquid Glass theme with a custom background. **Echoamp**, a full Winamp 2 skin with **MilkDrop**
   (135 presets, song lyrics flying over the visuals).
 - Russian and English UI.
+
+Support the project: [Buy Me a Coffee](https://buymeacoffee.com/blesstilean) · [monobank jar (Ukraine)](https://send.monobank.ua/jar/4q4PTVtKMb)
 
 Install: download **ECHOES-ipa** from the latest successful run in [Actions](../../actions) and sideload
 it with AltStore or Sideloadly.
