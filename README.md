@@ -103,7 +103,7 @@ Actions → Build IPA → **Run workflow**.
 flutter pub get
 flutter analyze
 flutter test                      # вёрстка на 6 размерах экрана × 2 размера шрифта, очередь, свайпы, эквалайзер
-dart run tool/check_stream.dart "Linkin Park Numb"   # поиск, поток и текст — без телефона
+Q="Linkin Park Numb" flutter test test/stream_probe_test.dart --run-skipped   # какие способы YouTube/SoundCloud сейчас отдают звук
 flutter test test/screenshots_test.dart --run-skipped --update-goldens   # снимки экранов → test/goldens
 ```
 

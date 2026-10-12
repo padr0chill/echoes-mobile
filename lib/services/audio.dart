@@ -439,9 +439,19 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final c = _scLinks[t.id];
     if (c != null && DateTime.now().difference(c.$2) < const Duration(minutes: 10)) return c.$1;
     final f = () async {
-      if (t.isSc) return ScService.instance.streamUrl(await ScService.instance.track(t.scId));
-      final m = await ScService.instance.match(t.artist, t.title, t.seconds);
-      return m == null ? null : await ScService.instance.streamUrl(m);
+      if (t.isSc) {
+        try {
+          return await ScService.instance.streamUrl(await ScService.instance.track(t.scId));
+        } catch (e) {
+          // эта загрузка закрыта (защищённый поток, регион) — та же песня в другой загрузке SoundCloud
+          final u = await ScService.instance
+              .streamSame(t.artist, t.title, t.seconds, exclude: t.scId)
+              .catchError((_) => null);
+          if (u != null) return u;
+          rethrow;
+        }
+      }
+      return ScService.instance.streamSame(t.artist, t.title, t.seconds);
     }();
     _scLinks[t.id] = (f, DateTime.now());
     f.catchError((_) {

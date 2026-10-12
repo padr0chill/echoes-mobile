@@ -1,5 +1,6 @@
 import '../models.dart';
 import 'sc.dart';
+import 'text_match.dart';
 import 'yt.dart';
 import 'ytm.dart';
 
@@ -10,44 +11,8 @@ enum SearchSource { all, ytm, yt, sc }
 class SearchService {
   SearchService._();
 
-  /// Версии, которые почти никогда не ищут намеренно: убираем совсем.
-  static const _drop = [
-    'slowed',
-    'sped up',
-    'speed up',
-    'spedup',
-    'nightcore',
-    'reverb',
-    '8d audio',
-    '8d ',
-    'bass boosted',
-    'daycore',
-    'ускорен',
-    'замедлен',
-    'tiktok version',
-    'tik tok',
-  ];
-
-  /// Другая запись той же песни: оставляем, но ниже оригиналов.
-  static const _lower = ['remix', 'cover', 'karaoke', 'instrumental', 'live', 'mashup', 'ремикс', 'кавер', 'минус'];
-
   /// «Красивые» шрифты (𝒔𝒍𝒐𝒘𝒆𝒅, ｓｌｏｗｅｄ, 𝕤𝕝𝕠𝕨𝕖𝕕) → обычные буквы, чтобы фильтр их видел.
-  static String plain(String s) {
-    final b = StringBuffer();
-    for (final r in s.runes) {
-      if (r >= 0x1D400 && r <= 0x1D6A3) {
-        final i = (r - 0x1D400) % 52;
-        b.writeCharCode(i < 26 ? 0x41 + i : 0x61 + i - 26);
-      } else if (r >= 0x1D7CE && r <= 0x1D7FF) {
-        b.writeCharCode(0x30 + (r - 0x1D7CE) % 10);
-      } else if (r >= 0xFF01 && r <= 0xFF5E) {
-        b.writeCharCode(r - 0xFEE0);
-      } else {
-        b.writeCharCode(r);
-      }
-    }
-    return b.toString();
-  }
+  static String plain(String s) => Versions.plain(s);
 
   static String _norm(String s) => plain(s)
       .toLowerCase()
@@ -55,12 +20,16 @@ class SearchService {
       .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
       .trim();
 
+  /// Замедленные/ускоренные и т. п. — убрать; концертные, ремиксы, каверы — в конец (если их не искали).
   static List<Track> clean(String q, List<Track> list) {
-    final ql = q.toLowerCase();
-    bool has(Track t, String w) => plain('${t.artist} ${t.title}').toLowerCase().contains(w) && !ql.contains(w.trim());
-    final kept = list.where((t) => !_drop.any((w) => has(t, w))).toList();
-    final main = kept.where((t) => !_lower.any((w) => has(t, w))).toList();
-    final rest = kept.where((t) => _lower.any((w) => has(t, w))).toList();
+    final tags = {for (final t in list) t: Versions.extra('${t.artist} ${t.title}', q)};
+    final wantLong = RegExp(r'album|mix|альбом|сборник|подборк', caseSensitive: false).hasMatch(q);
+    // целые альбомы/миксы на час-два — только если их и искали
+    final kept = list.where((t) => !tags[t]!.any(Versions.drop.contains) && (wantLong || t.seconds <= 1200)).toList();
+    // обрывки по 30 секунд (перезаливы-«сниппеты») — тоже в конец
+    bool odd(Track t) => tags[t]!.isNotEmpty || (t.seconds > 0 && t.seconds < 45);
+    final main = kept.where((t) => !odd(t)).toList();
+    final rest = kept.where(odd).toList();
     return [...main, ...rest];
   }
 
@@ -68,6 +37,11 @@ class SearchService {
   static bool same(Track a, Track b) {
     final ta = _norm(a.title), tb = _norm(b.title);
     if (ta.isEmpty || ta != tb) return false;
+    // «Numb» и «Numb (Live)» — разные записи, хоть без скобок названия совпадают
+    if (!Versions.of('${a.artist} ${a.title}').containsAll(Versions.of('${b.artist} ${b.title}')) ||
+        !Versions.of('${b.artist} ${b.title}').containsAll(Versions.of('${a.artist} ${a.title}'))) {
+      return false;
+    }
     // «theneighbourhood» = «The Neighbourhood»: сравниваем без пробелов
     final ca = _norm(a.artist).replaceAll(' ', ''), cb = _norm(b.artist).replaceAll(' ', '');
     final wa = _norm(a.artist).split(' ').toSet(), wb = _norm(b.artist).split(' ').toSet();

@@ -31,3 +31,69 @@ class TextMatch {
     return s;
   }
 }
+
+/// Пометки «другой версии» песни в названии: замедленная, ускоренная, концертная, ремикс…
+/// Ищутся целыми словами («live», но не «alive»), в любом регистре и в «красивых» шрифтах.
+class Versions {
+  Versions._();
+
+  /// Почти никогда не ищут намеренно — в поиске убираются совсем.
+  static const drop = {'slowed', 'sped', 'nightcore', 'reverb', '8d', 'bassboost', 'pitched', 'tiktok'};
+
+  static final _w = RegExp(r'[\p{L}\p{N}]', unicode: true);
+  static final _tags = <String, RegExp>{
+    for (final e in {
+      'slowed':
+          r'slow(?=\s*[\)\]])|slowed|slow(?:ed)?\s*(?:\+|and|&)\s*reverb|super\s*slow|замедлен\p{L}*|slow\s*version',
+      'sped': r'sped\s*-?\s*up|spedup|speed\s*-?\s*up|speedup|sped|fast(?:er)?\s*version|ускорен\p{L}*|hyper\s*speed',
+      'nightcore': r'nightcore|daycore',
+      'reverb': r'reverb|ревер\p{L}*',
+      '8d': r'8\s*d(?:\s*audio)?',
+      'bassboost': r'bass\s*-?\s*boost(?:ed)?|басс?\s*буст\p{L}*',
+      'pitched': r'pitched(?:\s*(?:up|down))?|pitch\s*(?:up|down)|chopped\s*(?:and|&|n)\s*screwed',
+      'tiktok': r'tik\s*-?\s*tok(?:\s*version)?',
+      'live':
+          r'live|концерт\p{L}*|concert|живое\s+выступлени\p{L}*|live\s+at|on\s+stage|unplugged|tour\s+\d{4}|festival|фестивал\p{L}*',
+      'remix': r'remix|rmx|ремикс\p{L}*|bootleg|vip\s*mix',
+      'cover': r'cover|кавер\p{L}*|перепев\p{L}*|tribute',
+      'karaoke': r'karaoke|караоке|минус\p{L}*|minus',
+      'instrumental': r'instrumental|инструментал\p{L}*|beat\s*only',
+      'acoustic': r'acoustic|акустик\p{L}*|piano\s*version',
+      'mashup': r'mashup|mash\s*up|мэшап\p{L}*',
+      'snippet': r'snippet|snip|preview|teaser|превью|отрывок|сниппет',
+      'extended': r'extended|reanimation|remake',
+    }.entries)
+      e.key: RegExp(r'(?<![\p{L}\p{N}])(?:' + e.value + r')(?![\p{L}\p{N}])', unicode: true, caseSensitive: false),
+  };
+
+  /// «Красивые» шрифты (𝒔𝒍𝒐𝒘𝒆𝒅, ｓｌｏｗｅｄ) → обычные буквы.
+  static String plain(String s) {
+    final b = StringBuffer();
+    for (final r in s.runes) {
+      if (r >= 0x1D400 && r <= 0x1D6A3) {
+        final i = (r - 0x1D400) % 52;
+        b.writeCharCode(i < 26 ? 0x41 + i : 0x61 + i - 26);
+      } else if (r >= 0x1D7CE && r <= 0x1D7FF) {
+        b.writeCharCode(0x30 + (r - 0x1D7CE) % 10);
+      } else if (r >= 0xFF01 && r <= 0xFF5E) {
+        b.writeCharCode(r - 0xFEE0);
+      } else {
+        b.writeCharCode(r);
+      }
+    }
+    return b.toString();
+  }
+
+  /// Какие пометки есть в тексте (исполнитель + название).
+  static Set<String> of(String text) {
+    final t = plain(text);
+    if (!_w.hasMatch(t)) return const {};
+    return {
+      for (final e in _tags.entries)
+        if (e.value.hasMatch(t)) e.key
+    };
+  }
+
+  /// Пометки, которых нет в запросе (если «slowed» искали сами — это не лишнее).
+  static Set<String> extra(String text, String query) => of(text).difference(of(query));
+}

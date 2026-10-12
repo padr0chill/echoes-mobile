@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models.dart';
 import '../i18n.dart';
+import 'text_match.dart';
 
 /// Трек SoundCloud: подходит ли (полный, не 30-секундный отрывок) и откуда брать звук.
 class ScTrack {
@@ -215,29 +216,6 @@ class ScService {
     throw Exception(tr('SoundCloud: нет доступного потока'));
   }
 
-  static const _junk = [
-    'cover',
-    'flip',
-    'remix',
-    'mashup',
-    'edit',
-    'sped up',
-    'speed up',
-    'slowed',
-    'nightcore',
-    'remake',
-    '8d',
-    'bass boosted',
-    'live',
-    'karaoke',
-    'instrumental',
-    'reverb',
-    'кавер',
-    'ремикс',
-    'минус',
-    'перепев',
-  ];
-
   static String _norm(String s) => s
       .toLowerCase()
       .replaceAll(RegExp(r'[\(\[].*?[\)\]]'), ' ')
@@ -248,14 +226,18 @@ class ScService {
   /// Два запроса: «исполнитель название», затем только название.
   /// strict — для замены звука: ремиксы, каверы и т. п. не годятся (это другая песня);
   /// не строго — для поиска «похожих» в волне (ремикс как отправная точка не мешает).
-  Future<ScTrack?> match(String artist, String title, int seconds, {bool strict = true}) async {
+  Future<ScTrack?> match(String artist, String title, int seconds, {bool strict = true}) async =>
+      (await matches(artist, title, seconds, strict: strict)).firstOrNull;
+
+  /// Все подходящие копии песни, лучшие — первыми (одна загрузка бывает закрыта — тогда берём следующую).
+  Future<List<ScTrack>> matches(String artist, String title, int seconds, {bool strict = true, int? exclude}) async {
     final want = _norm(title).split(' ').where((w) => w.length > 1).toSet();
     final wantText = '$artist $title'.toLowerCase(); // со скобками: «(Remix)» и т. п. важны
     final artistWords = _norm(artist).split(' ').where((w) => w.length > 1).toSet();
     final tol = seconds > 0 ? (seconds * 0.08).clamp(15, 40) : 1 << 30;
-    ScTrack? best;
+    final found = <(ScTrack, double)>[];
     var bestScore = -1e9;
-    final seen = <int>{};
+    final seen = <int>{if (exclude != null) exclude};
     for (final q in {'$artist $title', _norm(title)}) {
       if (q.trim().isEmpty) continue;
       List<ScTrack> res;
@@ -275,22 +257,31 @@ class ScService {
         final artistHit = artistWords.isEmpty ? 1.0 : artistWords.where(words.contains).length / artistWords.length;
         if (artistHit == 0) continue; // тот же заголовок у другого исполнителя — скорее всего другая песня
         // каверы, ремиксы, ускоренные и т. п. — только если их просили
-        var junk = 0;
-        final raw = '${t.artist} ${t.title}'.toLowerCase();
-        for (final j in _junk) {
-          if (raw.contains(j) && !wantText.contains(j)) junk++;
-        }
+        final junk = Versions.extra('${t.artist} ${t.title}', wantText).length;
         if (strict && junk > 0) continue;
         final own = artistWords.isNotEmpty && artistWords.every(_norm(t.artist).split(' ').contains) ? 3 : 0;
         final score = hit * 10 + artistHit * 6 + own - junk * 9 - dd / 4;
-        if (score > bestScore) {
-          bestScore = score;
-          best = t;
-        }
+        found.add((t, score));
+        if (score > bestScore) bestScore = score;
       }
-      if (best != null && bestScore > 12) break; // уверенно нашли — второй запрос не нужен
+      if (bestScore > 12) break; // уверенно нашли — второй запрос не нужен
     }
-    return best;
+    found.sort((a, b) => b.$2.compareTo(a.$2));
+    return [for (final f in found) f.$1];
+  }
+
+  /// Звук той же песни: перебирает копии, пока одна не откроется (до 4). exclude — копия, которая не открылась.
+  Future<Uri?> streamSame(String artist, String title, int seconds, {int? exclude}) async {
+    Object? last;
+    for (final m in (await matches(artist, title, seconds, exclude: exclude)).take(4)) {
+      try {
+        return await streamUrl(m);
+      } catch (e) {
+        last = e;
+      }
+    }
+    if (last != null) throw last;
+    return null;
   }
 
   // ── исполнитель ──

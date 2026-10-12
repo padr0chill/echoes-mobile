@@ -30,9 +30,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # «Моя волна» — облако и каустики считаются на видеокарте
+  # «Моя волна» — туманность, как на ПК, считается на видеокарте
   shaders:
-    - shaders/wave.frag
+    - shaders/nebula.frag
     - shaders/md_warp.frag
     - shaders/md_comp.frag
 

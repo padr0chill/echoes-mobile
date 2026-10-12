@@ -168,7 +168,19 @@ class Offline extends ChangeNotifier {
   /// Скачать звук в tmp → расширение файла. Порядок как при игре: SoundCloud напрямую;
   /// иначе YouTube (у отрывков/импортированных — сначала найти видео), не вышло — та же песня на SoundCloud.
   Future<String> _download(Track t, File tmp) async {
-    if (t.isSc) return _sc(await ScService.instance.track(t.scId), t, tmp);
+    if (t.isSc) {
+      try {
+        return await _sc(await ScService.instance.track(t.scId), t, tmp);
+      } catch (e) {
+        // эта загрузка закрыта — другие копии той же песни на SoundCloud
+        for (final m in (await ScService.instance.matches(t.artist, t.title, t.seconds, exclude: t.scId)).take(3)) {
+          try {
+            return await _sc(m, t, tmp);
+          } catch (_) {}
+        }
+        rethrow;
+      }
+    }
     final errs = <String>[];
     try {
       final vid = t.needsLookup ? await YtService.instance.findSame(t) : t.id;
@@ -179,9 +191,17 @@ class Offline extends ChangeNotifier {
       errs.add('YouTube: $e');
     }
     try {
-      final same = await ScService.instance.match(t.artist, t.title, t.seconds);
-      if (same != null) return await _sc(same, t, tmp);
-      errs.add(tr('SoundCloud: такой песни нет'));
+      final same = await ScService.instance.matches(t.artist, t.title, t.seconds);
+      if (same.isEmpty) errs.add(tr('SoundCloud: такой песни нет'));
+      Object? last;
+      for (final m in same.take(4)) {
+        try {
+          return await _sc(m, t, tmp);
+        } catch (e) {
+          last = e;
+        }
+      }
+      if (last != null) throw last;
     } catch (e) {
       errs.add('SoundCloud: $e');
     }

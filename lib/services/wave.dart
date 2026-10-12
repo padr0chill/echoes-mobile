@@ -4,6 +4,7 @@ import '../models.dart';
 import 'audio.dart';
 import 'sc.dart';
 import 'store.dart';
+import 'text_match.dart';
 import '../i18n.dart';
 
 /// «Моя волна»: бесконечный поток похожих треков. Старт — от того, что вы лайкали и слушали
@@ -71,7 +72,7 @@ class Wave extends ChangeNotifier {
 
   Future<List<Track>> _firstBatch() async {
     final sc = ScService.instance;
-    if (mood != null) return sc.searchTracks(moods[mood]!, limit: 40);
+    if (mood != null) return _noJunk(await sc.searchTracks(moods[mood]!, limit: 40), moods[mood]!);
     final st = Store.instance;
     final seeds = <Track>{...st.liked.take(20), ...st.history.take(20)}.toList();
     if (seeds.isEmpty) return sc.searchTracks('top hits 2026', limit: 40);
@@ -91,8 +92,15 @@ class Wave extends ChangeNotifier {
   Future<List<Track>> relatedFor(Track t) async {
     final sc = ScService.instance;
     final id = t.isSc || t.isPreview ? t.scId : (await sc.match(t.artist, t.title, t.seconds, strict: false))?.id;
-    if (id == null) return sc.searchTracks(t.artist, limit: 20);
-    return sc.related(id);
+    return _noJunk(
+        id == null ? await sc.searchTracks(t.artist, limit: 20) : await sc.related(id), '${t.artist} ${t.title}');
+  }
+
+  /// Без ускоренных/замедленных версий (если сам трек-образец не такой); концертные — в конец.
+  static List<Track> _noJunk(List<Track> list, String seed) {
+    final tags = {for (final x in list) x: Versions.extra('${x.artist} ${x.title}', seed)};
+    final kept = list.where((x) => !tags[x]!.any(Versions.drop.contains)).toList();
+    return [...kept.where((x) => tags[x]!.isEmpty), ...kept.where((x) => tags[x]!.isNotEmpty)];
   }
 
   /// Очередь подходит к концу — дописать ещё 10 похожих на текущий трек (без повторов).

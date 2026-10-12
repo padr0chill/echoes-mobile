@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../cover_color.dart';
 import '../glass.dart';
+import '../nebula.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../skins/milkdrop.dart';
@@ -149,11 +150,13 @@ class WaveScreen extends StatelessWidget {
       builder: (context, _) {
         final active = w.active;
         final t = active ? audio.current : null;
-        final pal = paletteFor(active ? w.mood : null, context.accent);
         final bottom = MediaQuery.paddingOf(context).bottom;
         return Stack(children: [
           // Эховамп — вместо пламени MilkDrop
-          Positioned.fill(child: context.echoamp ? const MilkdropView() : _Flame(colors: pal, track: t)),
+          Positioned.fill(
+              child: context.echoamp
+                  ? const MilkdropView()
+                  : _Flame(colors: Nebula.forMood(active ? w.mood : null), track: t)),
           SafeArea(
             bottom: false,
             child: Column(children: [
@@ -415,10 +418,10 @@ class _Orb extends StatelessWidget {
   }
 }
 
-/// «Плазма», как у волны Яндекс Музыки: облако цвета обложки текущего трека (или настроения),
-/// по нему текут мягкие прожилки света («каустики»). Рисует шейдер на видеокарте (shaders/wave.frag);
-/// кадры идут через repaint, без перестройки виджетов. Пока играет — течёт быстрее и «дышит».
-/// Смена трека — плавный перелив цвета.
+/// Туманность, как «Моя волна» в ECHOES на ПК: светящиеся пятна в цветах обложки текущего трека (или
+/// настроения) кружат в облаке с волнистым краем, по ним текут прожилки света, на ударах — кольца.
+/// Рисует шейдер на видеокарте (shaders/nebula.frag), движение — [Nebula]; кадры идут через repaint, без
+/// перестройки виджетов. Смена трека — плавный перелив цвета.
 class _Flame extends StatefulWidget {
   final List<Color> colors; // цвета, пока нет обложки (настроение / акцент)
   final Track? track;
@@ -435,6 +438,7 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
   final _frame = ValueNotifier<int>(0);
   Duration _prev = Duration.zero;
   double _time = 0, _energy = 0, _mixT = 1;
+  final _neb = Nebula();
   bool _playing = false;
   StreamSubscription<bool>? _sub;
   late List<Color> _from = widget.colors;
@@ -445,7 +449,7 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _program ??=
-        ui.FragmentProgram.fromAsset('shaders/wave.frag').then<ui.FragmentProgram?>((p) => p).catchError((_) => null);
+        ui.FragmentProgram.fromAsset('shaders/nebula.frag').then<ui.FragmentProgram?>((p) => p).catchError((_) => null);
     _program!.then((p) {
       if (mounted && p != null) setState(() => _shader = p.fragmentShader());
     });
@@ -460,6 +464,7 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
     final playing = _playing && Wave.instance.active;
     _energy += ((playing ? 1.0 : 0.0) - _energy) * (1 - math.exp(-dt * 2.5));
     _time += dt * (1 + 1.6 * _energy);
+    _neb.advance(_energy, dt);
     if (_mixT < 1) _mixT = math.min(1, _mixT + dt / 1.4);
     _frame.value++;
   }
@@ -479,7 +484,7 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
     if (t == null) return;
     final c = await coverColor(t);
     if (!mounted || widget.track?.id != t.id) return;
-    _cover = c == null ? null : paletteFromColor(c);
+    _cover = c == null ? null : Nebula.fromColor(c);
     _retarget();
   }
 
@@ -519,7 +524,7 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
         child: CustomPaint(
           size: Size.infinite,
           painter: _shader != null
-              ? _ShaderPainter(_frame, _shader!, () => (_time, _energy, _current()))
+              ? _ShaderPainter(_frame, _shader!, _neb, _current)
               : _BlobPainter(_frame, () => (_time, _energy, _current())),
         ),
       ),
@@ -531,23 +536,13 @@ typedef _FlameState3 = (double, double, List<Color>) Function();
 
 class _ShaderPainter extends CustomPainter {
   final ui.FragmentShader shader;
-  final _FlameState3 state;
-  _ShaderPainter(Listenable frame, this.shader, this.state) : super(repaint: frame);
+  final Nebula neb;
+  final List<Color> Function() colors;
+  _ShaderPainter(Listenable frame, this.shader, this.neb, this.colors) : super(repaint: frame);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final (t, e, c) = state();
-    var i = 0;
-    void f(double v) => shader.setFloat(i++, v);
-    f(size.width);
-    f(size.height);
-    f(t);
-    f(e);
-    for (final col in c) {
-      f(col.r);
-      f(col.g);
-      f(col.b);
-    }
+    neb.apply(shader, size, colors());
     canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
   }
 

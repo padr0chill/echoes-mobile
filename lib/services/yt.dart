@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../models.dart';
+import 'text_match.dart';
 import 'ytm.dart';
 import '../i18n.dart';
 
@@ -48,20 +49,6 @@ class YtService {
 
   /// Аудиопоток AAC (mp4) — его играет iOS; «экономия» — самый лёгкий. from — с какого способа начинать.
   final _ytIds = <String, String>{};
-  static const _junk = [
-    'live',
-    'remix',
-    'cover',
-    'extended',
-    'reanimation',
-    'karaoke',
-    'sped up',
-    'slowed',
-    'nightcore',
-    'instrumental',
-    'кавер',
-    'ремикс'
-  ];
 
   /// Видео YouTube с той же песней: слова названия, исполнитель и близкая длительность.
   /// Видео с той же песней: сначала среди официальных песен YouTube Music, затем обычный поиск YouTube.
@@ -87,7 +74,7 @@ class YtService {
         final byArtist = who.isEmpty ? 1.0 : who.where(have.contains).length / who.length;
         final dd = t.seconds > 0 && r.seconds > 0 ? (r.seconds - t.seconds).abs() : 30;
         final raw = '${r.artist} ${r.title}'.toLowerCase();
-        final junk = _junk.where((j) => raw.contains(j) && !want0.contains(j)).length;
+        final junk = Versions.extra(raw, want0).length;
         final score = hit * 10 + byArtist * 6 - dd / 6 - junk * 8;
         if (score > bestScore) {
           bestScore = score;
