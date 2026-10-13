@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../glass.dart';
@@ -25,37 +26,44 @@ Future<void> importFromPc(BuildContext context) async {
             Expanded(child: Text(text, style: TextStyle(color: dim))),
           ]),
         );
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(tr('Плейлисты с компьютера'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-      SizedBox(height: ctx.u(14)),
-      step('1', tr('В ECHOES на ПК: «＋ Новый плейлист» → «Перенести все плейлисты на телефон…»')),
-      step('2', tr('Отправьте файл себе: Telegram «Избранное», iCloud Drive или почта')),
-      step('3', tr('На iPhone откройте файл → «Поделиться» → «Сохранить в Файлы»')),
-      step('4', tr('Нажмите «Выбрать файл» и найдите его')),
-      SizedBox(height: ctx.u(8)),
-      SizedBox(
-        width: double.infinity,
-        height: ctx.u(50),
-        child: FilledButton.icon(
-          style: FilledButton.styleFrom(shape: context.pill),
-          onPressed: () => Navigator.pop(ctx, true),
-          icon: const Icon(Icons.folder_open_rounded, color: Colors.black),
-          label: Text(tr('Выбрать файл'), style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(ctx.u(20), ctx.u(8), ctx.u(20), ctx.u(12)),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('Плейлисты с компьютера'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        SizedBox(height: ctx.u(14)),
+        step('1', tr('В ECHOES на ПК: «＋ Новый плейлист» → «Перенести все плейлисты на телефон…»')),
+        step('2', tr('Отправьте файл себе: Telegram «Избранное», iCloud Drive или почта')),
+        step('3', tr('На iPhone откройте файл → «Поделиться» → «Сохранить в Файлы»')),
+        step('4', tr('Нажмите «Выбрать файл» и найдите его')),
+        SizedBox(height: ctx.u(8)),
+        SizedBox(
+          width: double.infinity,
+          height: ctx.u(50),
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(shape: context.pill),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.folder_open_rounded, color: Colors.black),
+            label: Text(tr('Выбрать файл'), style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+          ),
         ),
-      ),
-    ]);
+      ]),
+    );
   });
   if (go != true || !context.mounted) return;
 
   final XFile? file;
   try {
-    file = await openFile(acceptedTypeGroups: [
-      XTypeGroup(
-        label: tr('Плейлисты'),
-        extensions: ['echoesplaylist', 'm3u', 'm3u8', 'txt', 'json'],
-        uniformTypeIdentifiers: ['public.item'],
-      ),
-    ]);
+    // Android фильтрует по типу файла, а «.echoesplaylist» он не знает (файл был бы серым) — там без фильтра
+    file = await openFile(
+        acceptedTypeGroups: defaultTargetPlatform == TargetPlatform.android
+            ? const []
+            : [
+                XTypeGroup(
+                  label: tr('Плейлисты'),
+                  extensions: ['echoesplaylist', 'm3u', 'm3u8', 'txt', 'json'],
+                  uniformTypeIdentifiers: ['public.item'],
+                ),
+              ]);
   } catch (e) {
     if (context.mounted) _toast(context, tr('Не удалось открыть «Файлы»: {0}', [e]));
     return;

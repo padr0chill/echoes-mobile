@@ -5,6 +5,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:echoes_eq/echoes_eq.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'glass.dart';
 import 'screens/for_you_screen.dart';
@@ -27,6 +28,9 @@ import 'i18n.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Store.instance.load();
+  try {
+    Store.supportDir = (await getApplicationSupportDirectory()).path;
+  } catch (_) {}
   await Offline.instance.load();
   await SquareCover.instance.init();
   // эквалайзер — сохранённые настройки сразу к звуку
@@ -121,6 +125,7 @@ class _ShellState extends State<Shell> {
     super.initState();
     audio.error.addListener(_showError); // ошибка трека — сразу видно, с причиной
     openTab.addListener(_onOpenTab);
+    tabNavigator = () => _navs[_tab].currentState;
   }
 
   @override

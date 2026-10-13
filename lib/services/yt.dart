@@ -129,9 +129,12 @@ class YtService {
           ..sort((a, b) => a.bitrate.compareTo(b.bitrate));
         final muxed = m.muxed.where((s) => s.container == StreamContainer.mp4).toList()
           ..sort((a, b) => a.bitrate.compareTo(b.bitrate));
+        // чистый звук целиком отдаётся, только если он меньше 1 МБ; иначе сразу совмещённый mp4
+        final a = audio.isEmpty ? null : (economy ? audio.first : audio.last);
         final candidates = <StreamInfo>[
-          if (audio.isNotEmpty) economy ? audio.first : audio.last,
+          if (a != null && a.size.totalBytes <= 1 << 20) a,
           ...muxed,
+          if (a != null && a.size.totalBytes > 1 << 20) a,
         ];
         for (final s in candidates) {
           if (!await _wholeFileOpen(s.url, s.size.totalBytes)) continue;
@@ -148,12 +151,14 @@ class YtService {
     throw Exception(_short(lastErr));
   }
 
-  /// Открывается ли кусок из середины файла (не только начало) — 2 байта.
+  /// Открывается ли КОНЕЦ файла — 2 последних байта. С осени 2026 YouTube без защитного токена отдаёт по
+  /// ссылкам на чистый звук только первый 1 МБ (дальше 403 по любой ссылке); проверка середины это
+  /// пропускала у коротких треков (середина файла < 1 МБ) — и трек обрывался/не открывался.
   Future<bool> _wholeFileOpen(Uri url, int size) async {
     if (size <= 0) return false;
-    final mid = size ~/ 2;
+    final last = size - 2;
     try {
-      final r = await http.get(url, headers: {'Range': 'bytes=$mid-${mid + 1}'}).timeout(const Duration(seconds: 8));
+      final r = await http.get(url, headers: {'Range': 'bytes=$last-${size - 1}'}).timeout(const Duration(seconds: 8));
       return r.statusCode == 206 || r.statusCode == 200;
     } catch (_) {
       return false;

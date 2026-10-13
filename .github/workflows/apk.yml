@@ -1,0 +1,68 @@
+# Сборка APK для Android на бесплатном облачном Linux GitHub Actions.
+# Результат — ECHOES.apk во вкладке Actions → «Build APK» → последний запуск → Artifacts.
+#
+# Подпись: чтобы новая версия ставилась поверх старой (без удаления плейлистов), все сборки должны быть
+# подписаны одним ключом. Добавьте в Settings → Secrets and variables → Actions:
+#   ECHOES_KEYSTORE_B64      — файл echoes-release.jks в base64
+#   ECHOES_KEYSTORE_PASSWORD — пароль от него
+# Без секретов APK подписывается временным ключом — ставится, но обновлять придётся с удалением.
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['README.md', 'docs/**', '.github/FUNDING.yml']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Signing key (if added to secrets)
+        env:
+          KS: ${{ secrets.ECHOES_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ECHOES_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/echoes-release.jks"
+            {
+              echo "storeFile=$RUNNER_TEMP/echoes-release.jks"
+              echo "storePassword=$KS_PASS"
+              echo "keyAlias=echoes"
+              echo "keyPassword=$KS_PASS"
+            } > android/key.properties
+            echo "signing: own key"
+          else
+            echo "signing: temporary debug key (add ECHOES_KEYSTORE_B64 secret for updates without reinstall)"
+          fi
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Tests
+        run: flutter test test/layout_test.dart
+
+      - name: Build APK
+        run: |
+          flutter build apk --release --obfuscate --split-debug-info=build/symbols
+          cp build/app/outputs/flutter-apk/app-release.apk ECHOES.apk
+          ls -lh ECHOES.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ECHOES-apk
+          path: ECHOES.apk
+          retention-days: 30

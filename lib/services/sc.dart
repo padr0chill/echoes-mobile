@@ -53,8 +53,9 @@ class ScAlbum {
   final int count;
   final int? year;
   final String kind; // album, ep, single, compilation или пусто (обычный плейлист)
+  final String? ytm; // релиз YouTube Music (browseId «MPREb_…») — тогда id = 0
 
-  ScAlbum(this.id, this.title, this.artist, this.artistId, this.art, this.count, this.year, this.kind);
+  ScAlbum(this.id, this.title, this.artist, this.artistId, this.art, this.count, this.year, this.kind, {this.ytm});
 
   String get kindLabel => switch (kind) {
         'album' => tr('Альбом'),

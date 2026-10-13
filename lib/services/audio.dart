@@ -67,6 +67,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     player.processingStateStream.listen((s) {
       if (s == ProcessingState.completed) _onCompleted();
     });
+    player.positionStream.listen(_checkCrossfade);
     player.durationStream.listen((d) {
       final m = mediaItem.value;
       if (d != null && m != null && m.duration != d) mediaItem.add(m.copyWith(duration: d));
@@ -179,9 +180,10 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     queue.add(l.map((x) => x.toMediaItem()).toList());
   }
 
-  Future<void> _playIndex(int i) async {
+  Future<void> _playIndex(int i, {bool handoff = false}) async {
     final l = tracks.value;
     if (i < 0 || i >= l.length) return;
+    if (!handoff) _stopBridge(); // переключили сами — переход отменяется
     if (player.playing || player.processingState == ProcessingState.completed) _countListened();
     // следующий из «Далее в очереди» — счётчик уменьшается; переход в другое место — очередь «растворяется»
     if (upNext.value > 0 && i != index.value) upNext.value = i == index.value + 1 ? upNext.value - 1 : 0;
@@ -201,7 +203,18 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       await player.stop();
       final ok = await _openStream(t, () => my != _token);
       if (my != _token || !ok) return;
-      player.play(); // без await: завершается только в конце трека
+      final b = _bridge;
+      if (handoff && b != null && b.playing) {
+        // плавный переход: основной плеер подхватывает трек с того же места, где играет «мост»
+        await player.setVolume(0);
+        await player.seek(b.position + const Duration(milliseconds: 150));
+        player.play();
+        _ramp(b, player, 0.45, done: _stopBridge);
+      } else {
+        _stopBridge();
+        await player.setVolume(1);
+        player.play(); // без await: завершается только в конце трека
+      }
       Store.instance.addHistory(t);
       _prefetchNext();
       final ne = nearEnd;
@@ -432,6 +445,23 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     return c.future;
   }
 
+  /// Источник звука трека для ВТОРОГО плеера (мини-игры, отрывки): скачанный файл → SoundCloud →
+  /// YouTube через прокси. Основная очередь не трогается.
+  Future<AudioSource> snippetSource(Track t) async {
+    final local = Offline.instance.fileFor(t);
+    if (local != null) return AudioSource.file(local.path);
+    if (t.isSc) {
+      final u = await _resolveSc(t).catchError((_) => null);
+      if (u != null) return AudioSource.uri(u);
+    }
+    if (!t.isSc && !t.isPreview) {
+      final u = await _resolveSc(t).catchError((_) => null);
+      if (u != null && t.needsLookup) return AudioSource.uri(u);
+    }
+    final vid = t.needsLookup || t.isSc ? await YtService.instance.findSame(t) : t.id;
+    return YtProxySource(await _resolveYt(vid, true));
+  }
+
   /// Та же песня на SoundCloud → ссылка на звук. Запоминается на 10 минут (ссылки SoundCloud временные):
   /// следующий трек готовится заранее и включается мгновенно.
   final _scLinks = <String, (Future<Uri?>, DateTime)>{};
@@ -500,10 +530,77 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
     final j = _nextIndex();
     if (j != null) {
-      _playIndex(j);
+      _playIndex(j, handoff: _bridge != null && _bridgeIndex == j);
     } else {
       player.pause();
       player.seek(Duration.zero);
+    }
+  }
+
+  // ── плавные переходы между треками (как «Плавный переход» в Spotify) ──
+  // За N секунд до конца следующий трек начинает играть на втором плеере («мост»), громкость перетекает;
+  // когда основной плеер откроет следующий трек, он подхватывает его с той же секунды, «мост» гаснет.
+  AudioPlayer? _bridge;
+  int? _bridgeIndex;
+  int _xfToken = -1;
+  Timer? _rampTimer;
+
+  void _checkCrossfade(Duration pos) {
+    final secs = Store.instance.crossfade;
+    if (secs <= 0 || !player.playing || _xfToken == _token || repeat.value == RepeatState.one) return;
+    final d = player.duration;
+    if (d == null || d.inMilliseconds < secs * 3000) return;
+    if (d - pos > Duration(milliseconds: (secs * 1000).round())) return;
+    final j = _nextIndex();
+    if (j == null) return;
+    _xfToken = _token;
+    _startBridge(j);
+  }
+
+  Future<void> _startBridge(int j) async {
+    final my = _token;
+    _stopBridge();
+    final b = AudioPlayer();
+    _bridge = b;
+    _bridgeIndex = j;
+    try {
+      final src = await snippetSource(tracks.value[j]).timeout(const Duration(seconds: 6));
+      if (my != _token || _bridge != b) return;
+      await b.setAudioSource(src).timeout(const Duration(seconds: 6));
+      if (my != _token || _bridge != b) return;
+      await b.setVolume(0);
+      b.play();
+      final d = player.duration ?? Duration.zero;
+      final left = (d - player.position).inMilliseconds / 1000.0;
+      _ramp(player, b, left.clamp(0.4, Store.instance.crossfade));
+    } catch (_) {
+      if (_bridge == b) _stopBridge();
+    }
+  }
+
+  /// Громкость перетекает с `out` на `into` за seconds (равная мощность — без провала посередине).
+  void _ramp(AudioPlayer out, AudioPlayer into, double seconds, {VoidCallback? done}) {
+    _rampTimer?.cancel();
+    final sw = Stopwatch()..start();
+    _rampTimer = Timer.periodic(const Duration(milliseconds: 40), (t) {
+      final k = (sw.elapsedMilliseconds / (seconds * 1000)).clamp(0.0, 1.0);
+      out.setVolume(cos(k * pi / 2));
+      into.setVolume(sin(k * pi / 2));
+      if (k >= 1) {
+        t.cancel();
+        done?.call();
+      }
+    });
+  }
+
+  void _stopBridge() {
+    _rampTimer?.cancel();
+    final b = _bridge;
+    _bridge = null;
+    _bridgeIndex = null;
+    if (b != null) {
+      b.stop().whenComplete(b.dispose).ignore();
+      if (player.volume < 1) player.setVolume(1);
     }
   }
 

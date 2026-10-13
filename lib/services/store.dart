@@ -34,6 +34,7 @@ class Store extends ChangeNotifier {
   // оформление
   String skin = 'glass'; // 'glass' — обычная (жидкое стекло), 'winamp' — как Winamp 2 на ПК
   String lang = 'auto'; // язык интерфейса: 'auto' (как на iPhone), 'ru', 'en'
+  double crossfade = 0; // плавный переход между треками, секунды (0 — выкл)
   bool vinyl = false; // в плеере вместо обложки — крутящийся винил с текстом песни под ним
   String? bgPath; // своё фото на фон (обычная тема)
   bool bgBlur = true;
@@ -42,6 +43,10 @@ class Store extends ChangeNotifier {
 
   // вид плейлистов: порядок и сетка/список
   String playlistSort = 'order'; // order — как добавлены, recent — сначала новые, title, artist, duration
+  String librarySort = 'custom'; // «Моя музыка»: custom — свой порядок, recent — недавние, alpha — по алфавиту
+  bool libraryGrid = false; // плейлисты сеткой обложек
+  /// Папка данных приложения (на iOS её путь меняется после обновления — храним только имена файлов).
+  static String? supportDir;
   bool playlistGrid = false; // false — список сверху вниз, true — сетка обложек слева направо
   // эквалайзер
   bool eqEnabled = false;
@@ -87,10 +92,13 @@ class Store extends ChangeNotifier {
     skin = _p.getString('skin') ?? 'glass';
     lang = appLangSetting = _p.getString('lang') ?? appLangSetting;
     vinyl = _p.getBool('vinyl') ?? false;
+    crossfade = _p.getDouble('xfade') ?? 0;
     bgPath = _p.getString('bg');
     bgBlur = _p.getBool('bg_blur') ?? true;
     playlistSort = _p.getString('pl_sort') ?? 'order';
     playlistGrid = _p.getBool('pl_grid') ?? false;
+    librarySort = _p.getString('lib_sort') ?? 'custom';
+    libraryGrid = _p.getBool('lib_grid') ?? false;
     milkdropText = _p.getBool('md_text') ?? true;
     eqEnabled = _p.getBool('eq_on') ?? false;
     final g = _p.getStringList('eq_gains');
@@ -121,6 +129,7 @@ class Store extends ChangeNotifier {
     _p.setString('skin', skin);
     _p.setString('lang', lang);
     _p.setBool('vinyl', vinyl);
+    _p.setDouble('xfade', crossfade);
     if (bgPath == null) {
       _p.remove('bg');
     } else {
@@ -129,6 +138,8 @@ class Store extends ChangeNotifier {
     _p.setBool('bg_blur', bgBlur);
     _p.setString('pl_sort', playlistSort);
     _p.setBool('pl_grid', playlistGrid);
+    _p.setString('lib_sort', librarySort);
+    _p.setBool('lib_grid', libraryGrid);
     _p.setBool('md_text', milkdropText);
     _p.setBool('eq_on', eqEnabled);
     _p.setStringList('eq_gains', eqGains.map((v) => v.toStringAsFixed(1)).toList());
@@ -223,6 +234,33 @@ class Store extends ChangeNotifier {
 
   void addToPlaylist(Playlist p, Track t) {
     if (!p.tracks.contains(t)) p.tracks.add(t);
+    p.touched = DateTime.now().millisecondsSinceEpoch;
+    _save();
+  }
+
+  /// Плейлист открыли/включили — наверх в «Недавних».
+  void touchPlaylist(Playlist p) {
+    p.touched = DateTime.now().millisecondsSinceEpoch;
+    _save();
+  }
+
+  /// Своя обложка (имя файла в playlist_covers) или null — собрать из обложек треков.
+  void setPlaylistCover(Playlist p, String? file) {
+    p.cover = file;
+    _save();
+  }
+
+  /// Свой порядок плейлистов (перетаскивание в «Моей музыке»).
+  void movePlaylist(int from, int to) {
+    if (from < 0 || from >= playlists.length) return;
+    final p = playlists.removeAt(from);
+    playlists.insert(to.clamp(0, playlists.length), p);
+    _save();
+  }
+
+  void setLibraryView({String? sort, bool? grid}) {
+    if (sort != null) librarySort = sort;
+    if (grid != null) libraryGrid = grid;
     _save();
   }
 
@@ -304,6 +342,11 @@ class Store extends ChangeNotifier {
 
   void setSkin(String v) {
     skin = v;
+    _save();
+  }
+
+  void setCrossfade(double v) {
+    crossfade = v;
     _save();
   }
 

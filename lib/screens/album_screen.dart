@@ -4,14 +4,13 @@ import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../services/sc.dart';
+import '../services/ytm_artist.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
 import '../i18n.dart';
 
-void openAlbum(BuildContext context, ScAlbum a) {
-  Navigator.of(context).push(MaterialPageRoute(builder: (_) => AlbumScreen(album: a)));
-}
+void openAlbum(BuildContext context, ScAlbum a) => pushInTab(context, AlbumScreen(album: a));
 
 /// Квадратная обложка альбома (или заглушка).
 class AlbumArt extends StatelessWidget {
@@ -103,7 +102,11 @@ class AlbumScreen extends StatefulWidget {
 }
 
 class _AlbumScreenState extends State<AlbumScreen> {
-  late Future<List<Track>> _f = ScService.instance.albumTracks(widget.album.id);
+  late Future<List<Track>> _f = _tracks();
+
+  Future<List<Track>> _tracks() => widget.album.ytm != null
+      ? YtmBrowse.instance.albumTracks(widget.album.ytm!)
+      : ScService.instance.albumTracks(widget.album.id);
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +162,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   [
                     a.kindLabel,
                     if (a.year != null) '${a.year}',
-                    tr('{0} тр.', [a.count])
+                    tr('{0} тр.', [a.count > 0 ? a.count : list.length])
                   ].join(' · '),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: dim),
@@ -224,7 +227,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                     Text(tr('Не удалось загрузить треки альбома'), textAlign: TextAlign.center),
                     SizedBox(height: context.u(12)),
                     FilledButton(
-                      onPressed: () => setState(() => _f = ScService.instance.albumTracks(a.id)),
+                      onPressed: () => setState(() => _f = _tracks()),
                       child: Text(tr('Повторить')),
                     ),
                   ]),

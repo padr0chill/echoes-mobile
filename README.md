@@ -1,6 +1,6 @@
 # ECHOES mobile
 
-Музыкальный плеер для iPhone и iPad в стиле ECHOES. Найдите любую песню, и она сразу заиграет потоком.
+Музыкальный плеер для iPhone, iPad и Android в стиле ECHOES. Найдите любую песню, и она сразу заиграет потоком.
 Нужные треки можно скачать внутрь приложения и слушать без интернета. Компьютер и свой сервер не нужны:
 поиск и звук берутся с YouTube Music, YouTube и SoundCloud прямо на телефоне.
 
@@ -81,7 +81,16 @@
 
 ## Установка
 
-Это неофициальный клиент, в App Store его не пропустят, поэтому приложение ставится вручную.
+Это неофициальный клиент, в App Store и Google Play его не пропустят, поэтому приложение ставится вручную.
+
+### Android
+
+1. Откройте вкладку **[Actions](../../actions)** → последняя успешная сборка «Build APK» → внизу в
+   **Artifacts** скачайте **ECHOES-apk**. Внутри zip лежит `ECHOES.apk`.
+2. Откройте `ECHOES.apk` на телефоне и разрешите установку из этого источника, когда Android спросит.
+3. При первом запуске разрешите уведомления — в них плеер для фоновой музыки.
+
+### iPhone и iPad
 
 1. Откройте вкладку **[Actions](../../actions)**, выберите последнюю успешную сборку «Build IPA» и внизу
    в **Artifacts** скачайте **ECHOES-ipa**. Внутри zip лежит `ECHOES.ipa`.
@@ -94,8 +103,10 @@
 пока на ПК запущен AltServer. Иногда YouTube что-то меняет, и тогда приложение нужно пересобрать
 со свежей версией `youtube_explode_dart`.
 
-Сборка идёт в облаке GitHub (macOS), Mac не нужен. Каждый push в `main` запускает её сам, вручную —
-Actions → Build IPA → **Run workflow**.
+Сборки идут в облаке GitHub (IPA — на macOS, APK — на Linux), Mac и Android Studio не нужны. Каждый push в
+`main` запускает их сами, вручную — Actions → Build IPA / Build APK → **Run workflow**.
+
+На Android эквалайзер пока не работает (он сделан для iOS), остальное — так же, как на iPhone.
 
 ## Для разработки
 
@@ -125,7 +136,7 @@ flutter test test/screenshots_test.dart --run-skipped --update-goldens   # сн�
 
 ## English
 
-ECHOES mobile is a music player for iPhone and iPad. Search any song and it streams right away from
+ECHOES mobile is a music player for iPhone, iPad and Android. Search any song and it streams right away from
 YouTube Music, YouTube or SoundCloud. You can also download tracks inside the app for offline listening.
 
 - **My Wave**: an endless stream based on your likes and history, or a mood. **For You** picks.
@@ -141,5 +152,5 @@ YouTube Music, YouTube or SoundCloud. You can also download tracks inside the ap
 
 Support the project: [Buy Me a Coffee](https://buymeacoffee.com/blesstilean) · [monobank jar (Ukraine)](https://send.monobank.ua/jar/4q4PTVtKMb)
 
-Install: download **ECHOES-ipa** from the latest successful run in [Actions](../../actions) and sideload
-it with AltStore or Sideloadly.
+Install: download **ECHOES-apk** (Android) or **ECHOES-ipa** (iPhone, sideload with AltStore or Sideloadly)
+from the latest successful run in [Actions](../../actions).

@@ -32,6 +32,24 @@ extension UiScale on BuildContext {
 /// Переключить вкладку из глубины экрана (например, капсула «Для вас» на волне). Слушает Shell.
 final openTab = ValueNotifier<int?>(null);
 
+/// Навигатор текущей вкладки (задаёт Shell) — чтобы страницы из плеера открывались внутри вкладки,
+/// где под ними виден мини-плеер, а не поверх всего приложения.
+NavigatorState? Function()? tabNavigator;
+
+/// Открыть страницу во вкладке. Если зовут из плеера/листа (корневой навигатор) — закрыть их и открыть
+/// в текущей вкладке: тогда мини-плеер и вкладки на месте и трек можно поставить на паузу.
+void pushInTab(BuildContext context, Widget page) {
+  final local = Navigator.of(context);
+  final root = Navigator.of(context, rootNavigator: true);
+  final tab = tabNavigator?.call();
+  if (identical(local, root) && tab != null) {
+    root.popUntil((r) => r.isFirst);
+    tab.push(MaterialPageRoute(builder: (_) => page));
+  } else {
+    local.push(MaterialPageRoute(builder: (_) => page));
+  }
+}
+
 const _waMono = 'Menlo';
 const _waMonoFallback = ['Courier', 'monospace'];
 

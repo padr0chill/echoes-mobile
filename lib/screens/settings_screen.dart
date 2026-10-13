@@ -126,6 +126,24 @@ class SettingsScreen extends StatelessWidget {
             ),
             SectionTitle(tr('Звук')),
             ListTile(
+              leading: const Icon(Icons.swap_horiz_rounded),
+              title: Text(tr('Плавный переход')),
+              subtitle: Text(st.crossfade <= 0
+                  ? tr('Выключен — треки сменяются сразу')
+                  : tr('Конец трека перетекает в начало следующего: {0} с', [st.crossfade.round()])),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.u(8)),
+              child: Slider(
+                value: st.crossfade.clamp(0, 12),
+                min: 0,
+                max: 12,
+                divisions: 12,
+                label: st.crossfade <= 0 ? tr('Выкл') : '${st.crossfade.round()} с',
+                onChanged: st.setCrossfade,
+              ),
+            ),
+            ListTile(
               leading: const Icon(Icons.equalizer_rounded),
               title: Text(tr('Эквалайзер')),
               subtitle: Text(st.eqEnabled ? tr('Вкл · {0}', [tr(st.eqPreset)]) : tr('Выключен')),

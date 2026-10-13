@@ -52,14 +52,25 @@ class Track {
 class Playlist {
   String name;
   final List<Track> tracks;
+  String? cover; // своя обложка — имя файла в папке приложения (playlist_covers/…)
+  int touched; // когда меняли/слушали (мс) — для сортировки «Недавние»
 
-  Playlist(this.name, [List<Track>? tracks]) : tracks = tracks ?? [];
+  Playlist(this.name, [List<Track>? tracks, this.cover, int? touched])
+      : tracks = tracks ?? [],
+        touched = touched ?? DateTime.now().millisecondsSinceEpoch;
 
-  Map<String, dynamic> toJson() => {'n': name, 'tr': tracks.map((t) => t.toJson()).toList()};
+  Map<String, dynamic> toJson() => {
+        'n': name,
+        'tr': tracks.map((t) => t.toJson()).toList(),
+        if (cover != null) 'c': cover,
+        'tm': touched,
+      };
 
   factory Playlist.fromJson(Map<String, dynamic> j) => Playlist(
         (j['n'] ?? 'Плейлист') as String,
         ((j['tr'] ?? []) as List).map((e) => Track.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
+        j['c'] as String?,
+        (j['tm'] as num?)?.toInt() ?? 0,
       );
 }
 
