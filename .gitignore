@@ -6,9 +6,9 @@ build/
 .flutter-plugins-dependencies
 pubspec_overrides.yaml
 
-# платформенные папки создаются при сборке (flutter create)
+# iOS-папка создаётся при сборке (flutter create); android/ хранится в репозитории
+# (свои настройки: разрешения, сервис фоновой музыки, подпись — ключ туда не кладётся)
 ios/
-android/
 macos/
 linux/
 windows/
