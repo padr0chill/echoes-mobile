@@ -69,6 +69,7 @@ class Store extends ChangeNotifier {
 
   Future<void> load() async {
     _p = await SharedPreferences.getInstance();
+    ready = true;
     List<Track> tracks(String key) {
       final s = _p.getString(key);
       if (s == null) return [];
@@ -266,6 +267,11 @@ class Store extends ChangeNotifier {
     playlists.insert(to.clamp(0, playlists.length), p);
     _save();
   }
+
+  /// Что играло и очередь — переживают перезапуск приложения (JSON).
+  bool ready = false; // настройки загружены (в тестах может не быть)
+  String? get session => ready ? _p.getString('session') : null;
+  void saveSession(String json) => _p.setString('session', json);
 
   bool isFollowing(String name) => follows.any((f) => f['name']?.toLowerCase() == name.toLowerCase());
 

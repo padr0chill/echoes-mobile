@@ -28,6 +28,7 @@ class Reference {
                 title: '${x['title'] ?? ''}',
                 artist: '${(x['artist'] as Map?)?['name'] ?? ''}',
                 seconds: ((x['duration'] ?? 0) as num).toInt(),
+                art: (x['album'] as Map?)?['cover_xl'] as String?, // квадратная обложка альбома 1000×1000
               ),
           ];
         } catch (_) {

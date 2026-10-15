@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
@@ -58,6 +59,16 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   final _rnd = Random();
 
   EchoesAudio() {
+    for (final n in [tracks, index, shuffle, repeat, upNext]) {
+      n.addListener(_saveSessionSoon);
+    }
+    // позиция — раз в 5 с, пока играет, и сразу при паузе
+    Timer.periodic(const Duration(seconds: 5), (_) {
+      if (player.playing) _saveSession();
+    });
+    player.playingStream.listen((p) {
+      if (!p) _saveSession();
+    });
     index.addListener(_bumpTrackKey);
     tracks.addListener(_bumpTrackKey);
     player.playbackEventStream.listen((_) => _broadcast(), onError: (Object e, StackTrace st) {
@@ -183,7 +194,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     queue.add(l.map((x) => x.toMediaItem()).toList());
   }
 
-  Future<void> _playIndex(int i, {bool handoff = false}) async {
+  Future<void> _playIndex(int i, {bool handoff = false, Duration? startAt}) async {
     final l = tracks.value;
     if (i < 0 || i >= l.length) return;
     if (!handoff) _stopBridge(); // переключили сами — переход отменяется
@@ -206,6 +217,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       await player.stop();
       final ok = await _openStream(t, () => my != _token);
       if (my != _token || !ok) return;
+      if (startAt != null && startAt > Duration.zero) await player.seek(startAt);
       final b = _bridge;
       if (handoff && b != null && b.playing) {
         await _takeOver(b, my);
@@ -512,6 +524,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
 
   /// Следующий трек — заранее (обе площадки): «следующий» включается почти сразу.
   void _prefetchNext() {
+    // обрезанные обложки текущего и следующих треков — заранее
+    final l = tracks.value;
+    SquareCover.instance.prefetch(l.skip(index.value.clamp(0, l.length)).take(4));
     final j = index.value + 1;
     if (j >= tracks.value.length) return;
     final n = tracks.value[j];
@@ -659,6 +674,69 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
   }
 
+  // ── сессия: трек, очередь, позиция, режимы — переживают перезапуск приложения ──
+  Duration? _restoredAt;
+  bool _saveQueued = false;
+  bool _restoring = false;
+
+  /// Несколько изменений подряд (очередь, номер, режим) — одно сохранение.
+  void _saveSessionSoon() {
+    if (_restoring || _saveQueued) return;
+    _saveQueued = true;
+    scheduleMicrotask(() {
+      _saveQueued = false;
+      _saveSession();
+    });
+  }
+
+  void _saveSession() {
+    if (_restoring || !Store.instance.ready) return;
+    final l = tracks.value;
+    if (l.isEmpty) return;
+    final pos = player.processingState == ProcessingState.idle ? (_restoredAt ?? Duration.zero) : player.position;
+    Store.instance.saveSession(jsonEncode({
+      'v': 1,
+      'tracks': [for (final t in l) t.toJson()],
+      'index': index.value,
+      'pos': pos.inMilliseconds,
+      'shuffle': shuffle.value,
+      'repeat': repeat.value.name,
+      'upNext': upNext.value,
+      if (_unshuffled != null) 'orig': [for (final t in _unshuffled!) t.toJson()],
+    }));
+  }
+
+  /// После запуска приложения: вернуть очередь и трек (без автозапуска — «играть» продолжит с той секунды).
+  void restoreSession() {
+    final raw = Store.instance.session;
+    if (raw == null || tracks.value.isNotEmpty) return;
+    try {
+      final j = jsonDecode(raw) as Map;
+      List<Track> list(Object? x) =>
+          [for (final e in (x as List? ?? const [])) Track.fromJson(Map<String, dynamic>.from(e as Map))];
+      final l = list(j['tracks']);
+      if (l.isEmpty) return;
+      _restoring = true;
+      tracks.value = l;
+      index.value = ((j['index'] ?? 0) as num).toInt().clamp(0, l.length - 1);
+      shuffle.value = j['shuffle'] == true;
+      repeat.value = RepeatState.values.asNameMap()[j['repeat']] ?? RepeatState.off;
+      upNext.value = ((j['upNext'] ?? 0) as num).toInt();
+      if (j['orig'] != null) _unshuffled = list(j['orig']);
+      _restoredAt = Duration(milliseconds: ((j['pos'] ?? 0) as num).toInt());
+      final t = l[index.value];
+      mediaItem.add(t.toMediaItem());
+      queue.add([for (final x in l) x.toMediaItem()]);
+      _broadcast();
+    } catch (_) {
+    } finally {
+      _restoring = false;
+    }
+  }
+
+  /// Позиция для экрана, пока трек ещё не загружен после перезапуска (полоса прогресса не с нуля).
+  Duration? get restoredPosition => _restoredAt;
+
   /// Порядок до «вперемешку» — чтобы вернуть его, когда перемешивание выключат.
   List<Track>? _unshuffled;
 
@@ -713,7 +791,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> play() async {
     if (player.processingState == ProcessingState.idle && current != null) {
-      await _playIndex(index.value);
+      final at = _restoredAt;
+      _restoredAt = null;
+      await _playIndex(index.value, startAt: at);
     } else {
       await player.play();
     }

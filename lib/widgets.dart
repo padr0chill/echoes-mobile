@@ -43,34 +43,25 @@ class Cover extends StatelessWidget {
         height: size,
         child: t == null
             ? ph()
-            // большая обложка видео YouTube — чистый квадрат в хорошем качестве (без чёрных полос)
-            : big && SquareCover.instance.needed(t) && debugImage == null
-                ? _SquareYt(track: t, size: size, fallback: ph)
-                : (t.art != null || !t.isYt) && debugImage == null
-                    ? Image.network(t.cover,
-                        fit: BoxFit.cover,
-                        cacheWidth: (size * 3).round(),
-                        errorBuilder: (_, __, ___) =>
-                            ph()) // квадратная обложка (SoundCloud, YouTube Music) — без подрезки
-                    : FittedBox(
+            // обложка-превью YouTube — всегда без полос: готовый обрезанный квадрат, а пока его нет —
+            // то же превью, приближенное так, что полосы уходят за край (без «прыжка» при открытии плеера)
+            : SquareCover.instance.needed(t) && debugImage == null
+                ? _SquareYt(track: t, size: size, big: big, fallback: ph)
+                : debugImage != null
+                    ? FittedBox(
                         fit: BoxFit.cover,
                         clipBehavior: Clip.hardEdge,
                         child: SizedBox(
-                          // 4:3-миниатюра с полосами — увеличиваем, чтобы полосы ушли за край
                           width: size * 16 / 9,
                           height: size * 16 / 9 * 0.75,
-                          child: debugImage != null
-                              ? Image(image: debugImage!(t), fit: BoxFit.cover)
-                              : Image.network(
-                                  big ? t.cover : t.thumb,
-                                  fit: BoxFit.cover,
-                                  cacheWidth: (size * 3).round(),
-                                  errorBuilder: (_, __, ___) => big
-                                      ? Image.network(t.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ph())
-                                      : ph(),
-                                ),
+                          child: Image(image: debugImage!(t), fit: BoxFit.cover),
                         ),
-                      ),
+                      )
+                    : Image.network(t.cover,
+                        fit: BoxFit.cover,
+                        cacheWidth: (size * 3).round(),
+                        gaplessPlayback: true,
+                        errorBuilder: (_, __, ___) => ph()), // квадратная обложка (SoundCloud, YouTube Music)
       ),
     );
   }
@@ -588,20 +579,43 @@ class SectionTitle extends StatelessWidget {
 class _SquareYt extends StatelessWidget {
   final Track track;
   final double size;
+  final bool big;
   final Widget Function() fallback;
-  const _SquareYt({required this.track, required this.size, required this.fallback});
+  const _SquareYt({required this.track, required this.size, required this.big, required this.fallback});
+
+  /// Превью YouTube (4:3 с полосами), увеличенное так, что полосы уходят за край квадрата.
+  Widget _zoomed() {
+    final vid = SquareCover.videoOf(track);
+    final url = 'https://i.ytimg.com/vi/$vid/${big ? 'sddefault' : 'hqdefault'}.jpg';
+    return FittedBox(
+      fit: BoxFit.cover,
+      clipBehavior: Clip.hardEdge,
+      child: SizedBox(
+        width: size * 16 / 9,
+        height: size * 16 / 9 * 0.75,
+        child: Image.network(url,
+            fit: BoxFit.cover,
+            cacheWidth: (size * 3).round(),
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => fallback()),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final ready = SquareCover.instance.ready(track);
     Widget file(File f) =>
-        Image.file(f, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => fallback());
+        Image.file(f, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => _zoomed());
     if (ready != null) return file(ready);
+    // мелкие (списки) — только если уже готова, иначе приближенное превью (не качаем для каждой строки)
+    if (!big && size < 120) return _zoomed();
     return FutureBuilder<File?>(
       future: SquareCover.instance.get(track),
-      builder: (context, s) => s.data != null
-          ? file(s.data!)
-          : Image.network(track.thumb, fit: BoxFit.cover, errorBuilder: (_, __, ___) => fallback()),
+      builder: (context, s) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: s.data != null ? KeyedSubtree(key: const ValueKey(1), child: file(s.data!)) : _zoomed(),
+      ),
     );
   }
 }

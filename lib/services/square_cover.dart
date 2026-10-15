@@ -19,7 +19,18 @@ class SquareCover {
   final _jobs = <String, Future<File?>>{};
   Directory? _dir;
 
-  bool needed(Track t) => t.isYt && t.art == null;
+  /// Нужна обрезка: видео YouTube без своей обложки или «обложка» — превью YouTube (i.ytimg.com, с полосами).
+  bool needed(Track t) => (t.isYt && t.art == null) || (t.art?.contains('i.ytimg.com') ?? false);
+
+  /// Видео, чьё превью обрезаем: из ссылки на превью или сам трек.
+  static String videoOf(Track t) => RegExp(r'/vi(?:_webp)?/([\w-]{11})/').firstMatch(t.art ?? '')?.group(1) ?? t.id;
+
+  /// Обрезанные обложки — заранее (текущий и следующие треки очереди): в плеере сразу чистый квадрат.
+  void prefetch(Iterable<Track> list) {
+    for (final t in list) {
+      if (needed(t)) get(t);
+    }
+  }
 
   /// Папка кэша — заранее (чтобы ready() работал с первого кадра).
   Future<void> init() async {
@@ -31,28 +42,29 @@ class SquareCover {
 
   Future<File?> get(Track t) {
     if (!needed(t)) return Future.value(null);
-    return _jobs.putIfAbsent(t.id, () => _make(t).catchError((_) => null));
+    return _jobs.putIfAbsent(videoOf(t), () => _make(t).catchError((_) => null));
   }
 
   /// Уже готовая (без ожидания) — чтобы не мигала заглушка.
   File? ready(Track t) {
     final d = _dir;
     if (d == null || !needed(t)) return null;
-    final f = File('${d.path}/${t.id}.png');
+    final f = File('${d.path}/${videoOf(t)}.png');
     return f.existsSync() ? f : null;
   }
 
   Future<File?> _make(Track t) async {
     final base = await getTemporaryDirectory();
     final d = _dir ??= Directory('${base.path}/square_covers')..createSync(recursive: true);
-    final out = File('${d.path}/${t.id}.png');
+    final vid = videoOf(t);
+    final out = File('${d.path}/$vid.png');
     if (out.existsSync()) return out;
     Uint8List? bytes;
     // maxres бывает не у всех видео (тогда YouTube отдаёт заглушку 120×90) — тогда sd/hq
     for (final name in ['maxresdefault', 'sddefault', 'hqdefault']) {
       try {
         final r =
-            await http.get(Uri.parse('https://i.ytimg.com/vi/${t.id}/$name.jpg')).timeout(const Duration(seconds: 8));
+            await http.get(Uri.parse('https://i.ytimg.com/vi/$vid/$name.jpg')).timeout(const Duration(seconds: 8));
         if (r.statusCode == 200 && r.bodyBytes.length > 3000) {
           bytes = r.bodyBytes;
           break;
@@ -67,11 +79,11 @@ class SquareCover {
   }
 
   /// Картинка → PNG квадрат без полос (≤ 720 px). Отдельно — для тестов.
-  static Future<Uint8List?> squarePng(Uint8List bytes, {int maxSide = 720}) async {
+  static Future<Uint8List?> squarePng(Uint8List bytes, {int maxSide = 720, bool darkOnly = false}) async {
     final codec = await ui.instantiateImageCodec(bytes);
     final img = (await codec.getNextFrame()).image;
     try {
-      final rect = await contentRect(img);
+      final rect = await contentRect(img, darkOnly: darkOnly);
       final side = rect.width < rect.height ? rect.width : rect.height;
       final src = ui.Rect.fromCenter(center: rect.center, width: side, height: side);
       final outSide = side.round().clamp(64, maxSide);
@@ -95,7 +107,8 @@ class SquareCover {
 
   /// Область без однотонных полос по краям: строки/столбцы, почти одинаковые по цвету (полосы —
   /// чёрные или любого сплошного цвета), отрезаются с каждой стороны.
-  static Future<ui.Rect> contentRect(ui.Image img) async {
+  /// darkOnly — срезать только почти чёрные полосы (у обложек светлая рамка — часть рисунка).
+  static Future<ui.Rect> contentRect(ui.Image img, {bool darkOnly = false}) async {
     final w = img.width, h = img.height;
     final data = (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
     double lum(int x, int y) {
@@ -111,7 +124,7 @@ class SquareCover {
         if (l < mn) mn = l;
         if (l > mx) mx = l;
       }
-      return mx - mn < 18;
+      return mx - mn < 18 && (!darkOnly || mx < 16);
     }
 
     bool flatCol(int x) {
@@ -121,20 +134,22 @@ class SquareCover {
         if (l < mn) mn = l;
         if (l > mx) mx = l;
       }
-      return mx - mn < 18;
+      return mx - mn < 18 && (!darkOnly || mx < 16);
     }
 
+    // у обложек — не больше 15 % с края (дальше уже рисунок), у кадров видео — до трети
+    final lim = darkOnly ? 0.15 : 1 / 3;
     var top = 0, bottom = h - 1, left = 0, right = w - 1;
-    while (top < h ~/ 3 && flatRow(top)) {
+    while (top < h * lim && flatRow(top)) {
       top++;
     }
-    while (bottom > h * 2 ~/ 3 && flatRow(bottom)) {
+    while (bottom > h * (1 - lim) && flatRow(bottom)) {
       bottom--;
     }
-    while (left < w ~/ 3 && flatCol(left)) {
+    while (left < w * lim && flatCol(left)) {
       left++;
     }
-    while (right > w * 2 ~/ 3 && flatCol(right)) {
+    while (right > w * (1 - lim) && flatCol(right)) {
       right--;
     }
     return ui.Rect.fromLTRB(left.toDouble(), top.toDouble(), right + 1.0, bottom + 1.0);

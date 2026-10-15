@@ -50,6 +50,7 @@ Future<void> main() async {
       androidNotificationOngoing: true,
     ),
   );
+  audio.restoreSession(); // что играло до закрытия — снова в мини-плеере и очереди
   runApp(const EchoesApp());
 }
 
