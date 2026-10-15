@@ -25,7 +25,7 @@ class Offline extends ChangeNotifier {
   final List<Track> _queue = [];
   int _running = 0;
   Directory? _dir;
-  static const _parallel = 2;
+  static const _parallel = 3; // треков одновременно (у каждого ещё по 6 соединений)
   final _client = http.Client();
 
   Future<Directory> _folder() async {
@@ -208,26 +208,53 @@ class Offline extends ChangeNotifier {
     throw Exception(errs.join(' · '));
   }
 
-  /// YouTube отдаёт файл только кусками (Range) — качаем по 1 МБ.
+  /// YouTube притормаживает каждое соединение — качаем кусками по 1 МБ в 6 соединений сразу
+  /// (в разы быстрее, чем по очереди) и пишем в файл по порядку.
   Future<void> _ranged(StreamPick pick, Track t, File tmp, {bool report = true}) async {
+    const chunk = 1 << 20;
+    final n = (pick.size + chunk - 1) ~/ chunk;
+    final parts = List<List<int>?>.filled(n, null);
+    var next = 0, written = 0, done = 0;
     final sink = tmp.openWrite();
-    try {
-      const chunk = 1 << 20;
-      for (var s = 0; s < pick.size; s += chunk) {
-        final e = (s + chunk).clamp(0, pick.size) - 1;
-        var r = await _client.send(http.Request('GET', pick.url)..headers['Range'] = 'bytes=$s-$e');
-        if (r.statusCode != 206 && r.statusCode != 200) {
-          await r.stream.drain<void>();
-          r = await _client.send(
-              http.Request('GET', pick.url.replace(queryParameters: {...pick.url.queryParameters, 'range': '$s-$e'})));
+    Future<List<int>> fetch(int i) async {
+      final s = i * chunk;
+      final e = ((i + 1) * chunk).clamp(0, pick.size) - 1;
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          var r = await _client.get(pick.url, headers: {'Range': 'bytes=$s-$e'}).timeout(const Duration(seconds: 25));
+          if (r.statusCode != 206 && r.statusCode != 200) {
+            r = await _client
+                .get(pick.url.replace(queryParameters: {...pick.url.queryParameters, 'range': '$s-$e'}))
+                .timeout(const Duration(seconds: 25));
+          }
+          if (r.statusCode == 206 || r.statusCode == 200) return r.bodyBytes;
+          if (attempt == 2) throw Exception('HTTP ${r.statusCode}');
+        } on TimeoutException {
+          if (attempt == 2) rethrow;
         }
-        if (r.statusCode != 206 && r.statusCode != 200) {
-          await r.stream.drain<void>();
-          throw Exception('HTTP ${r.statusCode}');
-        }
-        await sink.addStream(r.stream);
-        if (report) _tick(t, (e + 1) / pick.size);
       }
+      throw Exception('HTTP');
+    }
+
+    Future<void> worker() async {
+      while (true) {
+        final i = next++;
+        if (i >= n) return;
+        parts[i] = await fetch(i);
+        done++;
+        if (report) _tick(t, done / n);
+        // готовые куски — в файл по порядку, память не копится
+        while (written < n && parts[written] != null) {
+          sink.add(parts[written]!);
+          parts[written] = null;
+          written++;
+        }
+      }
+    }
+
+    try {
+      await Future.wait([for (var k = 0; k < (n < 6 ? n : 6); k++) worker()]);
+      if (written != n) throw Exception('не все части скачались');
     } finally {
       await sink.close();
     }
@@ -272,14 +299,29 @@ class Offline extends ChangeNotifier {
       }
     }
     if (segs.isEmpty) throw Exception(tr('SoundCloud: пустой HLS'));
+    // сегменты HLS — в 6 соединений сразу, в файл — по порядку
     final sink = tmp.openWrite();
-    try {
-      for (var i = 0; i < segs.length; i++) {
-        final r = await _client.get(segs[i]);
+    final got = List<List<int>?>.filled(segs.length, null);
+    var next = 0, written = 0, done = 0;
+    Future<void> worker() async {
+      while (true) {
+        final i = next++;
+        if (i >= segs.length) return;
+        final r = await _client.get(segs[i]).timeout(const Duration(seconds: 25));
         if (r.statusCode != 200) throw Exception('SoundCloud: HTTP ${r.statusCode}');
-        sink.add(r.bodyBytes);
-        if (report) _tick(t, (i + 1) / segs.length);
+        got[i] = r.bodyBytes;
+        done++;
+        if (report) _tick(t, done / segs.length);
+        while (written < segs.length && got[written] != null) {
+          sink.add(got[written]!);
+          got[written] = null;
+          written++;
+        }
       }
+    }
+
+    try {
+      await Future.wait([for (var k = 0; k < 6; k++) worker()]);
     } finally {
       await sink.close();
     }
