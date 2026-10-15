@@ -7,7 +7,6 @@ import '../services/audio.dart';
 import '../services/sc.dart';
 import '../services/store.dart';
 import '../services/search.dart';
-import '../services/text_match.dart';
 import '../services/ytm_artist.dart';
 import '../ui.dart';
 import '../widgets.dart';
@@ -27,7 +26,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   final _focus = FocusNode();
   List<Track> _results = [];
   List<ScAlbum> _albums = [];
-  List<ScArtist> _artists = [];
+  List<YtmArtistRef> _artists = [];
   bool _busy = false;
   String? _err;
   int _token = 0;
@@ -168,12 +167,12 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
       _err = null;
     });
     try {
-      // альбомы — всегда с SoundCloud, параллельно с треками; их ошибка поиску не мешает
-      final albumsF = ScService.instance.searchAlbums(q).catchError((_) => <ScAlbum>[]);
-      final artistsF = ScService.instance.searchArtists(q).catchError((_) => <ScArtist>[]);
+      // альбомы и исполнители — официальные, с YouTube Music (параллельно с треками; их ошибка не мешает)
+      final albumsF = YtmBrowse.instance.searchAlbums(q).catchError((_) => <ScAlbum>[]);
+      final artistsF = YtmBrowse.instance.searchArtists(q).catchError((_) => <YtmArtistRef>[]);
       final r = await SearchService.search(q, _src);
       final al = await albumsF;
-      final ar = _relevantArtists(q, await artistsF);
+      final ar = await artistsF;
       if (my != _token) return;
       setState(() {
         _results = r;
@@ -186,21 +185,6 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
     } finally {
       if (my == _token && mounted) setState(() => _busy = false);
     }
-  }
-
-  /// Исполнители, похожие на запрос (по имени), популярные — выше; остальное — шум поиска.
-  static List<ScArtist> _relevantArtists(String q, List<ScArtist> list) {
-    final scored = [
-      for (final a in list)
-        if (TextMatch.similarity(q, a.name) >= 0.5 || TextMatch.similarity(a.name, q) >= 0.5) a
-    ]..sort((a, b) {
-        final ea = TextMatch.similarity(q, a.name) >= 0.99 ? 1 : 0,
-            eb = TextMatch.similarity(q, b.name) >= 0.99 ? 1 : 0;
-        if (ea != eb) return eb - ea;
-        if (a.verified != b.verified) return a.verified ? -1 : 1;
-        return b.followers.compareTo(a.followers);
-      });
-    return scored.take(8).toList();
   }
 
   /// Верх списка результатов: исполнители, альбомы, заголовок «Треки».
@@ -323,16 +307,10 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
   }
 }
 
-/// Лента исполнителей в поиске: круглое фото, имя, подписчики; нажатие — страница исполнителя.
+/// Лента исполнителей в поиске: круглое фото, имя, «… слушателей в месяц»; нажатие — страница исполнителя.
 class _ArtistRow extends StatelessWidget {
-  final List<ScArtist> artists;
+  final List<YtmArtistRef> artists;
   const _ArtistRow({required this.artists});
-
-  static String _count(int n) => n >= 1000000
-      ? tr('{0} млн', [(n / 1000000).toStringAsFixed(1).replaceAll('.', ',')])
-      : n >= 1000
-          ? tr('{0} тыс.', [(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1).replaceAll('.', ',')])
-          : '$n';
 
   @override
   Widget build(BuildContext context) {
@@ -349,27 +327,20 @@ class _ArtistRow extends StatelessWidget {
           final a = artists[i];
           return GestureDetector(
             onTap: () =>
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => ArtistScreen(name: a.name, id: a.id))),
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => ArtistScreen(name: a.name, ytm: a.id))),
             child: SizedBox(
               width: s,
               child: Column(children: [
                 CircleAvatar(
                   radius: s / 2,
                   backgroundColor: Theme.of(context).cardColor,
-                  backgroundImage: a.avatar != null ? NetworkImage(a.avatar!) : null,
-                  child: a.avatar == null ? Icon(Icons.person_rounded, size: s * 0.45) : null,
+                  backgroundImage: a.image != null ? NetworkImage(a.image!) : null,
+                  child: a.image == null ? Icon(Icons.person_rounded, size: s * 0.45) : null,
                 ),
                 SizedBox(height: context.u(6)),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Flexible(
-                    child: Text(a.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700)),
-                  ),
-                  if (a.verified) Icon(Icons.verified_rounded, size: 14, color: context.accent),
-                ]),
-                Text(tr('{0} подп.', [_count(a.followers)]), maxLines: 1, style: TextStyle(fontSize: 12, color: dim)),
+                Text(a.name,
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text(a.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: dim)),
               ]),
             ),
           );

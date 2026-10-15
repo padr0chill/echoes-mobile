@@ -283,6 +283,77 @@ class YtmBrowse {
     return out;
   }
 
+  static const _albumsOnly = 'EgWKAQIYAWoKEAkQBRAKEAMQBA==';
+
+  /// Поиск исполнителей (фото, «… слушателей в месяц»), лучшие совпадения имени — первыми.
+  Future<List<YtmArtistRef>> searchArtists(String q, {int limit = 8}) async {
+    final j = await _post('search', {'query': q, 'params': _artistsOnly});
+    final out = <YtmArtistRef>[];
+    _each(j['contents'], 'musicResponsiveListItemRenderer', (it) {
+      final id = ((it['navigationEndpoint'] as Map?)?['browseEndpoint'] as Map?)?['browseId'] as String?;
+      if (id == null || !id.startsWith('UC')) return;
+      final cols = ((it['flexColumns'] as List?) ?? [])
+          .map((c) => text(((c as Map)['musicResponsiveListItemFlexColumnRenderer'] as Map?)?['text']))
+          .toList();
+      if (cols.isEmpty) return;
+      final sub = cols.length > 1 ? cols[1].split(' • ').last : '';
+      out.add(YtmArtistRef(id, cols[0], _thumb(it['thumbnail'], size: 300), sub));
+    });
+    // только похожие на запрос; точное совпадение имени — первым
+    final rel =
+        out.where((a) => TextMatch.similarity(a.name, q) >= 0.5 || TextMatch.similarity(q, a.name) >= 0.5).toList();
+    rel.sort((a, b) => TextMatch.similarity(b.name, q).compareTo(TextMatch.similarity(a.name, q)));
+    return rel.take(limit).toList();
+  }
+
+  /// Поиск альбомов: если запрос — имя исполнителя, то ЕГО дискография (альбомы, потом EP и синглы);
+  /// иначе — фильтр «Альбомы» YouTube Music, только релизы, похожие на запрос. Без плейлистов SoundCloud.
+  Future<List<ScAlbum>> searchAlbums(String q) async {
+    int rank(ScAlbum a) => a.kind == 'album' ? 0 : (a.kind == 'ep' ? 1 : 2);
+    try {
+      final id = await findArtist(q);
+      if (id != null) {
+        final p = await artist(id);
+        if (TextMatch.similarity(p.name, q) >= 0.8) {
+          final albums = p.albumsMore != null ? await discography(p.albumsMore!, p.name) : p.albums;
+          final singles = p.singlesMore != null ? await discography(p.singlesMore!, p.name) : p.singles;
+          final all = [...albums, ...singles.where((s) => !albums.any((a) => a.ytm == s.ytm))];
+          if (all.isNotEmpty) return all..sort((a, b) => rank(a).compareTo(rank(b)));
+        }
+      }
+    } catch (_) {}
+    final j = await _post('search', {'query': q, 'params': _albumsOnly});
+    final out = <ScAlbum>[];
+    _each(j['contents'], 'musicResponsiveListItemRenderer', (it) {
+      final id = ((it['navigationEndpoint'] as Map?)?['browseEndpoint'] as Map?)?['browseId'] as String?;
+      if (id == null || !id.startsWith('MPRE')) return;
+      final cols = ((it['flexColumns'] as List?) ?? [])
+          .map((c) => text(((c as Map)['musicResponsiveListItemFlexColumnRenderer'] as Map?)?['text']))
+          .toList();
+      if (cols.isEmpty) return;
+      final parts = cols.length > 1 ? cols[1].split(' • ') : <String>[];
+      final kindTxt = parts.isNotEmpty ? parts.first.toLowerCase() : '';
+      final who = parts.length > 1 ? parts[1] : '';
+      final year = RegExp(r'(19|20)\d{2}').firstMatch(cols.length > 1 ? cols[1] : '');
+      out.add(ScAlbum(
+          0,
+          cols[0],
+          who,
+          null,
+          _thumb(it['thumbnail']),
+          0,
+          year == null ? null : int.parse(year.group(0)!),
+          kindTxt.contains('сингл') || kindTxt.contains('single') ? 'single' : (kindTxt == 'ep' ? 'ep' : 'album'),
+          ytm: id));
+    });
+    final words = q.toLowerCase().split(RegExp(r'\s+')).where((w) => w.length > 1).toList();
+    final rel = out.where((a) {
+      final t = '${a.title} ${a.artist}'.toLowerCase();
+      return words.where(t.contains).length >= (words.length / 2).ceil();
+    }).toList();
+    return rel..sort((a, b) => rank(a).compareTo(rank(b)));
+  }
+
   /// Подсказки при вводе: варианты запроса и сразу исполнители/песни/альбомы.
   Future<(List<String>, List<YtmSuggestion>)> suggest(String q) async {
     final j = await _post('music/get_search_suggestions', {'input': q});

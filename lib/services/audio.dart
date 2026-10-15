@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../models.dart';
 import 'store.dart';
+import 'lyrics.dart';
 import 'offline.dart';
 import 'square_cover.dart';
 import 'sc.dart';
@@ -68,6 +69,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       if (s == ProcessingState.completed) _onCompleted();
     });
     player.positionStream.listen(_checkCrossfade);
+    // настоящая длительность играющего трека — для подбора и подгонки текста песни
+    LyricsService.realSeconds = (t) => current == t ? (player.duration?.inSeconds ?? 0) : 0;
     player.durationStream.listen((d) {
       final m = mediaItem.value;
       if (d != null && m != null && m.duration != d) mediaItem.add(m.copyWith(duration: d));

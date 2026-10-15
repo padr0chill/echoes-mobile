@@ -40,8 +40,10 @@ class _Page {
   final List<Track> all;
   final List<YtmArtistRef> similar;
   final String? about;
+  final String? ytm;
   const _Page(this.name, this.image, this.monthly, this.subscribers, this.verified, this.top, this.plays, this.albums,
-      this.singles, this.all, this.similar, this.about);
+      this.singles, this.all, this.similar, this.about,
+      {this.ytm});
 }
 
 /// Страница исполнителя как в Spotify: большое фото с именем, слушатели за месяц, «Слушать» / «Вперемешку» /
@@ -103,7 +105,8 @@ class _ArtistScreenState extends State<ArtistScreen> {
         image ??= sp?.image;
       }
       return _Page(p.name, image, monthly, p.subscribers, true, top, p.plays, albums,
-          singles.where((s) => !albums.any((a) => a.ytm == s.ytm)).toList(), all, p.similar, null);
+          singles.where((s) => !albums.any((a) => a.ytm == s.ytm)).toList(), all, p.similar, null,
+          ytm: p.id);
     }
     // запасной путь — SoundCloud
     final sc = ScService.instance;
@@ -277,15 +280,35 @@ class _ArtistScreenState extends State<ArtistScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(context.u(18), context.u(10), context.u(18), context.u(4)),
               child: Row(children: [
-                OutlinedButton.icon(
+                // «Подписаться» — как в Spotify
+                ListenableBuilder(
+                  listenable: Store.instance,
+                  builder: (context, _) {
+                    final on = Store.instance.isFollowing(d.name);
+                    return OutlinedButton(
+                      onPressed: () {
+                        Store.instance.toggleFollow(d.name, ytm: d.ytm, image: d.image);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(on
+                                ? tr('Вы отписались от {0}', [d.name])
+                                : tr('Вы подписались на {0} — он в «Моей музыке»', [d.name]))));
+                      },
+                      style: OutlinedButton.styleFrom(
+                        shape: context.pill,
+                        foregroundColor: Colors.white,
+                        backgroundColor: on ? Colors.white.withValues(alpha: 0.12) : null,
+                        side: BorderSide(color: Colors.white.withValues(alpha: on ? 0.25 : 0.6)),
+                      ),
+                      child: Text(on ? tr('Вы подписаны') : tr('Подписаться'),
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                    );
+                  },
+                ),
+                SizedBox(width: context.u(8)),
+                IconButton(
+                  tooltip: tr('Волна'),
                   onPressed: playable.isEmpty ? null : () => Wave.instance.startWith(playable, d.name),
-                  icon: const Icon(Icons.waves_rounded, size: 18),
-                  label: Text(tr('Волна')),
-                  style: OutlinedButton.styleFrom(
-                    shape: context.pill,
-                    foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.45)),
-                  ),
+                  icon: const Icon(Icons.waves_rounded),
                 ),
                 const Spacer(),
                 IconButton(

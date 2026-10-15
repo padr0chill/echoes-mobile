@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'glass.dart';
 import 'models.dart';
 import 'screens/artist_screen.dart';
+import 'screens/clip_screen.dart';
 import 'services/audio.dart';
 import 'services/offline.dart';
 import 'services/square_cover.dart';
@@ -354,6 +355,14 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
               Navigator.pop(ctx);
             },
           ),
+        ListTile(
+          leading: const Icon(Icons.smart_display_rounded),
+          title: Text(tr('Смотреть клип')),
+          onTap: () {
+            Navigator.pop(ctx);
+            openClip(context, t);
+          },
+        ),
         ListTile(
           leading: const Icon(Icons.playlist_play_rounded),
           title: Text(tr('Играть следующим')),

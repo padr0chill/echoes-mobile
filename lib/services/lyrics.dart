@@ -18,7 +18,21 @@ class Lyrics {
   final bool synced;
   final String source; // откуда: lrclib, lyrics.ovh, «свой», «синхронизировано вручную», «авто»
   final bool approx; // тайминги примерные (авто-синхронизация) — стоит подправить
-  const Lyrics(this.lines, this.synced, {this.source = 'lrclib', this.approx = false});
+  final int srcSeconds; // длительность записи, под которую расставлены тайминги (0 — неизвестна)
+  const Lyrics(this.lines, this.synced, {this.source = 'lrclib', this.approx = false, this.srcSeconds = 0});
+
+  /// Подогнать тайминги под настоящую длительность трека: текст снят с версии другой скорости
+  /// (ускоренной / замедленной / другого мастеринга) — растянуть или сжать все строки пропорционально.
+  Lyrics fitTo(int realSeconds) {
+    if (!synced || srcSeconds <= 0 || realSeconds <= 0) return this;
+    final k = realSeconds / srcSeconds;
+    if ((realSeconds - srcSeconds).abs() < 2 || k < 0.75 || k > 1.33) return this;
+    return Lyrics([for (final l in lines) LyricLine(l.at * k, l.text)], true,
+        source: source, approx: approx, srcSeconds: realSeconds);
+  }
+
+  /// «Сейчас звучит эта строка»: сдвинуть весь текст так, чтобы строка i начиналась в момент now.
+  Lyrics anchored(int i, Duration now) => shifted(now - lines[i].at);
 
   /// В формате LRC — так текст сохраняется на телефоне.
   String toLrc() {
@@ -40,6 +54,7 @@ class Lyrics {
         synced,
         source: source,
         approx: approx,
+        srcSeconds: srcSeconds,
       );
 }
 
@@ -54,7 +69,7 @@ class LyricsCandidate {
   bool get hasSynced => synced != null && synced!.trim().isNotEmpty;
 
   Lyrics? toLyrics() {
-    if (hasSynced) return Lyrics(LyricsService.parseLrc(synced!), true, source: source);
+    if (hasSynced) return Lyrics(LyricsService.parseLrc(synced!), true, source: source, srcSeconds: seconds);
     if (plain != null && plain!.trim().isNotEmpty) {
       return Lyrics([for (final s in plain!.split('\n')) LyricLine(Duration.zero, s.trimRight())], false,
           source: source);
@@ -111,13 +126,27 @@ class LyricsService {
     if (f != null && f.existsSync()) f.deleteSync();
   }
 
+  /// Настоящая длительность играющего трека (задаёт плеер) — по ней выбирается версия текста и
+  /// подгоняются тайминги.
+  static int Function(Track t)? realSeconds;
+
   Future<Lyrics?> get(Track t) async {
     if (_cache.containsKey(t.id)) return _cache[t.id];
     Lyrics? out = await _loadSaved(t);
     if (out == null) {
       try {
-        final list = await search(t, quick: true);
-        if (list.isNotEmpty && list.first.score >= _accept) out = list.first.toLyrics();
+        // длительность трека нужна для выбора версии текста: у трека из каталога её может не быть —
+        // ждём, пока плеер её узнает (обычно 1–2 с)
+        var real = t.seconds;
+        for (var i = 0; i < 15 && real <= 0 && realSeconds != null; i++) {
+          real = realSeconds!(t);
+          if (real <= 0) await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
+        final tt = real > 0 && real != t.seconds
+            ? Track(id: t.id, title: t.title, artist: t.artist, seconds: real, art: t.art)
+            : t;
+        final list = await search(tt, quick: true);
+        if (list.isNotEmpty && list.first.score >= _accept) out = list.first.toLyrics()?.fitTo(real);
       } catch (_) {}
     }
     _cache[t.id] = out;
@@ -212,7 +241,7 @@ class LyricsService {
     var score = ts * 3 + as * 2;
     if (seconds > 0 && d > 0) {
       final dd = (d - seconds).abs();
-      score += dd <= 3 ? 1.5 : (dd <= 8 ? 0.8 : (dd <= 20 ? 0 : -2));
+      score += dd <= 2 ? 2.0 : (dd <= 5 ? 1.2 : (dd <= 10 ? 0.3 : (dd <= 20 ? -0.8 : -2.5)));
     }
     if (synced != null && synced.trim().isNotEmpty) score += 0.5;
     if (ts < 0.5) score -= 3; // другая песня

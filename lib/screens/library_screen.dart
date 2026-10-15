@@ -141,8 +141,27 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 onTap: () => _open(context, p.name, () => p.tracks, playlist: p),
                 onLong: () => pickPlaylistCover(context, p),
               );
+          // исполнители: подписки (с фото), затем самые слушаемые
+          final followed = _filter == 'pl' ? <Map<String, String>>[] : st.follows;
           final arItems = [
-            for (final a in artists)
+            for (final f in followed)
+              _Item(
+                title: f['name'] ?? '',
+                sub: tr('Исполнитель • подписка'),
+                art: (s) => CircleAvatar(
+                  radius: s / 2,
+                  backgroundColor: context.accent.withValues(alpha: 0.22),
+                  backgroundImage: f['img'] != null ? NetworkImage(f['img']!) : null,
+                  child: f['img'] == null
+                      ? Text((f['name'] ?? '?').characters.first.toUpperCase(),
+                          style: TextStyle(fontSize: s * 0.38, fontWeight: FontWeight.w800, color: context.accent))
+                      : null,
+                ),
+                onTap: () => Navigator.of(context)
+                    .push(MaterialPageRoute(builder: (_) => ArtistScreen(name: f['name'] ?? '', ytm: f['ytm']))),
+                round: true,
+              ),
+            for (final a in artists.where((a) => !st.isFollowing(a)))
               _Item(
                 title: a,
                 sub: tr('Исполнитель'),

@@ -9,6 +9,7 @@ import '../glass.dart';
 import '../i18n.dart';
 import '../models.dart';
 import '../services/audio.dart';
+import '../services/ytm_artist.dart';
 import '../ui.dart';
 import '../widgets.dart';
 
@@ -102,6 +103,7 @@ class _SnakeGameState extends State<SnakeGame> {
   Timer? _timer;
   bool _over = false, _started = false;
   Track? _near; // трек, чей отрывок играет
+  Offset? _swipeFrom;
 
   @override
   void initState() {
@@ -217,131 +219,117 @@ class _SnakeGameState extends State<SnakeGame> {
             ),
           ],
         ),
-        body: SafeArea(
-          child: Column(children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: _start,
-                onPanEnd: (d) {
-                  final v = d.velocity.pixelsPerSecond;
-                  if (v.distance < 80) return;
-                  _turn(v.dx.abs() > v.dy.abs() ? math.Point(v.dx > 0 ? 1 : -1, 0) : math.Point(0, v.dy > 0 ? 1 : -1));
-                },
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: cols / rows,
-                    child: LayoutBuilder(builder: (context, c) {
-                      final cell = c.maxWidth / cols;
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(context.r(18)),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(context.r(18)),
-                          child: Stack(children: [
-                            CustomPaint(
-                                size: Size.infinite, painter: _SnakePainter(_snake, _dir, cell, context.accent)),
-                            if (_food != null && _foodTrack != null)
-                              Positioned(
-                                left: _food!.x * cell - cell * 0.25,
-                                top: _food!.y * cell - cell * 0.25,
-                                child: _Food(track: _foodTrack!, size: cell * 1.5, active: _near == _foodTrack),
-                              ),
-                            if (!_started && !_over)
-                              Center(
-                                child: Text(tr('Свайпните, чтобы начать'),
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                              ),
-                            if (_over)
-                              Container(
-                                color: Colors.black.withValues(alpha: 0.6),
-                                alignment: Alignment.center,
-                                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                  Text(tr('Игра окончена'),
-                                      style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-                                  SizedBox(height: context.u(6)),
-                                  Text(tr('Съедено: {0}', [_eaten.length]), style: TextStyle(color: dim)),
-                                  SizedBox(height: context.u(16)),
-                                  FilledButton(
-                                    onPressed: () => setState(_reset),
-                                    child: Text(tr('Ещё раз'), style: const TextStyle(color: Colors.black)),
-                                  ),
-                                  if (_eaten.isNotEmpty)
-                                    TextButton(
-                                      onPressed: () {
-                                        for (final t in _eaten) {
-                                          audio.addToQueue(t);
-                                        }
-                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                            content: Text(tr('Съеденные треки — в очереди ({0})', [_eaten.length]))));
-                                      },
-                                      child: Text(tr('Съеденное — в очередь')),
+        // управление — только свайпами по всему экрану: поворот срабатывает, как только палец сдвинулся
+        // на ~18 px (не нужно отпускать), в одном жесте можно повернуть несколько раз
+        body: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _start,
+          onPanStart: (d) => _swipeFrom = d.localPosition,
+          onPanUpdate: (d) {
+            final from = _swipeFrom;
+            if (from == null) return;
+            final v = d.localPosition - from;
+            if (v.distance < context.u(18)) return;
+            _turn(v.dx.abs() > v.dy.abs() ? math.Point(v.dx > 0 ? 1 : -1, 0) : math.Point(0, v.dy > 0 ? 1 : -1));
+            _swipeFrom = d.localPosition;
+          },
+          onPanEnd: (_) => _swipeFrom = null,
+          child: SafeArea(
+            child: Column(children: [
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(context.u(10)),
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: cols / rows,
+                      child: LayoutBuilder(builder: (context, c) {
+                        final cell = c.maxWidth / cols;
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(context.r(18)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(context.r(18)),
+                            child: Stack(children: [
+                              CustomPaint(
+                                  size: Size.infinite, painter: _SnakePainter(_snake, _dir, cell, context.accent)),
+                              if (_food != null && _foodTrack != null)
+                                Positioned(
+                                  left: _food!.x * cell - cell * 0.25,
+                                  top: _food!.y * cell - cell * 0.25,
+                                  child: _Food(track: _foodTrack!, size: cell * 1.5, active: _near == _foodTrack),
+                                ),
+                              if (!_started && !_over)
+                                Center(
+                                  child: Text(tr('Свайпните, чтобы начать'),
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                                ),
+                              if (_over)
+                                Container(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  alignment: Alignment.center,
+                                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                                    Text(tr('Игра окончена'),
+                                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
+                                    SizedBox(height: context.u(6)),
+                                    Text(tr('Съедено: {0}', [_eaten.length]), style: TextStyle(color: dim)),
+                                    SizedBox(height: context.u(16)),
+                                    FilledButton(
+                                      onPressed: () => setState(_reset),
+                                      child: Text(tr('Ещё раз'), style: const TextStyle(color: Colors.black)),
                                     ),
-                                ]),
-                              ),
-                          ]),
-                        ),
-                      );
-                    }),
+                                    if (_eaten.isNotEmpty)
+                                      TextButton(
+                                        onPressed: () {
+                                          for (final t in _eaten) {
+                                            audio.addToQueue(t);
+                                          }
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                              content: Text(tr('Съеденные треки — в очереди ({0})', [_eaten.length]))));
+                                        },
+                                        child: Text(tr('Съеденное — в очередь')),
+                                      ),
+                                  ]),
+                                ),
+                            ]),
+                          ),
+                        );
+                      }),
+                    ),
                   ),
                 ),
               ),
-            ),
-            // что играет
-            SizedBox(
-              height: context.u(44),
-              child: Center(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: _near == null
-                      ? Text(tr('Подползите к треку — заиграет отрывок'),
-                          key: const ValueKey('hint'), style: TextStyle(color: dim))
-                      : Row(key: ValueKey(_near!.id), mainAxisSize: MainAxisSize.min, children: [
-                          Icon(Icons.graphic_eq_rounded, color: context.accent),
-                          SizedBox(width: context.u(6)),
-                          ConstrainedBox(
-                            constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
-                            child: Text('${_near!.title} — ${_near!.artist}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w700)),
-                          ),
-                        ]),
+              // что играет
+              SizedBox(
+                height: context.u(44),
+                child: Center(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    child: _near == null
+                        ? Text(tr('Свайпайте в любом месте экрана · у трека играет отрывок'),
+                            key: const ValueKey('hint'), style: TextStyle(color: dim))
+                        : Row(key: ValueKey(_near!.id), mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.graphic_eq_rounded, color: context.accent),
+                            SizedBox(width: context.u(6)),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
+                              child: Text('${_near!.title} — ${_near!.artist}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ]),
+                  ),
                 ),
               ),
-            ),
-            // крестовина
-            Padding(
-              padding: EdgeInsets.only(bottom: context.u(10)),
-              child: Column(children: [
-                _Pad(icon: Icons.keyboard_arrow_up_rounded, onTap: () => _turn(const math.Point(0, -1))),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _Pad(icon: Icons.keyboard_arrow_left_rounded, onTap: () => _turn(const math.Point(-1, 0))),
-                  SizedBox(width: context.u(64)),
-                  _Pad(icon: Icons.keyboard_arrow_right_rounded, onTap: () => _turn(const math.Point(1, 0))),
-                ]),
-                _Pad(icon: Icons.keyboard_arrow_down_rounded, onTap: () => _turn(const math.Point(0, 1))),
-              ]),
-            ),
-          ]),
+            ]),
+          ),
         ),
       ),
     );
   }
-}
-
-class _Pad extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  const _Pad({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.all(context.u(2)),
-        child: GlassIconButton(icon: icon, size: context.u(56), onTap: onTap),
-      );
 }
 
 /// «Еда» — круглая обложка трека; пока играет её отрывок — пульсирует.
@@ -476,23 +464,66 @@ class _GuessGameState extends State<GuessGame> {
 
   Future<void> _newRound() async {
     final t = _answer;
-    final others = widget.tracks.where((x) => x.id != t.id && x.title != t.title).toList()..shuffle(_rnd);
     setState(() {
       _step = 0;
       _picked = null;
-      _options = [t, ...others.take(3)]..shuffle(_rnd);
+      _options = [t];
       _loading = true;
       _failed = false;
     });
     // следующий раунд готовится заранее
     if (_round + 1 < _order.length) _snip.prepare(_order[_round + 1]);
+    final optsF = _sameArtistOptions(t);
     final ok = await _snip.prepare(t) != null;
+    final opts = await optsF;
     if (!mounted || _answer != t) return;
     setState(() {
+      _options = [t, ...opts]..shuffle(_rnd);
       _loading = false;
       _failed = !ok;
     });
     if (ok) _listen();
+  }
+
+  /// Неверные варианты — песни ТОГО ЖЕ исполнителя (так интереснее): сначала из плейлиста, не хватает —
+  /// из его дискографии на YouTube Music; совсем нет — случайные из плейлиста.
+  final _artistSongs = <String, Future<List<Track>>>{};
+
+  static String _main(String artist) =>
+      artist.split(RegExp(r'\s*(,|&| и | x | feat\.? | ft\.? )\s*', caseSensitive: false)).first.trim().toLowerCase();
+
+  static String _key(String title) => title.toLowerCase().replaceAll(RegExp(r'[\(\[].*?[\)\]]'), '').trim();
+
+  Future<List<Track>> _sameArtistOptions(Track t) async {
+    final who = _main(t.artist);
+    final used = <String>{_key(t.title)};
+    final out = <Track>[];
+    void add(Iterable<Track> l) {
+      for (final x in l) {
+        if (out.length >= 3) return;
+        if (used.add(_key(x.title))) out.add(x);
+      }
+    }
+
+    add(widget.tracks.where((x) => x.id != t.id && _main(x.artist) == who).toList()..shuffle(_rnd));
+    if (out.length < 3 && who.isNotEmpty) {
+      final songs = await (_artistSongs[who] ??= () async {
+        try {
+          final id = await YtmBrowse.instance.findArtist(who);
+          if (id == null) return <Track>[];
+          final p = await YtmBrowse.instance.artist(id);
+          final all =
+              p.songsPlaylist != null ? await YtmBrowse.instance.playlist(p.songsPlaylist!, artist: p.name) : p.top;
+          return all.isEmpty ? p.top : all;
+        } catch (_) {
+          return <Track>[];
+        }
+      }())
+          .timeout(const Duration(seconds: 8), onTimeout: () => <Track>[]);
+      add([...songs]..shuffle(_rnd));
+    }
+    if (out.length < 3) add(widget.tracks.where((x) => x.id != t.id).toList()..shuffle(_rnd));
+    return out;
   }
 
   void _listen() => _snip.play(_answer, seconds: steps[_step.clamp(0, steps.length - 1)]);

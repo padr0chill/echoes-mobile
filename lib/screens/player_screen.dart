@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../glass.dart';
 import '../models.dart';
@@ -12,6 +13,7 @@ import '../ui.dart';
 import '../skins/winamp.dart';
 import '../vinyl.dart';
 import '../blurred_cover.dart';
+import 'clip_screen.dart';
 import 'equalizer_screen.dart';
 import 'lyrics_tools.dart';
 import '../widgets.dart';
@@ -130,6 +132,14 @@ class _Header extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         const Spacer(),
+        IconButton(
+          tooltip: tr('Клип'),
+          icon: const Icon(Icons.smart_display_rounded, color: Colors.white),
+          onPressed: () {
+            final t = audio.current;
+            if (t != null) openClip(context, t);
+          },
+        ),
         IconButton(
           tooltip: tr('Текст песни'),
           icon: Icon(Icons.lyrics_rounded, color: lyrics ? context.accent : Colors.white),
@@ -369,6 +379,17 @@ class _LyricsViewState extends State<_LyricsView> {
     if (mounted) _reload();
   }
 
+  Future<void> _anchor(Lyrics ly, int i) async {
+    HapticFeedback.mediumImpact();
+    await LyricsService.instance.save(widget.track, ly.anchored(i, audio.player.position));
+    _reload();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr('Текст подстроен: «{0}» звучит сейчас', [ly.lines[i].text]),
+              maxLines: 2, overflow: TextOverflow.ellipsis)));
+    }
+  }
+
   Future<void> _shift(Lyrics ly, int ms) async {
     await LyricsService.instance.save(widget.track, ly.shifted(Duration(milliseconds: ms)));
     _reload();
@@ -385,7 +406,7 @@ class _LyricsViewState extends State<_LyricsView> {
         Expanded(
           child: Text(
             ly.approx
-                ? tr('тайминги примерные — подправьте')
+                ? tr('Удержите строку, которая звучит сейчас, — текст подстроится')
                 : (ly.synced ? tr(ly.source) : tr('{0} · без таймингов', [tr(ly.source)])),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -477,6 +498,8 @@ class _LyricsViewState extends State<_LyricsView> {
                           return GestureDetector(
                             key: _keys.putIfAbsent(i, () => GlobalKey()),
                             onTap: ly.synced ? () => audio.seek(l.at) : null,
+                            // удержать строку, которая сейчас звучит, — весь текст подстроится под неё
+                            onLongPress: ly.synced ? () => _anchor(ly, i) : null,
                             child: Padding(
                               padding: EdgeInsets.symmetric(vertical: context.u(7)),
                               child: AnimatedDefaultTextStyle(

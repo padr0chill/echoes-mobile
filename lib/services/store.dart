@@ -16,6 +16,9 @@ class Store extends ChangeNotifier {
   late SharedPreferences _p;
   final List<Track> liked = [];
   final List<Playlist> playlists = [];
+
+  /// Подписки на исполнителей: имя, канал YouTube Music, фото (новые — сверху).
+  final List<Map<String, String>> follows = [];
   final List<Track> history = [];
   final List<String> searches = [];
 
@@ -78,6 +81,11 @@ class Store extends ChangeNotifier {
     history
       ..clear()
       ..addAll(tracks('history'));
+    final fl = _p.getString('follows');
+    follows.clear();
+    if (fl != null) {
+      follows.addAll((jsonDecode(fl) as List).map((e) => Map<String, String>.from(e as Map)));
+    }
     final pl = _p.getString('playlists');
     playlists.clear();
     if (pl != null) {
@@ -122,6 +130,7 @@ class Store extends ChangeNotifier {
     _p.setString('liked', jsonEncode(liked.map((t) => t.toJson()).toList()));
     _p.setString('history', jsonEncode(history.map((t) => t.toJson()).toList()));
     _p.setString('playlists', jsonEncode(playlists.map((p) => p.toJson()).toList()));
+    _p.setString('follows', jsonEncode(follows));
     _p.setStringList('searches', searches);
     _p.setInt('accent', accentIndex);
     _p.setBool('economy', economy);
@@ -255,6 +264,18 @@ class Store extends ChangeNotifier {
     if (from < 0 || from >= playlists.length) return;
     final p = playlists.removeAt(from);
     playlists.insert(to.clamp(0, playlists.length), p);
+    _save();
+  }
+
+  bool isFollowing(String name) => follows.any((f) => f['name']?.toLowerCase() == name.toLowerCase());
+
+  /// Подписаться / отписаться.
+  void toggleFollow(String name, {String? ytm, String? image}) {
+    if (isFollowing(name)) {
+      follows.removeWhere((f) => f['name']?.toLowerCase() == name.toLowerCase());
+    } else {
+      follows.insert(0, {'name': name, if (ytm != null) 'ytm': ytm, if (image != null) 'img': image});
+    }
     _save();
   }
 
