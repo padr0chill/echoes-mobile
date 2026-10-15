@@ -58,7 +58,8 @@ jobs:
       - name: Build APK
         run: |
           # разовые сбои облака (скачивание Gradle/зависимостей) — вторая попытка
-          flutter build apk --release --obfuscate --split-debug-info=build/symbols || \n            flutter build apk --release --obfuscate --split-debug-info=build/symbols
+          flutter build apk --release --obfuscate --split-debug-info=build/symbols || \
+            flutter build apk --release --obfuscate --split-debug-info=build/symbols
           cp build/app/outputs/flutter-apk/app-release.apk ECHOES.apk
           ls -lh ECHOES.apk
 
