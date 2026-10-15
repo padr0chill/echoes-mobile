@@ -413,6 +413,12 @@ class _TrackListScreenState extends State<TrackListScreen> {
   final _q = TextEditingController();
   String _query = '';
 
+  @override
+  void initState() {
+    super.initState();
+    audio.warm(widget.tracks()); // первые треки — заранее, чтобы «Слушать» включалось сразу
+  }
+
   String get title => widget.title;
   List<Track> Function() get tracks => widget.tracks;
   Playlist? get playlist => widget.playlist;

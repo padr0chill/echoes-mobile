@@ -37,6 +37,7 @@ class _ClipScreenState extends State<ClipScreen> {
   String? _err;
   bool _ui = true;
   bool _full = false;
+  bool _fill = false; // заполнить экран (обрезать поля)
   bool _wasPlaying = false;
   Timer? _hide;
 
@@ -110,6 +111,37 @@ class _ClipScreenState extends State<ClipScreen> {
     super.dispose();
   }
 
+  void _quality(BuildContext context) {
+    final q = Clips.instance.quality[_clip?.id] ?? '360p';
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(
+            leading: const Icon(Icons.check_rounded, color: Colors.white),
+            title: Text(q, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            subtitle: Text(tr('Сейчас'), style: const TextStyle(color: Colors.white60)),
+          ),
+          for (final h in ['720p', '1080p'])
+            ListTile(
+              enabled: false,
+              leading: const Icon(Icons.lock_outline_rounded, color: Colors.white38),
+              title: Text(h, style: const TextStyle(color: Colors.white38)),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Text(
+              tr('YouTube отдаёт приложениям без входа в аккаунт только 360p целиком — 720p и выше закрыты '
+                  'его защитой (нужен вход). Как только станет можно — включится само.'),
+              style: const TextStyle(color: Colors.white60, fontSize: 13),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
   String _t(Duration d) => '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
 
   @override
@@ -120,6 +152,7 @@ class _ClipScreenState extends State<ClipScreen> {
       backgroundColor: Colors.black,
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        onDoubleTap: c == null ? null : () => _setFull(!_full),
         onTap: () {
           setState(() => _ui = !_ui);
           if (_ui) _autoHide();
@@ -127,7 +160,15 @@ class _ClipScreenState extends State<ClipScreen> {
         child: Stack(children: [
           Center(
             child: c != null && v!.isInitialized
-                ? AspectRatio(aspectRatio: v.aspectRatio, child: VideoPlayer(c))
+                ? _fill
+                    ? ClipRect(
+                        child: SizedBox.expand(
+                        child: FittedBox(
+                          fit: BoxFit.cover,
+                          child: SizedBox(width: v.size.width, height: v.size.height, child: VideoPlayer(c)),
+                        ),
+                      ))
+                    : AspectRatio(aspectRatio: v.aspectRatio, child: VideoPlayer(c))
                 : _err != null
                     ? Padding(
                         padding: EdgeInsets.all(context.u(24)),
@@ -171,6 +212,18 @@ class _ClipScreenState extends State<ClipScreen> {
                             style: const TextStyle(color: Colors.white60)),
                       ]),
                     ),
+                    if (c != null)
+                      TextButton(
+                        onPressed: () => _quality(context),
+                        child: Text(Clips.instance.quality[_clip?.id] ?? '360p',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                      ),
+                    if (c != null)
+                      IconButton(
+                        tooltip: _fill ? tr('Целиком') : tr('Заполнить экран'),
+                        icon: Icon(_fill ? Icons.fit_screen_rounded : Icons.crop_free_rounded, color: Colors.white),
+                        onPressed: () => setState(() => _fill = !_fill),
+                      ),
                     if (c != null)
                       IconButton(
                         tooltip: _full ? tr('Свернуть') : tr('На весь экран'),

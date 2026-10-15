@@ -19,7 +19,8 @@ void main() {
     final ytm = await YtmService.instance.searchSongs(q);
     for (final t in ytm.take(8)) {
       // ignore: avoid_print
-      print('ytm: ${t.artist} | ${t.title} | ${t.seconds} canon=${Reference.canonical(t, refs)} altered=${Reference.altered(t, refs)}');
+      print(
+          'ytm: ${t.artist} | ${t.title} | ${t.seconds} canon=${Reference.canonical(t, refs)} altered=${Reference.altered(t, refs)}');
     }
     final all = await SearchService.search(q, SearchSource.all);
     // ignore: avoid_print

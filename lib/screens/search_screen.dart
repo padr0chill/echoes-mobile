@@ -174,6 +174,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
       final al = await albumsF;
       final ar = await artistsF;
       if (my != _token) return;
+      audio.warm(r); // первые результаты — заранее, чтобы включались сразу
       setState(() {
         _results = r;
         _albums = al;

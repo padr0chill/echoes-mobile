@@ -39,7 +39,7 @@ class _Snippets {
       audio.snippetSource(t).then<AudioSource?>((s) => s).timeout(const Duration(seconds: 15)).catchError((_) => null);
 
   /// Играть трек с позиции from; seconds — остановиться через столько секунд звука (null — играть дальше).
-  Future<bool> play(Track t, {Duration from = Duration.zero, double? seconds}) async {
+  Future<bool> play(Track t, {Duration from = Duration.zero, double? seconds, bool loop = false}) async {
     final src = await prepare(t);
     if (src == null) return false;
     _stopSub?.cancel();
@@ -59,6 +59,7 @@ class _Snippets {
           }
         });
       }
+      await player.setLoopMode(loop ? LoopMode.one : LoopMode.off);
       unawaited(player.play());
       return true;
     } catch (_) {
@@ -127,7 +128,6 @@ class _SnakeGameState extends State<SnakeGame> {
     _over = false;
     _started = false;
     _near = null;
-    _snip.stop();
     _spawn();
   }
 
@@ -140,7 +140,17 @@ class _SnakeGameState extends State<SnakeGame> {
     _food = free[_rnd.nextInt(free.length)];
     if (_deck.isEmpty) _deck = [...widget.tracks]..shuffle(_rnd);
     _foodTrack = _deck.removeLast();
-    _snip.prepare(_foodTrack!); // отрывок готовится, пока змейка ползёт
+    _playFood();
+    // следующий трек готовится заранее — после «съел» музыка меняется без паузы
+    if (_deck.isNotEmpty) _snip.prepare(_deck.last);
+  }
+
+  /// Всё время играет отрывок трека, который сейчас нужно съесть (с середины песни, по кругу).
+  void _playFood() {
+    final t = _foodTrack!;
+    _near = t;
+    final from = Duration(seconds: t.seconds > 60 ? (t.seconds * 0.35).round() : 20);
+    _snip.play(t, from: from, loop: true);
   }
 
   void _start() {
@@ -173,6 +183,7 @@ class _SnakeGameState extends State<SnakeGame> {
     if (head.x < 0 || head.y < 0 || head.x >= cols || head.y >= rows || _snake.contains(head)) {
       _timer?.cancel();
       HapticFeedback.heavyImpact();
+      _snip.stop();
       setState(() => _over = true);
       return;
     }
@@ -186,18 +197,6 @@ class _SnakeGameState extends State<SnakeGame> {
       _eaten.add(_foodTrack!);
       _spawn();
       _schedule();
-    }
-    // рядом с треком (≤ 4 клеток) — играет его отрывок с середины песни
-    final f = _food!;
-    final dist = (head.x - f.x).abs() + (head.y - f.y).abs();
-    final t = _foodTrack!;
-    if (dist <= 4 && _near != t) {
-      _near = t;
-      final from = Duration(seconds: t.seconds > 60 ? (t.seconds * 0.35).round() : 20);
-      _snip.play(t, from: from);
-    } else if (dist > 7 && _near != null && !grow) {
-      _near = null;
-      _snip.stop();
     }
   }
 
@@ -308,7 +307,7 @@ class _SnakeGameState extends State<SnakeGame> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
                     child: _near == null
-                        ? Text(tr('Свайпайте в любом месте экрана · у трека играет отрывок'),
+                        ? Text(tr('Свайпайте в любом месте экрана'),
                             key: const ValueKey('hint'), style: TextStyle(color: dim))
                         : Row(key: ValueKey(_near!.id), mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.graphic_eq_rounded, color: context.accent),

@@ -28,12 +28,11 @@ class YtService {
   /// Способы получить поток, по порядку. Проверено 06.10.2026: рабочие ссылки (HTTP 206) стабильно даёт
   /// только клиент «android»; «по умолчанию» — то да, то 403; ios/mweb — 403, androidVr/tv — «недоступно».
   /// YouTube это периодически меняет — проверка: dart run tool/probe_clients.dart
+  /// Проверено 15.10.2026: работают только «android» и «по умолчанию»; ios — 403, androidVr/tv —
+  /// «недоступно». Нерабочие убраны: раньше перебор их занимал до 10 с, прежде чем включался SoundCloud.
   static final clients = <List<YoutubeApiClient>?>[
     [YoutubeApiClient.android],
     null,
-    [YoutubeApiClient.ios],
-    [YoutubeApiClient.androidVr],
-    [YoutubeApiClient.tv],
   ];
 
   Future<List<Track>> search(String query) async {
@@ -137,7 +136,8 @@ class YtService {
           if (a != null && a.size.totalBytes > 1 << 20) a,
         ];
         for (final s in candidates) {
-          if (!await _wholeFileOpen(s.url, s.size.totalBytes)) continue;
+          // совмещённый mp4 YouTube отдаёт целиком — проверять конец незачем (минус один запрос перед стартом)
+          if (s is! MuxedStreamInfo && !await _wholeFileOpen(s.url, s.size.totalBytes)) continue;
           final mime = s is MuxedStreamInfo ? 'video/mp4' : s.codec.mimeType;
           final pick = StreamPick(s.url, s.size.totalBytes, mime, i);
           _cache[key] = (pick, DateTime.now());

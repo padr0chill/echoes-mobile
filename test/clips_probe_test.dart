@@ -13,6 +13,8 @@ void main() {
     Track(id: 'b', title: 'Kosandra', artist: 'Miyagi & Andy Panda', seconds: 221),
     Track(id: 'c', title: 'METAMORPHOSIS 3', artist: 'INTERWORLD', seconds: 128),
     Track(id: 'd', title: 'где', artist: 'zxcursed', seconds: 106),
+    Track(id: 'e', title: 'Гикаю', artist: 'Платина', seconds: 130),
+    Track(id: 'f', title: 'Kosandra', artist: 'Miyagi', seconds: 0),
   ]) {
     test('${t.artist} — ${t.title}', () async {
       final c = await Clips.instance.find(t);
