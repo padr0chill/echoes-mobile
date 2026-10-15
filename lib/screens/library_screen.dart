@@ -4,6 +4,7 @@ import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../services/offline.dart';
+import '../services/square_cover.dart';
 import '../services/store.dart';
 import '../services/text_match.dart';
 import '../ui.dart';
@@ -417,6 +418,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
   void initState() {
     super.initState();
     audio.warm(widget.tracks()); // первые треки — заранее, чтобы «Слушать» включалось сразу
+    SquareCover.instance.prefetchSmall(widget.tracks()); // обложки списка — сразу без полос
   }
 
   String get title => widget.title;

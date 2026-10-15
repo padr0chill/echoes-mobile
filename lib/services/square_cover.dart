@@ -53,6 +53,71 @@ class SquareCover {
     return f.existsSync() ? f : null;
   }
 
+  // ── маленькие обложки для списков: та же обрезка по содержимому, но по превью 480×360 (быстро, ~25 КБ) ──
+  final _small = <String, Future<File?>>{};
+  int _running = 0;
+  final _waiters = <Completer<void>>[];
+
+  /// Не больше 4 обложек за раз — листание не тормозит.
+  Future<T> _limit<T>(Future<T> Function() f) async {
+    while (_running >= 4) {
+      final c = Completer<void>();
+      _waiters.add(c);
+      await c.future;
+    }
+    _running++;
+    try {
+      return await f();
+    } finally {
+      _running--;
+      if (_waiters.isNotEmpty) _waiters.removeAt(0).complete();
+    }
+  }
+
+  /// Готовая обложка для списка (большая тоже подходит) — без ожидания.
+  File? readySmall(Track t) {
+    final big = ready(t);
+    if (big != null) return big;
+    final d = _dir;
+    if (d == null || !needed(t)) return null;
+    final f = File('${d.path}/${videoOf(t)}_s.png');
+    return f.existsSync() ? f : null;
+  }
+
+  Future<File?> getSmall(Track t) {
+    if (!needed(t)) return Future.value(null);
+    final ready = readySmall(t);
+    if (ready != null) return Future.value(ready);
+    return _small.putIfAbsent(videoOf(t), () => _limit(() => _makeSmall(t)).catchError((_) => null));
+  }
+
+  /// Обложки списка — заранее (открыли плейлист): при листании уже без полос.
+  void prefetchSmall(Iterable<Track> list, {int max = 120}) {
+    var n = 0;
+    for (final t in list) {
+      if (n >= max) break;
+      if (needed(t) && readySmall(t) == null) {
+        getSmall(t);
+        n++;
+      }
+    }
+  }
+
+  Future<File?> _makeSmall(Track t) async {
+    final base = await getTemporaryDirectory();
+    final d = _dir ??= Directory('${base.path}/square_covers')..createSync(recursive: true);
+    final vid = videoOf(t);
+    final out = File('${d.path}/${vid}_s.png');
+    if (out.existsSync()) return out;
+    final r =
+        await http.get(Uri.parse('https://i.ytimg.com/vi/$vid/hqdefault.jpg')).timeout(const Duration(seconds: 8));
+    if (r.statusCode != 200 || r.bodyBytes.length < 1500) return null;
+    final png = await squarePng(r.bodyBytes, maxSide: 240);
+    if (png == null) return null;
+    await out.writeAsBytes(png, flush: true);
+    return out;
+  }
+
   Future<File?> _make(Track t) async {
     final base = await getTemporaryDirectory();
     final d = _dir ??= Directory('${base.path}/square_covers')..createSync(recursive: true);

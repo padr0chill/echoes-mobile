@@ -13,7 +13,6 @@ import '../ui.dart';
 import '../skins/winamp.dart';
 import '../vinyl.dart';
 import '../blurred_cover.dart';
-import 'clip_screen.dart';
 import 'equalizer_screen.dart';
 import 'lyrics_tools.dart';
 import '../widgets.dart';
@@ -132,14 +131,6 @@ class _Header extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         const Spacer(),
-        IconButton(
-          tooltip: tr('Клип'),
-          icon: const Icon(Icons.smart_display_rounded, color: Colors.white),
-          onPressed: () {
-            final t = audio.current;
-            if (t != null) openClip(context, t);
-          },
-        ),
         IconButton(
           tooltip: tr('Текст песни'),
           icon: Icon(Icons.lyrics_rounded, color: lyrics ? context.accent : Colors.white),

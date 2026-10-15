@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'glass.dart';
 import 'models.dart';
 import 'screens/artist_screen.dart';
-import 'screens/clip_screen.dart';
 import 'services/audio.dart';
 import 'services/offline.dart';
 import 'services/square_cover.dart';
@@ -347,14 +346,6 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
             },
           ),
         ListTile(
-          leading: const Icon(Icons.smart_display_rounded),
-          title: Text(tr('Смотреть клип')),
-          onTap: () {
-            Navigator.pop(ctx);
-            openClip(context, t);
-          },
-        ),
-        ListTile(
           leading: const Icon(Icons.playlist_play_rounded),
           title: Text(tr('Играть следующим')),
           onTap: () {
@@ -608,8 +599,18 @@ class _SquareYt extends StatelessWidget {
     Widget file(File f) =>
         Image.file(f, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => _zoomed());
     if (ready != null) return file(ready);
-    // мелкие (списки) — только если уже готова, иначе приближенное превью (не качаем для каждой строки)
-    if (!big && size < 120) return _zoomed();
+    // мелкие (списки) — своя быстрая обрезка по маленькому превью; пока не готова — приближенное превью
+    if (!big && size < 120) {
+      final small = SquareCover.instance.readySmall(track);
+      if (small != null) return file(small);
+      return FutureBuilder<File?>(
+        future: SquareCover.instance.getSmall(track),
+        builder: (context, s) => AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: s.data != null ? KeyedSubtree(key: const ValueKey(1), child: file(s.data!)) : _zoomed(),
+        ),
+      );
+    }
     return FutureBuilder<File?>(
       future: SquareCover.instance.get(track),
       builder: (context, s) => AnimatedSwitcher(
