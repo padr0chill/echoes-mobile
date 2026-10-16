@@ -354,6 +354,22 @@ class YtmBrowse {
     return rel..sort((a, b) => rank(a).compareTo(rank(b)));
   }
 
+  /// Радио YouTube Music от трека: похожие официальные треки (как «Моя волна»).
+  Future<List<Track>> radio(String videoId) async {
+    final j = await _post('next', {'videoId': videoId, 'playlistId': 'RDAMVM$videoId', 'isAudioOnly': true});
+    final out = <Track>[];
+    _each(j['contents'], 'playlistPanelVideoRenderer', (it) {
+      final id = it['videoId'] as String?;
+      final title = text(it['title']);
+      if (id == null || title.isEmpty) return;
+      final who = text(it['longBylineText']).split(' • ').first.trim();
+      var art = _thumb(it['thumbnail']);
+      if (art != null && art.contains('i.ytimg.com')) art = null; // превью видео — обложку соберёт SquareCover
+      out.add(Track(id: id, title: title, artist: who, seconds: _secs(text(it['lengthText'])), art: art));
+    });
+    return out;
+  }
+
   /// Подсказки при вводе: варианты запроса и сразу исполнители/песни/альбомы.
   Future<(List<String>, List<YtmSuggestion>)> suggest(String q) async {
     final j = await _post('music/get_search_suggestions', {'input': q});

@@ -1,3 +1,5 @@
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../glass.dart';
@@ -59,6 +61,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onTap: () => Navigator.pop(ctx, 'new'),
           ),
           ListTile(
+            leading: const Icon(Icons.audio_file_rounded),
+            title: Text(tr('Добавить аудиофайлы')),
+            subtitle: Text(tr('Свои mp3, m4a, wav, flac — из «Файлов»')),
+            onTap: () => Navigator.pop(ctx, 'files'),
+          ),
+          ListTile(
             leading: const Icon(Icons.computer_rounded),
             title: Text(tr('Импорт с ПК')),
             subtitle: Text(tr('Плейлисты из ECHOES на компьютере')),
@@ -73,6 +81,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
       if (n != null) Store.instance.createPlaylist(n);
     } else if (v == 'import') {
       importFromPc(context);
+    } else if (v == 'files') {
+      await _addFiles(context);
+    }
+  }
+
+  /// Свои аудиофайлы из «Файлов» (iCloud Drive, загрузки, Telegram) — в «Мои файлы».
+  Future<void> _addFiles(BuildContext context) async {
+    try {
+      final files = await openFiles(
+          acceptedTypeGroups: defaultTargetPlatform == TargetPlatform.android
+              ? const []
+              : [
+                  XTypeGroup(
+                    label: tr('Аудио'),
+                    extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'aiff', 'aif', 'caf', 'alac'],
+                    uniformTypeIdentifiers: ['public.audio'],
+                  ),
+                ]);
+      if (files.isEmpty) return;
+      final added = await Offline.instance.importFiles(files);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(tr('Добавлено файлов: {0} — в «Мои файлы»', [added.length]))));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось добавить файлы: {0}', [e]))));
+      }
     }
   }
 
@@ -108,7 +144,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
         listenable: Listenable.merge([st, Offline.instance]),
         builder: (context, _) {
           final pls = _sorted(st);
-          final artists = _filter == 'pl' ? <String>[] : st.topArtists(12);
           final showPl = _filter != 'ar';
           final grid = st.libraryGrid;
           final dim = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
@@ -124,12 +159,20 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 onTap: () => _open(context, tr('Мне нравится'), () => st.liked),
                 pinned: true,
               ),
-            if (showPl && Offline.instance.count > 0)
+            if (showPl && Offline.instance.localTracks.isNotEmpty)
+              _Item(
+                title: tr('Мои файлы'),
+                sub: tr('{0} тр.', [Offline.instance.localTracks.length]),
+                art: (s) => _Gradient(size: s, icon: Icons.folder_rounded),
+                onTap: () => _open(context, tr('Мои файлы'), () => Offline.instance.localTracks, offline: true),
+                pinned: true,
+              ),
+            if (showPl && Offline.instance.downloaded.isNotEmpty)
               _Item(
                 title: tr('Скачанное'),
-                sub: tr('{0} тр. · {1}', [Offline.instance.count, fmtBytes(Offline.instance.bytes)]),
+                sub: tr('{0} тр. · {1}', [Offline.instance.downloaded.length, fmtBytes(Offline.instance.bytes)]),
                 art: (s) => _Gradient(size: s, icon: Icons.download_done_rounded, green: true),
-                onTap: () => _open(context, tr('Скачанное'), () => Offline.instance.tracks, offline: true),
+                onTap: () => _open(context, tr('Скачанное'), () => Offline.instance.downloaded, offline: true),
                 pinned: true,
               ),
           ];
@@ -142,7 +185,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 onTap: () => _open(context, p.name, () => p.tracks, playlist: p),
                 onLong: () => pickPlaylistCover(context, p),
               );
-          // исполнители: подписки (с фото), затем самые слушаемые
+          // исполнители — только те, на кого вы подписаны
           final followed = _filter == 'pl' ? <Map<String, String>>[] : st.follows;
           final arItems = [
             for (final f in followed)
@@ -160,19 +203,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ),
                 onTap: () => Navigator.of(context)
                     .push(MaterialPageRoute(builder: (_) => ArtistScreen(name: f['name'] ?? '', ytm: f['ytm']))),
-                round: true,
-              ),
-            for (final a in artists.where((a) => !st.isFollowing(a)))
-              _Item(
-                title: a,
-                sub: tr('Исполнитель'),
-                art: (s) => CircleAvatar(
-                  radius: s / 2,
-                  backgroundColor: context.accent.withValues(alpha: 0.22),
-                  child: Text(a.characters.first.toUpperCase(),
-                      style: TextStyle(fontSize: s * 0.38, fontWeight: FontWeight.w800, color: context.accent)),
-                ),
-                onTap: () => openArtist(context, Track(id: '', title: '', artist: a)),
                 round: true,
               ),
           ];

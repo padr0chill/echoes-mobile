@@ -87,13 +87,20 @@ class SettingsScreen extends StatelessWidget {
                   FilledButton.tonal(onPressed: () => _pickBackground(context), child: Text(tr('Выбрать'))),
                 ]),
               ),
-              if (st.bgPath != null)
-                SwitchListTile(
-                  secondary: const Icon(Icons.blur_linear_rounded),
-                  title: Text(tr('Размыть фото')),
-                  value: st.bgBlur,
-                  onChanged: st.setBgBlur,
+              // размытие фона — и своего фото, и обложки трека
+              ListTile(
+                leading: const Icon(Icons.blur_linear_rounded),
+                title: Text(tr('Размытие фона')),
+                trailing: Text('${(st.bgBlurAmount * 100).round()}%'),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.u(8)),
+                child: Slider(
+                  value: st.bgBlurAmount.clamp(0, 1),
+                  divisions: 20,
+                  onChanged: st.setBgBlurAmount,
                 ),
+              ),
             ],
             SectionTitle(tr('Цвет')),
             Padding(

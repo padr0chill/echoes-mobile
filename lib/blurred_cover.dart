@@ -11,7 +11,10 @@ class BlurredCover extends StatefulWidget {
   final ImageProvider image;
   final String cacheKey;
   final Widget Function()? fallback;
-  const BlurredCover({super.key, required this.image, required this.cacheKey, this.fallback});
+  final double strength; // сила размытия 0…1 (1 — как раньше: мягкое пятно цвета)
+  const BlurredCover({super.key, required this.image, required this.cacheKey, this.fallback, this.strength = 1});
+
+  String get _key => '$cacheKey@${(strength * 20).round()}';
 
   static final _cache = <String, ui.Image>{}; // по порядку добавления — старые удаляются первыми
 
@@ -33,21 +36,24 @@ class _BlurredCoverState extends State<BlurredCover> {
   @override
   void didUpdateWidget(BlurredCover old) {
     super.didUpdateWidget(old);
-    if (old.cacheKey != widget.cacheKey) _load();
+    if (old._key != widget._key) _load();
   }
 
   void _load() {
     _stop();
-    final c = BlurredCover._cache[widget.cacheKey];
+    final c = BlurredCover._cache[widget._key];
     if (c != null) {
       _img = c;
       return;
     }
-    _stream = ResizeImage(widget.image, width: 96, height: 96, policy: ResizeImagePolicy.fit)
+    final full = widget.strength >= 0.98;
+    // слабое размытие — картинка покрупнее (иначе всё равно «мыло»), сильное — маленькая (дёшево)
+    final side = full ? 96 : (widget.strength < 0.05 ? 1080 : 540);
+    _stream = ResizeImage(widget.image, width: side, height: side, policy: ResizeImagePolicy.fit)
         .resolve(ImageConfiguration.empty);
     _l = ImageStreamListener((info, _) {
-      final key = widget.cacheKey;
-      _blur(info.image).then((b) {
+      final key = widget._key;
+      (full ? _blur(info.image) : _soft(info.image, widget.strength)).then((b) {
         BlurredCover._cache[key] = b;
         if (BlurredCover._cache.length > 12) BlurredCover._cache.remove(BlurredCover._cache.keys.first);
         if (mounted && widget.cacheKey == key) setState(() => _img = b);
@@ -61,6 +67,25 @@ class _BlurredCoverState extends State<BlurredCover> {
     if (_stream != null && _l != null) _stream!.removeListener(_l!);
     _stream = null;
     _l = null;
+  }
+
+  /// Своя сила размытия: картинка с исходными пропорциями (≤ 1080 px), размытие ~0…28 px.
+  static Future<ui.Image> _soft(ui.Image src, double k) {
+    final w = src.width.toDouble(), h = src.height.toDouble();
+    final sigma = k * 28 * (w > h ? w : h) / 540;
+    final rec = ui.PictureRecorder();
+    final canvas = Canvas(rec);
+    final r = Rect.fromLTWH(0, 0, w, h);
+    if (sigma > 0.3) {
+      canvas.saveLayer(
+          r, Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp));
+    }
+    canvas.drawImageRect(src, r, r, Paint()..filterQuality = FilterQuality.medium);
+    if (sigma > 0.3) canvas.restore();
+    final pic = rec.endRecording();
+    final img = pic.toImageSync(src.width, src.height);
+    pic.dispose();
+    return Future.value(img);
   }
 
   /// 96 px → размытие с запасом по краям (края не темнеют) → 64×64 мягкая картинка.

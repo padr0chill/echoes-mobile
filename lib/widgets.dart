@@ -309,13 +309,14 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
           subtitle: Text(t.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
         const Divider(height: 1),
-        if (t.artist.isNotEmpty)
+        // по пункту на каждого исполнителя (фиты — отдельно)
+        for (final name in splitArtists(t.artist))
           ListTile(
             leading: const Icon(Icons.person_rounded),
-            title: Text(tr('Перейти к исполнителю: {0}', [t.artist]), maxLines: 1, overflow: TextOverflow.ellipsis),
+            title: Text(tr('Перейти к исполнителю: {0}', [name]), maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () {
               Navigator.pop(ctx);
-              openArtist(context, t);
+              pushInTab(context, ArtistScreen(name: name));
             },
           ),
         ListTile(

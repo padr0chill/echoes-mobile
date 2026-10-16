@@ -17,7 +17,8 @@ class Track {
   bool get isPreview => id.startsWith('scp:');
   bool get isQuery => id.startsWith('q:');
   bool get needsLookup => isPreview || isQuery; // звук — поиском по исполнителю и названию
-  bool get isYt => !isSc && !needsLookup;
+  bool get isLocal => id.startsWith('local:'); // свой аудиофайл с телефона
+  bool get isYt => !isSc && !needsLookup && !isLocal;
 
   String get thumb => art ?? 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
   String get cover => art ?? 'https://i.ytimg.com/vi/$id/maxresdefault.jpg';

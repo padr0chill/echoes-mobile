@@ -9,6 +9,7 @@ import '../glass.dart';
 import '../i18n.dart';
 import '../models.dart';
 import '../services/audio.dart';
+import '../services/store.dart';
 import '../services/ytm_artist.dart';
 import '../ui.dart';
 import '../widgets.dart';
@@ -162,8 +163,7 @@ class _SnakeGameState extends State<SnakeGame> {
   void _schedule() {
     _timer?.cancel();
     // быстрее с каждым съеденным треком
-    final ms = (190 - _eaten.length * 6).clamp(85, 190);
-    _timer = Timer.periodic(Duration(milliseconds: ms), (_) => _tick());
+    _timer = Timer.periodic(Duration(milliseconds: _tickMs), (_) => _tick());
   }
 
   void _turn(math.Point<int> d) {
@@ -200,24 +200,24 @@ class _SnakeGameState extends State<SnakeGame> {
     }
   }
 
+  int get _tickMs => (190 - _eaten.length * 6).clamp(85, 190);
+
+  /// Обложка звена змейки: i-е звено после головы — i-й с конца съеденный трек (первые звенья — без обложки).
+  Track? _segTrack(int i) {
+    final k = _eaten.length - i;
+    return i > 0 && k >= 0 && k < _eaten.length ? _eaten[k] : null;
+  }
+
+  static const _red = Color(0xFFE22134); // как в Spotify
+
   @override
   Widget build(BuildContext context) {
-    final dim = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
-    return Ambient(
+    const white = Colors.white;
+    final liked = _near != null && Store.instance.isLiked(_near!);
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: Colors.transparent,
-        appBar: AppBar(
-          title: Text(tr('Змейка')),
-          actions: [
-            Center(
-              child: Padding(
-                padding: EdgeInsets.only(right: context.u(16)),
-                child: Text(tr('Съедено: {0}', [_eaten.length]),
-                    style: TextStyle(fontWeight: FontWeight.w800, color: context.accent)),
-              ),
-            ),
-          ],
-        ),
+        backgroundColor: _red,
         // управление — только свайпами по всему экрану: поворот срабатывает, как только палец сдвинулся
         // на ~18 px (не нужно отпускать), в одном жесте можно повернуть несколько раз
         body: GestureDetector(
@@ -235,6 +235,32 @@ class _SnakeGameState extends State<SnakeGame> {
           onPanEnd: (_) => _swipeFrom = null,
           child: SafeArea(
             child: Column(children: [
+              // сверху: закрыть · счёт · «+» (трек, который играет, — в «Мне нравится»)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(4)),
+                child: Row(children: [
+                  _RoundBtn(icon: Icons.close_rounded, onTap: () => Navigator.pop(context)),
+                  Expanded(
+                    child: Column(children: [
+                      Text(tr('Змейка'),
+                          style: const TextStyle(color: white, fontSize: 18, fontWeight: FontWeight.w900)),
+                      Text(tr('Съедено: {0}', [_eaten.length]),
+                          style: TextStyle(color: white.withValues(alpha: 0.8), fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                  _RoundBtn(
+                    icon: liked ? Icons.check_rounded : Icons.add_rounded,
+                    filled: liked,
+                    onTap: _near == null
+                        ? null
+                        : () {
+                            HapticFeedback.selectionClick();
+                            Store.instance.toggleLike(_near!);
+                            setState(() {});
+                          },
+                  ),
+                ]),
+              ),
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.all(context.u(10)),
@@ -243,57 +269,46 @@ class _SnakeGameState extends State<SnakeGame> {
                       aspectRatio: cols / rows,
                       child: LayoutBuilder(builder: (context, c) {
                         final cell = c.maxWidth / cols;
+                        final glide = Duration(milliseconds: _started && !_over ? _tickMs : 0);
                         return Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.45),
-                            borderRadius: BorderRadius.circular(context.r(18)),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                            color: Colors.black.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(context.r(10)),
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(context.r(18)),
-                            child: Stack(children: [
-                              CustomPaint(
-                                  size: Size.infinite, painter: _SnakePainter(_snake, _dir, cell, context.accent)),
-                              if (_food != null && _foodTrack != null)
-                                Positioned(
-                                  left: _food!.x * cell - cell * 0.25,
-                                  top: _food!.y * cell - cell * 0.25,
-                                  child: _Food(track: _foodTrack!, size: cell * 1.5, active: _near == _foodTrack),
-                                ),
-                              if (!_started && !_over)
-                                Center(
-                                  child: Text(tr('Свайпните, чтобы начать'),
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                                ),
-                              if (_over)
-                                Container(
-                                  color: Colors.black.withValues(alpha: 0.6),
-                                  alignment: Alignment.center,
-                                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                    Text(tr('Игра окончена'),
-                                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900)),
-                                    SizedBox(height: context.u(6)),
-                                    Text(tr('Съедено: {0}', [_eaten.length]), style: TextStyle(color: dim)),
-                                    SizedBox(height: context.u(16)),
-                                    FilledButton(
-                                      onPressed: () => setState(_reset),
-                                      child: Text(tr('Ещё раз'), style: const TextStyle(color: Colors.black)),
-                                    ),
-                                    if (_eaten.isNotEmpty)
-                                      TextButton(
-                                        onPressed: () {
-                                          for (final t in _eaten) {
-                                            audio.addToQueue(t);
-                                          }
-                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                              content: Text(tr('Съеденные треки — в очереди ({0})', [_eaten.length]))));
-                                        },
-                                        child: Text(tr('Съеденное — в очередь')),
-                                      ),
-                                  ]),
-                                ),
-                            ]),
-                          ),
+                          child: Stack(clipBehavior: Clip.none, children: [
+                            if (_food != null && _foodTrack != null)
+                              Positioned(
+                                left: _food!.x * cell - cell * 0.1,
+                                top: _food!.y * cell - cell * 0.1,
+                                child: _Food(track: _foodTrack!, size: cell * 1.2),
+                              ),
+                            // тело: обложки съеденных треков; звенья плавно едут за головой
+                            for (var i = _snake.length - 1; i >= 1; i--)
+                              AnimatedPositioned(
+                                key: ValueKey('seg$i'),
+                                duration: glide,
+                                left: _snake[i].x * cell + 1,
+                                top: _snake[i].y * cell + 1,
+                                width: cell - 2,
+                                height: cell - 2,
+                                child: _Segment(track: _segTrack(i)),
+                              ),
+                            AnimatedPositioned(
+                              key: const ValueKey('head'),
+                              duration: glide,
+                              left: _snake.first.x * cell,
+                              top: _snake.first.y * cell,
+                              width: cell,
+                              height: cell,
+                              child: _Head(dir: _dir),
+                            ),
+                            if (!_started && !_over)
+                              Center(
+                                child: Text(tr('Свайпните, чтобы начать'),
+                                    style: const TextStyle(color: white, fontSize: 18, fontWeight: FontWeight.w800)),
+                              ),
+                            if (_over) Positioned.fill(child: _gameOver(context)),
+                          ]),
                         );
                       }),
                     ),
@@ -302,25 +317,38 @@ class _SnakeGameState extends State<SnakeGame> {
               ),
               // что играет
               SizedBox(
-                height: context.u(44),
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: _near == null
-                        ? Text(tr('Свайпайте в любом месте экрана'),
-                            key: const ValueKey('hint'), style: TextStyle(color: dim))
-                        : Row(key: ValueKey(_near!.id), mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.graphic_eq_rounded, color: context.accent),
-                            SizedBox(width: context.u(6)),
-                            ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
-                              child: Text('${_near!.title} — ${_near!.artist}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                height: context.u(64),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: _near == null
+                      ? Center(
+                          child: Text(tr('Свайпайте в любом месте экрана'),
+                              key: const ValueKey('hint'), style: TextStyle(color: white.withValues(alpha: 0.8))))
+                      : Padding(
+                          key: ValueKey(_near!.id),
+                          padding: EdgeInsets.symmetric(horizontal: context.u(20)),
+                          child: Row(children: [
+                            Cover(track: _near, size: context.u(44), radius: 4),
+                            SizedBox(width: context.u(12)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(_near!.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: white, fontWeight: FontWeight.w800, fontSize: 15)),
+                                  Text(_near!.artist,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: white.withValues(alpha: 0.8))),
+                                ],
+                              ),
                             ),
+                            const Icon(Icons.graphic_eq_rounded, color: white),
                           ]),
-                  ),
+                        ),
                 ),
               ),
             ]),
@@ -329,14 +357,113 @@ class _SnakeGameState extends State<SnakeGame> {
       ),
     );
   }
+
+  Widget _gameOver(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(context.r(10)),
+        ),
+        alignment: Alignment.center,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(tr('Игра окончена'),
+              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
+          SizedBox(height: context.u(6)),
+          Text(tr('Съедено: {0}', [_eaten.length]), style: const TextStyle(color: Colors.white70)),
+          SizedBox(height: context.u(16)),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.white),
+            onPressed: () => setState(_reset),
+            child: Text(tr('Ещё раз'), style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+          ),
+          if (_eaten.isNotEmpty)
+            TextButton(
+              onPressed: () {
+                for (final t in _eaten) {
+                  audio.addToQueue(t);
+                }
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(tr('Съеденные треки — в очереди ({0})', [_eaten.length]))));
+              },
+              child: Text(tr('Съеденное — в очередь'), style: const TextStyle(color: Colors.white)),
+            ),
+        ]),
+      );
 }
 
-/// «Еда» — круглая обложка трека; пока играет её отрывок — пульсирует.
+/// Круглая кнопка сверху (✕ / +), как в Spotify.
+class _RoundBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool filled;
+  const _RoundBtn({required this.icon, this.onTap, this.filled = false});
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: filled ? Colors.white : Colors.black.withValues(alpha: 0.18),
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox(
+            width: context.u(42),
+            height: context.u(42),
+            child: Icon(icon, color: filled ? const Color(0xFFE22134) : Colors.white),
+          ),
+        ),
+      );
+}
+
+/// Голова — белая плашка со стрелкой по направлению движения.
+class _Head extends StatelessWidget {
+  final math.Point<int> dir;
+  const _Head({required this.dir});
+
+  @override
+  Widget build(BuildContext context) {
+    // стрелка Icons.navigation смотрит вверх → поворот на угол направления
+    final turns = dir.x == 1 ? 0.25 : (dir.x == -1 ? 0.75 : (dir.y == 1 ? 0.5 : 0.0));
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+      ),
+      child: AnimatedRotation(
+        turns: turns,
+        duration: const Duration(milliseconds: 120),
+        child: const FittedBox(child: Icon(Icons.navigation_rounded, color: Color(0xFFE22134))),
+      ),
+    );
+  }
+}
+
+/// Звено тела: обложка съеденного трека (пока не съедено — полупрозрачный белый квадрат).
+class _Segment extends StatelessWidget {
+  final Track? track;
+  const _Segment({required this.track});
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, c) => track == null
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              )
+            : DecoratedBox(
+                decoration: const BoxDecoration(
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1))]),
+                child: Cover(track: track, size: c.maxWidth, radius: 3),
+              ),
+      );
+}
+
+/// «Еда» — обложка трека, чей отрывок играет: пульсирует.
 class _Food extends StatefulWidget {
   final Track track;
   final double size;
-  final bool active;
-  const _Food({required this.track, required this.size, required this.active});
+  const _Food({required this.track, required this.size});
 
   @override
   State<_Food> createState() => _FoodState();
@@ -356,69 +483,22 @@ class _FoodState extends State<_Food> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _pulse,
-      builder: (context, child) {
-        final k = widget.active ? 1 + 0.12 * _pulse.value : 1.0;
-        return Transform.scale(
-          scale: k,
-          child: Container(
-            width: widget.size,
-            height: widget.size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                    color: context.accent.withValues(alpha: widget.active ? 0.8 : 0.35),
-                    blurRadius: widget.active ? 18 : 8),
-              ],
-              border: Border.all(color: context.accent, width: 2),
-            ),
-            child: ClipOval(child: child),
+      builder: (context, child) => Transform.scale(
+        scale: 1 + 0.1 * _pulse.value,
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 10, offset: Offset(0, 3))],
           ),
-        );
-      },
+          child: ClipRRect(borderRadius: BorderRadius.circular(2), child: child),
+        ),
+      ),
       child: Cover(track: widget.track, size: widget.size, radius: 0),
     );
   }
-}
-
-class _SnakePainter extends CustomPainter {
-  final List<math.Point<int>> snake;
-  final math.Point<int> dir;
-  final double cell;
-  final Color color;
-  _SnakePainter(this.snake, this.dir, this.cell, this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // лёгкая сетка
-    final grid = Paint()..color = Colors.white.withValues(alpha: 0.035);
-    for (var x = 0; x * cell < size.width; x++) {
-      for (var y = 0; y * cell < size.height; y++) {
-        if ((x + y).isEven) canvas.drawRect(Rect.fromLTWH(x * cell, y * cell, cell, cell), grid);
-      }
-    }
-    final n = snake.length;
-    for (var i = n - 1; i >= 0; i--) {
-      final p = snake[i];
-      final k = 1 - i / math.max(1, n) * 0.55;
-      final c = Color.lerp(color.withValues(alpha: 0.45), color, k)!;
-      final r = Rect.fromLTWH(p.x * cell + 1.5, p.y * cell + 1.5, cell - 3, cell - 3);
-      canvas.drawRRect(RRect.fromRectAndRadius(r, Radius.circular(cell * (i == 0 ? 0.45 : 0.3))), Paint()..color = c);
-    }
-    // глаза
-    final h = snake.first;
-    final cx = h.x * cell + cell / 2, cy = h.y * cell + cell / 2;
-    final px = -dir.y.toDouble(), py = dir.x.toDouble();
-    for (final s in [-1, 1]) {
-      final e = Offset(cx + dir.x * cell * 0.18 + px * s * cell * 0.2, cy + dir.y * cell * 0.18 + py * s * cell * 0.2);
-      canvas.drawCircle(e, cell * 0.12, Paint()..color = Colors.white);
-      canvas.drawCircle(
-          e + Offset(dir.x * cell * 0.04, dir.y * cell * 0.04), cell * 0.06, Paint()..color = Colors.black);
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SnakePainter old) => true;
 }
 
 // ════════════════════════════════════════════════════════════════════════════

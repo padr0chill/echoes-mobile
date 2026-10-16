@@ -18,11 +18,55 @@ import 'album_screen.dart';
 import 'library_screen.dart';
 
 /// Открыть страницу исполнителя трека. Из плеера/листов — во вкладке (там виден мини-плеер).
-void openArtist(BuildContext context, Track t) {
+/// Исполнители трека по отдельности: «A, B и C», «A & B», «A feat. B», «A x B» → [A, B, C].
+List<String> splitArtists(String artist) {
+  final parts = artist
+      .split(RegExp(r'\s*(?:,|&|\+|/| и | and | x | х | feat\.? | ft\.? | featuring | при уч\.? )\s*',
+          caseSensitive: false))
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
+  final seen = <String>{};
+  return [
+    for (final p in parts)
+      if (seen.add(p.toLowerCase())) p
+  ];
+}
+
+/// Открыть страницу исполнителя трека. Несколько исполнителей (фит) — сначала выбрать, чью страницу.
+/// Из плеера/листов — во вкладке (там виден мини-плеер).
+Future<void> openArtist(BuildContext context, Track t) async {
   if (t.artist.trim().isEmpty) return;
-  // «A, B и C» — страница первого
-  final first = t.artist.split(RegExp(r'\s*(,|&| и | x | feat\.? | ft\.? )\s*')).first.trim();
-  pushInTab(context, ArtistScreen(name: first.isEmpty ? t.artist : first, id: t.artistId));
+  final names = splitArtists(t.artist);
+  var name = names.isEmpty ? t.artist : names.first;
+  if (names.length > 1) {
+    final picked = await showGlassSheet<String>(
+      context,
+      (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: EdgeInsets.all(ctx.u(14)),
+            child: Text(tr('Исполнители'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          ),
+          for (final n in names)
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: ctx.accent.withValues(alpha: 0.22),
+                child: Text(n.characters.first.toUpperCase(),
+                    style: TextStyle(color: ctx.accent, fontWeight: FontWeight.w800)),
+              ),
+              title: Text(n, style: const TextStyle(fontWeight: FontWeight.w700)),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.pop(ctx, n),
+            ),
+        ]),
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    name = picked;
+  }
+  // аккаунт SoundCloud известен только для основного исполнителя
+  pushInTab(context, ArtistScreen(name: name, id: name == names.firstOrNull ? t.artistId : null));
 }
 
 /// Всё, что показывает страница — из YouTube Music (официальная дискография) или, если там исполнителя нет,

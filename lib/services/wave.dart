@@ -1,15 +1,17 @@
 import 'package:flutter/foundation.dart';
 
+import '../i18n.dart';
 import '../models.dart';
 import 'audio.dart';
-import 'sc.dart';
 import 'store.dart';
 import 'text_match.dart';
-import '../i18n.dart';
+import 'yt.dart';
+import 'ytm.dart';
+import 'ytm_artist.dart';
 
 /// «Моя волна»: бесконечный поток похожих треков. Старт — от того, что вы лайкали и слушали
 /// (или по настроению); когда очередь подходит к концу, подгружаются «похожие» на текущий трек.
-/// Похожие берутся у SoundCloud — это настоящие песни, и они сразу полные (не зависят от YouTube).
+/// Всё — с одной площадки: радио YouTube Music (официальные треки, без перезаливов с SoundCloud).
 class Wave extends ChangeNotifier {
   Wave._();
   static final Wave instance = Wave._();
@@ -71,29 +73,46 @@ class Wave extends ChangeNotifier {
   }
 
   Future<List<Track>> _firstBatch() async {
-    final sc = ScService.instance;
-    if (mood != null) return _noJunk(await sc.searchTracks(moods[mood]!, limit: 40), moods[mood]!);
+    final ytm = YtmService.instance;
+    if (mood != null) {
+      // по настроению: песни по запросу + радио от пары из них
+      final found = _noJunk(await ytm.searchSongs(moods[mood]!, limit: 20), moods[mood]!);
+      final out = [...found];
+      for (final s in found.take(2)) {
+        try {
+          out.addAll(await relatedFor(s));
+        } catch (_) {}
+      }
+      return _unique(out);
+    }
     final st = Store.instance;
     final seeds = <Track>{...st.liked.take(20), ...st.history.take(20)}.toList();
-    if (seeds.isEmpty) return sc.searchTracks('top hits 2026', limit: 40);
+    if (seeds.isEmpty) return _unique(await ytm.searchSongs('top hits 2026', limit: 25));
     seeds.shuffle();
     final out = <Track>[];
     for (final s in seeds.take(4)) {
       try {
-        out.addAll(await relatedFor(s));
+        out.addAll((await relatedFor(s)).take(12));
       } catch (_) {}
-      if (out.length >= 25) break;
+      if (out.length >= 30) break;
     }
-    final seen = <String>{};
-    return out.where((t) => seen.add(t.id)).toList();
+    return _unique(out);
   }
 
-  /// Похожие на трек: у SoundCloud-трека — сразу; у YouTube — сначала находим ту же песню на SoundCloud.
+  static List<Track> _unique(List<Track> l) {
+    final seen = <String>{};
+    return [
+      for (final t in l)
+        if (seen.add(t.id)) t
+    ];
+  }
+
+  /// Похожие на трек — радио YouTube Music от этой песни (у SoundCloud / импортированных — сначала та же
+  /// песня на YouTube).
   Future<List<Track>> relatedFor(Track t) async {
-    final sc = ScService.instance;
-    final id = t.isSc || t.isPreview ? t.scId : (await sc.match(t.artist, t.title, t.seconds, strict: false))?.id;
-    return _noJunk(
-        id == null ? await sc.searchTracks(t.artist, limit: 20) : await sc.related(id), '${t.artist} ${t.title}');
+    final vid = t.isYt ? t.id : await YtService.instance.findSame(t);
+    final r = await YtmBrowse.instance.radio(vid);
+    return _noJunk(r.where((x) => x.id != vid).toList(), '${t.artist} ${t.title}');
   }
 
   /// Без ускоренных/замедленных версий (если сам трек-образец не такой); концертные — в конец.
@@ -111,8 +130,8 @@ class Wave extends ChangeNotifier {
       final cur = audio.current;
       if (cur == null) return;
       var more = (await relatedFor(cur)).where((t) => !_played.contains(t.id)).toList();
-      if (more.length < 5 && mood != null) {
-        more += (await ScService.instance.searchTracks('${moods[mood]} ${DateTime.now().millisecond}', limit: 40))
+      if (more.length < 5 && mood != null && moods.containsKey(mood)) {
+        more += (await YtmService.instance.searchSongs(moods[mood]!, limit: 25))
             .where((t) => !_played.contains(t.id))
             .toList();
       }

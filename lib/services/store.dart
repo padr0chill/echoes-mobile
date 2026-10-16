@@ -41,6 +41,7 @@ class Store extends ChangeNotifier {
   bool vinyl = false; // в плеере вместо обложки — крутящийся винил с текстом песни под ним
   String? bgPath; // своё фото на фон (обычная тема)
   bool bgBlur = true;
+  double bgBlurAmount = 1; // сила размытия фона 0…1
 
   bool get winamp => skin == 'winamp';
 
@@ -104,6 +105,7 @@ class Store extends ChangeNotifier {
     crossfade = _p.getDouble('xfade') ?? 0;
     bgPath = _p.getString('bg');
     bgBlur = _p.getBool('bg_blur') ?? true;
+    bgBlurAmount = _p.getDouble('bg_blur_k') ?? (bgBlur ? 1.0 : 0.0);
     playlistSort = _p.getString('pl_sort') ?? 'order';
     playlistGrid = _p.getBool('pl_grid') ?? false;
     librarySort = _p.getString('lib_sort') ?? 'custom';
@@ -146,6 +148,7 @@ class Store extends ChangeNotifier {
       _p.setString('bg', bgPath!);
     }
     _p.setBool('bg_blur', bgBlur);
+    _p.setDouble('bg_blur_k', bgBlurAmount);
     _p.setString('pl_sort', playlistSort);
     _p.setBool('pl_grid', playlistGrid);
     _p.setString('lib_sort', librarySort);
@@ -384,6 +387,12 @@ class Store extends ChangeNotifier {
 
   void setBackground(String? path) {
     bgPath = path;
+    _save();
+  }
+
+  void setBgBlurAmount(double v) {
+    bgBlurAmount = v;
+    bgBlur = v > 0;
     _save();
   }
 

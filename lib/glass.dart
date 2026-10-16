@@ -156,17 +156,7 @@ class Ambient extends StatelessWidget {
       return Stack(fit: StackFit.expand, children: [
         ColoredBox(color: base),
         RepaintBoundary(
-          child: st.bgBlur
-              ? BlurredCover(image: FileImage(File(bg)), cacheKey: 'bg:$bg')
-              : Image(
-                  image: ResizeImage(FileImage(File(bg)),
-                      width: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round(),
-                      policy: ResizeImagePolicy.fit),
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.medium,
-                  gaplessPlayback: true,
-                  errorBuilder: (_, __, ___) => const SizedBox(),
-                ),
+          child: BlurredCover(image: FileImage(File(bg)), cacheKey: 'bg:$bg', strength: st.bgBlurAmount),
         ),
         ColoredBox(color: base.withValues(alpha: light ? 0.30 : 0.42)),
         child,
@@ -212,6 +202,7 @@ class Ambient extends StatelessWidget {
                           ? Cover.debugImage!(audio.current!)
                           : NetworkImage(src!),
                       cacheKey: src ?? audio.current?.id ?? '',
+                      strength: st.bgBlurAmount,
                     ),
                   ),
                 ),

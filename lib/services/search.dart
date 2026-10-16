@@ -123,18 +123,9 @@ class SearchService {
         final out = <Track>[];
         for (final t in ytm) {
           final twin = sc.where((s) => !used.contains(s) && same(t, s)).firstOrNull;
-          if (twin != null) {
-            used.add(twin);
-            out.add(Track(
-                id: twin.id,
-                title: t.title,
-                artist: t.artist,
-                seconds: twin.seconds,
-                art: t.art ?? twin.art,
-                artistId: twin.artistId));
-          } else {
-            out.add(t);
-          }
+          // оригинал YouTube Music остаётся; та же песня с SoundCloud — не дублируем
+          if (twin != null) used.add(twin);
+          out.add(t);
         }
         // остальное с SoundCloud (то, чего нет на YouTube Music) — следом, вперемешку с хвостом
         // перезаливы («top_myzik — Miyagi & Andy Panda - Kosandra») той же песни, что уже есть, — не нужны

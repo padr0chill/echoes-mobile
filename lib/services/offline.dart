@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -69,6 +70,41 @@ class Offline extends ChangeNotifier {
   int get count => _items.length;
   int get bytes => _items.values.fold(0, (s, e) => s + e.$2);
   List<Track> get tracks => _items.values.map((e) => e.$3).toList().reversed.toList();
+
+  /// Скачанное из сети (без своих файлов).
+  List<Track> get downloaded => tracks.where((t) => !t.isLocal).toList();
+
+  /// Свои аудиофайлы, добавленные с телефона.
+  List<Track> get localTracks => tracks.where((t) => t.isLocal).toList();
+
+  /// Добавить свои аудиофайлы: копия в папку приложения (играют без интернета, как скачанные).
+  /// «Исполнитель - Название.mp3» → исполнитель и название, иначе название = имя файла.
+  Future<List<Track>> importFiles(List<XFile> files) async {
+    final d = await _folder();
+    final out = <Track>[];
+    for (final x in files) {
+      final name = x.name;
+      final dot = name.lastIndexOf('.');
+      final base = (dot > 0 ? name.substring(0, dot) : name).replaceAll('_', ' ').trim();
+      final ext = dot > 0 ? name.substring(dot + 1).toLowerCase() : 'mp3';
+      final id = 'local:${DateTime.now().microsecondsSinceEpoch}';
+      final fname = '${_safe(id)}.$ext';
+      final dst = '${d.path}/$fname';
+      await x.saveTo(dst);
+      var artist = '', title = base;
+      final i = base.indexOf(' - ');
+      if (i > 0) {
+        artist = base.substring(0, i).trim();
+        title = base.substring(i + 3).trim();
+      }
+      final t = Track(id: id, title: title.isEmpty ? name : title, artist: artist);
+      _items[id] = (fname, File(dst).lengthSync(), t);
+      out.add(t);
+    }
+    _saveIndex();
+    notifyListeners();
+    return out;
+  }
 
   /// Файл трека, если он скачан.
   File? fileFor(Track t) {

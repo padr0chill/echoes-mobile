@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
@@ -261,6 +262,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         errs.add(tr('файл в загрузках: {0}', [_short(e)])); // повреждён — пробуем онлайн
       }
     }
+    // свой аудиофайл — в сети его нет
+    if (t.isLocal) throw Exception(errs.isEmpty ? tr('файл удалён с телефона') : errs.join(' · '));
 
     // трек SoundCloud — звук прямо оттуда (mp3 или HLS)
     if (t.isSc) {
@@ -357,31 +360,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       }
     }
 
-    // кто первый: YouTube — сразу; SoundCloud — через 0,8 с форы YouTube (оригинал), а если YouTube
-    // этому телефону уже отказывал — сразу
-    final first = Completer<bool>(); // true — YouTube, false — SoundCloud
-    var left = 2;
-    void settle() {
-      if (--left == 0 && !first.isCompleted) first.complete(true);
-    }
-
-    ytF.then((p) {
-      if (p != null && !first.isCompleted) first.complete(true);
-      settle();
-    });
-    scF.then((u) {
-      if (u != null) {
-        if (_preferSc) {
-          if (!first.isCompleted) first.complete(false);
-        } else {
-          Timer(const Duration(milliseconds: 800), () {
-            if (!first.isCompleted) first.complete(false);
-          });
-        }
-      }
-      settle();
-    });
-    final ytFirst = await first.future;
+    // играет ИМЕННО этот трек (YouTube), если он открылся; «та же песня» с SoundCloud — только запасной путь
+    // (раньше она могла опередить YouTube по времени — и играла чужая загрузка с тем же названием)
+    final ytFirst = await ytF != null;
     if (cancelled()) return false;
     for (final useYt in [ytFirst, !ytFirst]) {
       if (useYt) {
@@ -461,16 +442,34 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   Future<AudioSource> snippetSource(Track t) async {
     final local = Offline.instance.fileFor(t);
     if (local != null) return AudioSource.file(local.path);
+    if (t.isLocal) throw Exception(tr('файл удалён с телефона'));
     if (t.isSc) {
       final u = await _resolveSc(t).catchError((_) => null);
       if (u != null) return AudioSource.uri(u);
     }
-    if (!t.isSc && !t.isPreview) {
+    // та же запись, что сыграет основной плеер: YouTube; SoundCloud — только если YouTube не дал звук
+    try {
+      final vid = t.needsLookup || t.isSc ? await YtService.instance.findSame(t) : t.id;
+      return YtProxySource(await _resolveYt(vid, Store.instance.economy));
+    } catch (e) {
+      if (t.isSc) rethrow;
       final u = await _resolveSc(t).catchError((_) => null);
-      if (u != null && t.needsLookup) return AudioSource.uri(u);
+      if (u == null) rethrow;
+      return AudioSource.uri(u);
+    }
+  }
+
+  /// Файл со звуком трека (для распознавания текста по голосу): скачанный/свой, иначе временная копия.
+  Future<File> audioFileFor(Track t) async {
+    final local = Offline.instance.fileFor(t);
+    if (local != null) return local;
+    if (t.isLocal) throw Exception(tr('файл удалён с телефона'));
+    if (t.isSc) {
+      final u = await _resolveSc(t).catchError((_) => null);
+      if (u != null) return Offline.instance.playbackFile(t, url: u);
     }
     final vid = t.needsLookup || t.isSc ? await YtService.instance.findSame(t) : t.id;
-    return YtProxySource(await _resolveYt(vid, Store.instance.economy));
+    return Offline.instance.playbackFile(t, pick: await _resolveYt(vid, false));
   }
 
   /// Подготовить ссылки заранее (первые треки результата поиска / открытого плейлиста) — нажатие

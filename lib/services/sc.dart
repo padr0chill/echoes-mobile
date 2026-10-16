@@ -252,11 +252,11 @@ class ScService {
         final text = _norm('${t.artist} ${t.title}');
         final words = text.split(' ').toSet();
         final hit = want.isEmpty ? 1.0 : want.where(words.contains).length / want.length;
-        if (hit < 0.6) continue;
+        if (hit < 0.8) continue; // все (почти) слова названия
         final dd = seconds > 0 ? (t.seconds - seconds).abs() : 0;
         if (dd > tol) continue;
         final artistHit = artistWords.isEmpty ? 1.0 : artistWords.where(words.contains).length / artistWords.length;
-        if (artistHit == 0) continue; // тот же заголовок у другого исполнителя — скорее всего другая песня
+        if (artistHit < 0.5) continue; // тот же заголовок у другого исполнителя — другая песня
         // каверы, ремиксы, ускоренные и т. п. — только если их просили
         final junk = Versions.extra('${t.artist} ${t.title}', wantText).length;
         if (strict && junk > 0) continue;
