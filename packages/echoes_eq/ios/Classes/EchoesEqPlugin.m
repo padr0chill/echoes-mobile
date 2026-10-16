@@ -2,7 +2,6 @@
 
 #import <AVFoundation/AVFoundation.h>
 #import <MediaToolbox/MediaToolbox.h>
-#import <Speech/Speech.h>
 #import <objc/runtime.h>
 #include <math.h>
 #include <string.h>
@@ -194,94 +193,6 @@ static void EchoesSwizzle(void) {
   });
 }
 
-// ─── Распознавание голоса в треке (тест: автоопределение текста и таймингов) ──────────────────────
-// Кусок файла [start, start+length) → m4a (AVAssetExportSession, из mp4 тоже берёт только звук) →
-// SFSpeechRecognizer. Если телефон умеет распознавать без сети — без сети (и без лимита в минуту).
-// Ответ: слова с временем начала и длительностью (секунды от начала трека).
-
-static void EchoesRecognize(NSURL *clip, double offset, NSString *lang, FlutterResult result) {
-  SFSpeechRecognizer *rec = [[SFSpeechRecognizer alloc] initWithLocale:[NSLocale localeWithLocaleIdentifier:lang]];
-  if (rec == nil || !rec.isAvailable) {
-    [[NSFileManager defaultManager] removeItemAtURL:clip error:nil];
-    result([FlutterError errorWithCode:@"unavailable" message:@"Speech recognition is unavailable" details:nil]);
-    return;
-  }
-  SFSpeechURLRecognitionRequest *req = [[SFSpeechURLRecognitionRequest alloc] initWithURL:clip];
-  req.shouldReportPartialResults = NO;
-  req.taskHint = SFSpeechRecognitionTaskHintDictation;
-  if (@available(iOS 13.0, *)) {
-    if (rec.supportsOnDeviceRecognition) req.requiresOnDeviceRecognition = YES;
-  }
-  __block BOOL done = NO;
-  [rec recognitionTaskWithRequest:req
-                    resultHandler:^(SFSpeechRecognitionResult *res, NSError *err) {
-                      if (done) return;
-                      if (res != nil && res.isFinal) {
-                        done = YES;
-                        NSMutableArray *words = [NSMutableArray array];
-                        for (SFTranscriptionSegment *s in res.bestTranscription.segments) {
-                          [words addObject:@{
-                            @"t" : s.substring ?: @"",
-                            @"s" : @(s.timestamp + offset),
-                            @"d" : @(s.duration),
-                          }];
-                        }
-                        [[NSFileManager defaultManager] removeItemAtURL:clip error:nil];
-                        (void)rec;  // держим распознаватель живым до конца задачи
-                        result(words);
-                      } else if (err != nil) {
-                        done = YES;
-                        [[NSFileManager defaultManager] removeItemAtURL:clip error:nil];
-                        // «голоса не слышно» (проигрыш, инструментал) — просто пустой кусок
-                        result(@[]);
-                      }
-                    }];
-}
-
-static void EchoesTranscribe(NSDictionary *args, FlutterResult result) {
-  NSString *path = args[@"path"];
-  double start = [args[@"start"] doubleValue];
-  double length = [args[@"length"] doubleValue];
-  NSString *lang = args[@"lang"] ?: @"ru-RU";
-  AVURLAsset *asset = [AVURLAsset URLAssetWithURL:[NSURL fileURLWithPath:path] options:nil];
-  AVAssetExportSession *ex = [[AVAssetExportSession alloc] initWithAsset:asset presetName:AVAssetExportPresetAppleM4A];
-  if (ex == nil) {
-    result([FlutterError errorWithCode:@"export" message:@"Cannot read the audio file" details:nil]);
-    return;
-  }
-  NSString *name = [NSString stringWithFormat:@"echoes_speech_%@.m4a", [[NSUUID UUID] UUIDString]];
-  NSURL *out = [NSURL fileURLWithPath:[NSTemporaryDirectory() stringByAppendingPathComponent:name]];
-  ex.outputURL = out;
-  ex.outputFileType = AVFileTypeAppleM4A;
-  ex.timeRange = CMTimeRangeMake(CMTimeMakeWithSeconds(start, 600), CMTimeMakeWithSeconds(length, 600));
-  [ex exportAsynchronouslyWithCompletionHandler:^{
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (ex.status != AVAssetExportSessionStatusCompleted) {
-        result([FlutterError errorWithCode:@"export"
-                                   message:ex.error.localizedDescription ?: @"Cannot cut the audio"
-                                   details:nil]);
-        return;
-      }
-      EchoesRecognize(out, start, lang, result);
-    });
-  }];
-}
-
-static void EchoesSpeechAuthorized(void (^then)(BOOL ok)) {
-  SFSpeechRecognizerAuthorizationStatus st = [SFSpeechRecognizer authorizationStatus];
-  if (st == SFSpeechRecognizerAuthorizationStatusAuthorized) {
-    then(YES);
-  } else if (st == SFSpeechRecognizerAuthorizationStatusNotDetermined) {
-    [SFSpeechRecognizer requestAuthorization:^(SFSpeechRecognizerAuthorizationStatus s) {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        then(s == SFSpeechRecognizerAuthorizationStatusAuthorized);
-      });
-    }];
-  } else {
-    then(NO);
-  }
-}
-
 @implementation EchoesEqPlugin
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -307,15 +218,6 @@ static void EchoesSpeechAuthorized(void (^then)(BOOL ok)) {
     gEnabled = [args[@"enabled"] boolValue] ? 1 : 0;
     gVersion = gVersion + 1;
     result(nil);
-  } else if ([call.method isEqualToString:@"transcribe"]) {
-    NSDictionary *args = call.arguments;
-    EchoesSpeechAuthorized(^(BOOL ok) {
-      if (!ok) {
-        result([FlutterError errorWithCode:@"denied" message:@"Speech recognition is not allowed" details:nil]);
-        return;
-      }
-      EchoesTranscribe(args, result);
-    });
   } else {
     result(FlutterMethodNotImplemented);
   }

@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
-import '../services/auto_lyrics.dart';
 import '../services/lyrics.dart';
 import '../services/store.dart';
 import '../ui.dart';
@@ -348,13 +347,6 @@ class _LyricsViewState extends State<_LyricsView> {
             subtitle: Text(tr('По длине строк; потом можно подправить сдвигом')),
             onTap: () => Navigator.pop(ctx, 'auto'),
           ),
-          if (AutoLyrics.supported)
-            ListTile(
-              leading: const Icon(Icons.hearing_rounded),
-              title: Text(tr('По голосу — распознать (тест)')),
-              subtitle: Text(tr('Телефон слушает трек и ставит строки туда, где их поют')),
-              onTap: () => Navigator.pop(ctx, 'voice'),
-            ),
           if (ly.source != 'lrclib' && ly.source != 'lyrics.ovh')
             ListTile(
               leading: const Icon(Icons.restart_alt_rounded),
@@ -366,7 +358,6 @@ class _LyricsViewState extends State<_LyricsView> {
     );
     if (how == null || !mounted) return;
     final texts = [for (final l in ly.lines) l.text];
-    if (how == 'voice') return _voice(texts);
     if (how == 'auto') {
       final total = audio.player.duration ?? widget.track.duration;
       await LyricsService.instance.save(widget.track, LyricsService.autoSync(texts, total));
@@ -377,64 +368,6 @@ class _LyricsViewState extends State<_LyricsView> {
           .push(MaterialPageRoute(builder: (_) => LyricsSyncScreen(track: widget.track, lines: texts)));
     }
     if (mounted) _reload();
-  }
-
-  /// Тест: распознать голос в треке → тайминги для текста (или сам текст, если его нет).
-  Future<void> _voice(List<String>? lines) async {
-    final progress = ValueNotifier<double>(0);
-    var cancel = false;
-    final total = audio.player.duration ?? widget.track.duration;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(lines == null ? tr('Распознаю текст…') : tr('Слушаю трек…')),
-        content: ValueListenableBuilder<double>(
-          valueListenable: progress,
-          builder: (_, v, __) => Column(mainAxisSize: MainAxisSize.min, children: [
-            LinearProgressIndicator(value: v > 0 ? v : null),
-            SizedBox(height: ctx.u(10)),
-            Text(tr('Тестовая функция: пение распознаётся неидеально, тайминги — примерные'),
-                style: const TextStyle(fontSize: 12)),
-          ]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              cancel = true;
-              Navigator.pop(ctx);
-            },
-            child: Text(tr('Отмена')),
-          ),
-        ],
-      ),
-    );
-    try {
-      final ly = await AutoLyrics.run(widget.track, lines,
-          total: total, progress: (v) => progress.value = v, cancelled: () => cancel);
-      if (cancel) return;
-      await LyricsService.instance.save(widget.track, ly);
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-        _reload();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(lines == null
-                ? tr('Текст распознан: {0} строк', [ly.lines.length])
-                : tr('Тайминги расставлены — удержите строку, если где-то сбилось'))));
-      }
-    } catch (e) {
-      if (cancel || !mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      final msg = '$e';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(msg.contains('denied')
-              ? tr('Разрешите ECHOES «Распознавание речи» в Настройках iPhone')
-              : msg.contains('unavailable')
-                  ? tr('Распознавание речи сейчас недоступно — нужен интернет')
-                  : tr('Не получилось: {0}', [msg.replaceFirst('Exception: ', '')]))));
-    } finally {
-      progress.dispose();
-    }
   }
 
   Future<void> _anchor(Lyrics ly, int i) async {
@@ -519,12 +452,6 @@ class _LyricsViewState extends State<_LyricsView> {
                     icon: const Icon(Icons.edit_note_rounded),
                     label: Text(tr('Свой текст')),
                   ),
-                  if (AutoLyrics.supported)
-                    OutlinedButton.icon(
-                      onPressed: () => _voice(null),
-                      icon: const Icon(Icons.hearing_rounded),
-                      label: Text(tr('Распознать по голосу (тест)')),
-                    ),
                 ]),
               ]),
             ),

@@ -46,7 +46,6 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string ECHOES берёт выбранное вами фото для фона приложения" "$P" || true
           /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string ECHOES не снимает фото и видео" "$P" || true
           /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string ECHOES не использует микрофон" "$P" || true
-          /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string ECHOES распознаёт голос в треке, чтобы найти текст песни и расставить тайминги (тестовая функция)" "$P" || true
           # клипы и звук идут через мини-прокси приложения на 127.0.0.1 (обычный http) — разрешить локальные адреса
           /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$P" || true
           /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$P" || true

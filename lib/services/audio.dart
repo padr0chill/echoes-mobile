@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
@@ -457,19 +456,6 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       if (u == null) rethrow;
       return AudioSource.uri(u);
     }
-  }
-
-  /// Файл со звуком трека (для распознавания текста по голосу): скачанный/свой, иначе временная копия.
-  Future<File> audioFileFor(Track t) async {
-    final local = Offline.instance.fileFor(t);
-    if (local != null) return local;
-    if (t.isLocal) throw Exception(tr('файл удалён с телефона'));
-    if (t.isSc) {
-      final u = await _resolveSc(t).catchError((_) => null);
-      if (u != null) return Offline.instance.playbackFile(t, url: u);
-    }
-    final vid = t.needsLookup || t.isSc ? await YtService.instance.findSame(t) : t.id;
-    return Offline.instance.playbackFile(t, pick: await _resolveYt(vid, false));
   }
 
   /// Подготовить ссылки заранее (первые треки результата поиска / открытого плейлиста) — нажатие
