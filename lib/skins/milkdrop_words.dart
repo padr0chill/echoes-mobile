@@ -55,7 +55,7 @@ class _MilkdropWordsState extends State<MilkdropWords> {
     'Helvetica Neue',
     'Didot',
     'American Typewriter',
-    'Copperplate'
+    'Copperplate',
   ];
   static const _fontsAccent = [
     'Chalkduster',
@@ -63,7 +63,7 @@ class _MilkdropWordsState extends State<MilkdropWords> {
     'Futura',
     'Snell Roundhand',
     'Noteworthy',
-    'Avenir Next Condensed'
+    'Avenir Next Condensed',
   ];
 
   @override
@@ -149,8 +149,17 @@ class _MilkdropWordsState extends State<MilkdropWords> {
       (z ~/ 3) / 3 + 1 / 6 + (_rnd.nextDouble() - 0.5) * 0.10,
     );
     final fonts = w.accent ? _fontsAccent : _fontsMain;
-    _shown.add(_Shown(w.text, w.accent, pos, _rnd.nextInt(7), fonts[_rnd.nextInt(fonts.length)],
-        w.accent || _rnd.nextDouble() < 0.35, _rnd.nextDouble() * 0.3));
+    _shown.add(
+      _Shown(
+        w.text,
+        w.accent,
+        pos,
+        _rnd.nextInt(7),
+        fonts[_rnd.nextInt(fonts.length)],
+        w.accent || _rnd.nextDouble() < 0.35,
+        _rnd.nextDouble() * 0.3,
+      ),
+    );
     if (_shown.length > 7) _shown.removeAt(0);
   }
 
@@ -158,7 +167,8 @@ class _MilkdropWordsState extends State<MilkdropWords> {
   Widget build(BuildContext context) {
     if (_shown.isEmpty) return const SizedBox.expand();
     return IgnorePointer(
-        child: CustomPaint(size: Size.infinite, painter: _WordsPainter(List.of(_shown), widget.hue())));
+      child: CustomPaint(size: Size.infinite, painter: _WordsPainter(List.of(_shown), widget.hue())),
+    );
   }
 }
 
@@ -192,8 +202,15 @@ class _WordsPainter extends CustomPainter {
             color: color.withValues(alpha: alpha),
             letterSpacing: w.accent ? 1.5 : 0.5,
             shadows: [
-              Shadow(color: color.withValues(alpha: 0.55 * alpha), blurRadius: fontSize * 0.45),
-              Shadow(color: Colors.black.withValues(alpha: 0.6 * alpha), blurRadius: 4, offset: const Offset(0, 2)),
+              Shadow(
+                color: color.withValues(alpha: 0.55 * alpha),
+                blurRadius: fontSize * 0.45,
+              ),
+              Shadow(
+                color: Colors.black.withValues(alpha: 0.6 * alpha),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
             ],
           ),
         ),

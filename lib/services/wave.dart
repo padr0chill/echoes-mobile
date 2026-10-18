@@ -8,6 +8,7 @@ import 'text_match.dart';
 import 'yt.dart';
 import 'ytm.dart';
 import 'ytm_artist.dart';
+import 'log.dart';
 
 /// «Моя волна»: бесконечный поток похожих треков. Старт — от того, что вы лайкали и слушали
 /// (или по настроению); когда очередь подходит к концу, подгружаются «похожие» на текущий трек.
@@ -38,8 +39,11 @@ class Wave extends ChangeNotifier {
     error = null;
     this.mood = mood;
     notifyListeners();
+    final gen = audio.queueGen;
     try {
       final first = await _firstBatch();
+      // пока подбирали, включили что-то другое — не перебивать
+      if (audio.queueGen != gen) return;
       if (first.isEmpty) throw Exception(tr('не нашлось треков'));
       first.shuffle();
       _played
@@ -81,7 +85,9 @@ class Wave extends ChangeNotifier {
       for (final s in found.take(2)) {
         try {
           out.addAll(await relatedFor(s));
-        } catch (_) {}
+        } catch (e) {
+          log.w('wave:87', e);
+        }
       }
       return _unique(out);
     }
@@ -93,7 +99,9 @@ class Wave extends ChangeNotifier {
     for (final s in seeds.take(4)) {
       try {
         out.addAll((await relatedFor(s)).take(12));
-      } catch (_) {}
+      } catch (e) {
+        log.w('wave:99', e);
+      }
       if (out.length >= 30) break;
     }
     return _unique(out);
@@ -103,7 +111,7 @@ class Wave extends ChangeNotifier {
     final seen = <String>{};
     return [
       for (final t in l)
-        if (seen.add(t.id)) t
+        if (seen.add(t.id)) t,
     ];
   }
 
@@ -126,16 +134,20 @@ class Wave extends ChangeNotifier {
   Future<void> extend() async {
     if (_extending) return;
     _extending = true;
+    final gen = audio.queueGen;
     try {
       final cur = audio.current;
       if (cur == null) return;
       var more = (await relatedFor(cur)).where((t) => !_played.contains(t.id)).toList();
       if (more.length < 5 && mood != null && moods.containsKey(mood)) {
-        more += (await YtmService.instance.searchSongs(moods[mood]!, limit: 25))
-            .where((t) => !_played.contains(t.id))
-            .toList();
+        more += (await YtmService.instance.searchSongs(
+          moods[mood]!,
+          limit: 25,
+        )).where((t) => !_played.contains(t.id)).toList();
       }
       more.shuffle();
+      // пока подгружали, пользователь включил альбом/плейлист — чужую очередь не трогаем
+      if (audio.queueGen != gen || !active) return;
       final add = more.take(10).toList();
       _played.addAll(add.map((t) => t.id));
       audio.append(add);

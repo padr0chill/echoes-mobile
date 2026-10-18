@@ -41,7 +41,11 @@ void main() {
       await t.runAsync(MilkdropView.preload);
       final c = MilkdropController(start: mdPresets.indexWhere((p) => p.name == name));
       c.engine.mode = MdMode.lock;
-      await t.pumpWidget(MaterialApp(home: Scaffold(body: MilkdropView(controller: c))));
+      await t.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: MilkdropView(controller: c)),
+        ),
+      );
       for (var f = 0; f < 100; f++) {
         await t.pump(const Duration(milliseconds: 33)); // ~3 с: буфер наполняется «хвостами»
       }
@@ -60,14 +64,22 @@ void main() {
     audio.tracks.value = [tr];
     audio.index.value = 0;
     // своя тестовая строка (не текст настоящей песни)
-    await t.runAsync(() => LyricsService.instance.save(
+    await t.runAsync(
+      () => LyricsService.instance.save(
         tr,
-        const Lyrics(
-            [LyricLine(Duration.zero, 'привет это проверка слов'), LyricLine(Duration(seconds: 3), 'вторая строка')],
-            true)));
+        Lyrics(const [
+          LyricLine(Duration.zero, 'привет это проверка слов'),
+          LyricLine(Duration(seconds: 3), 'вторая строка'),
+        ], true),
+      ),
+    );
     final c = MilkdropController(start: mdPresets.indexWhere((p) => p.name == 'off-axis tunnel'));
     c.engine.mode = MdMode.lock;
-    await t.pumpWidget(MaterialApp(home: Scaffold(body: MilkdropView(controller: c))));
+    await t.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: MilkdropView(controller: c)),
+      ),
+    );
     for (var f = 0; f < 10; f++) {
       await t.pump(const Duration(milliseconds: 33)); // слова вылетают поверх картинки
     }

@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'ECHOES 10-band equalizer for iOS'
   s.description      = 'Peaking-EQ biquads applied to AVPlayer items through MTAudioProcessingTap.'
-  s.homepage         = 'https://github.com/padr0chill/zhopa-mobile'
+  s.homepage         = 'https://github.com/padr0chill/echoes-mobile'
   s.license          = { :type => 'MIT' }
   s.author           = { 'ECHOES' => 'echoes@example.com' }
   s.source           = { :path => '.' }

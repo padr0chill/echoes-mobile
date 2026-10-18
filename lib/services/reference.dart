@@ -15,26 +15,26 @@ class Reference {
 
   /// Официальные треки по запросу (исполнитель, название, длительность). Ошибка сети — пустой список.
   Future<List<Track>> lookup(String q) => _cache[q.toLowerCase().trim()] ??= () async {
-        try {
-          final r = await http
-              .get(Uri.https('api.deezer.com', '/search', {'q': q, 'limit': '15'}))
-              .timeout(const Duration(seconds: 6));
-          if (r.statusCode != 200) return <Track>[];
-          final data = (jsonDecode(r.body) as Map)['data'] as List? ?? [];
-          return [
-            for (final x in data.cast<Map>())
-              Track(
-                id: 'dz:${x['id']}',
-                title: '${x['title'] ?? ''}',
-                artist: '${(x['artist'] as Map?)?['name'] ?? ''}',
-                seconds: ((x['duration'] ?? 0) as num).toInt(),
-                art: (x['album'] as Map?)?['cover_xl'] as String?, // квадратная обложка альбома 1000×1000
-              ),
-          ];
-        } catch (_) {
-          return <Track>[];
-        }
-      }();
+    try {
+      final r = await http
+          .get(Uri.https('api.deezer.com', '/search', {'q': q, 'limit': '15'}))
+          .timeout(const Duration(seconds: 6));
+      if (r.statusCode != 200) return <Track>[];
+      final data = (jsonDecode(r.body) as Map)['data'] as List? ?? [];
+      return [
+        for (final x in data.cast<Map>())
+          Track(
+            id: 'dz:${x['id']}',
+            title: '${x['title'] ?? ''}',
+            artist: '${(x['artist'] as Map?)?['name'] ?? ''}',
+            seconds: ((x['duration'] ?? 0) as num).toInt(),
+            art: (x['album'] as Map?)?['cover_xl'] as String?, // квадратная обложка альбома 1000×1000
+          ),
+      ];
+    } catch (_) {
+      return <Track>[];
+    }
+  }();
 
   static String _n(String s) => Versions.plain(s)
       .toLowerCase()
@@ -54,7 +54,8 @@ class Reference {
     // название трека не должно быть заметно длиннее эталонного (иначе это другая песня с похожим именем)
     final extra = title.trim().split(' ').where((w) => w.isNotEmpty && !rt.contains(w)).length;
     final artistWords = _n(r.artist).split(' ').where((w) => w.length > 1).toList();
-    final artistHit = artistWords.isEmpty ||
+    final artistHit =
+        artistWords.isEmpty ||
         artistWords.any((w) => text.contains(' $w ')) ||
         TextMatch.similarity(t.artist, r.artist) >= 0.6;
     return artistHit && extra <= 3;
@@ -69,7 +70,7 @@ class Reference {
             sameSong(t, r) &&
             Versions.of(r.title).length == tags.length &&
             Versions.of(r.title).containsAll(tags))
-          r.seconds
+          r.seconds,
     ]..sort();
   }
 

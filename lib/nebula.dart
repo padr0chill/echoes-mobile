@@ -36,7 +36,8 @@ class Nebula {
   };
 
   /// Настроения волны телефона → схемы ПК.
-  static List<Color> forMood(String? mood) => schemes[switch (mood) {
+  static List<Color> forMood(String? mood) =>
+      schemes[switch (mood) {
         'Энергичное' => 'energy',
         'Спокойное' => 'calm',
         'Грустное' => 'sad',

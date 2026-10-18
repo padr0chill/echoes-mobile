@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models.dart';
 import '../i18n.dart';
 import 'text_match.dart';
+import 'log.dart';
 
 /// Трек SoundCloud: подходит ли (полный, не 30-секундный отрывок) и откуда брать звук.
 class ScTrack {
@@ -18,13 +19,28 @@ class ScTrack {
   final String? art;
   final int? userId;
 
-  ScTrack(this.id, this.title, this.artist, this.seconds, this.snippet, this.transcodings, this.auth, this.art,
-      [this.userId]);
+  ScTrack(
+    this.id,
+    this.title,
+    this.artist,
+    this.seconds,
+    this.snippet,
+    this.transcodings,
+    this.auth,
+    this.art, [
+    this.userId,
+  ]);
 
   bool get playable => !snippet && transcodings.any((t) => !_isOpus(t));
 
   Track toTrack() => Track(
-      id: snippet ? 'scp:$id' : 'sc:$id', title: title, artist: artist, seconds: seconds, art: art, artistId: userId);
+    id: snippet ? 'scp:$id' : 'sc:$id',
+    title: title,
+    artist: artist,
+    seconds: seconds,
+    art: art,
+    artistId: userId,
+  );
 }
 
 /// Аккаунт исполнителя на SoundCloud.
@@ -39,8 +55,17 @@ class ScArtist {
   final String? about;
   final String? banner;
 
-  ScArtist(this.id, this.name, this.avatar, this.followers, this.trackCount, this.verified, this.city, this.about,
-      this.banner);
+  ScArtist(
+    this.id,
+    this.name,
+    this.avatar,
+    this.followers,
+    this.trackCount,
+    this.verified,
+    this.city,
+    this.about,
+    this.banner,
+  );
 }
 
 /// Альбом / EP / сингл на SoundCloud.
@@ -58,12 +83,12 @@ class ScAlbum {
   ScAlbum(this.id, this.title, this.artist, this.artistId, this.art, this.count, this.year, this.kind, {this.ytm});
 
   String get kindLabel => switch (kind) {
-        'album' => tr('Альбом'),
-        'ep' => 'EP',
-        'single' => tr('Сингл'),
-        'compilation' => tr('Сборник'),
-        _ => tr('Плейлист'),
-      };
+    'album' => tr('Альбом'),
+    'ep' => 'EP',
+    'single' => tr('Сингл'),
+    'compilation' => tr('Сборник'),
+    _ => tr('Плейлист'),
+  };
 }
 
 /// Непригодный поток: opus (iPhone не играет) или зашифрованный HLS (DRM — расшифровать может только
@@ -82,7 +107,8 @@ class ScService {
   static final ScService instance = ScService._();
 
   // настольный браузер: мобильная версия сайта собрана иначе, и client_id в ней не найти
-  static const _ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+  static const _ua =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/126.0 Safari/537.36';
   String? _clientId;
   final _byId = <int, ScTrack>{};
@@ -97,14 +123,12 @@ class ScService {
 
   Future<String> clientId({bool fresh = false}) async {
     if (_clientId != null && !fresh) return _clientId!;
-    final home = await http.get(Uri.https('soundcloud.com', '/'), headers: {'User-Agent': _ua}).timeout(
-      const Duration(seconds: 12),
-    );
-    final scripts = RegExp(r'<script[^>]+src="(https://a-v2\.sndcdn\.com/assets/[^"]+\.js)"')
-        .allMatches(home.body)
-        .map((m) => m.group(1)!)
-        .toList()
-        .reversed;
+    final home = await http
+        .get(Uri.https('soundcloud.com', '/'), headers: {'User-Agent': _ua})
+        .timeout(const Duration(seconds: 12));
+    final scripts = RegExp(
+      r'<script[^>]+src="(https://a-v2\.sndcdn\.com/assets/[^"]+\.js)"',
+    ).allMatches(home.body).map((m) => m.group(1)!).toList().reversed;
     for (final src in scripts) {
       try {
         final js = await http.get(Uri.parse(src), headers: {'User-Agent': _ua}).timeout(const Duration(seconds: 12));
@@ -114,7 +138,9 @@ class ScService {
           onClientId?.call(_clientId!);
           return _clientId!;
         }
-      } catch (_) {}
+      } catch (e) {
+        log.w('sc:117', e);
+      }
     }
     throw Exception(tr('SoundCloud: не найден client_id'));
   }
@@ -123,8 +149,9 @@ class ScService {
   Future<dynamic> _api(String path, [Map<String, String> q = const {}]) async {
     for (final fresh in [false, true]) {
       final cid = await clientId(fresh: fresh);
-      final r = await http.get(Uri.https('api-v2.soundcloud.com', path, {...q, 'client_id': cid}),
-          headers: {'User-Agent': _ua}).timeout(const Duration(seconds: 12));
+      final r = await http
+          .get(Uri.https('api-v2.soundcloud.com', path, {...q, 'client_id': cid}), headers: {'User-Agent': _ua})
+          .timeout(const Duration(seconds: 12));
       if (r.statusCode == 401 || r.statusCode == 403) continue;
       if (r.statusCode != 200) throw Exception('SoundCloud: HTTP ${r.statusCode}');
       return jsonDecode(r.body);
@@ -193,8 +220,8 @@ class ScService {
           final codec = mime.contains('mpeg')
               ? 0
               : mime.contains('mp4')
-                  ? 1
-                  : 2;
+              ? 1
+              : 2;
           return prog * 10 + codec;
         }
 
@@ -202,17 +229,21 @@ class ScService {
       });
     for (final tc in list) {
       final base = Uri.parse('${tc['url']}');
-      final u = base.replace(queryParameters: {
-        ...base.queryParameters,
-        'client_id': cid,
-        if (t.auth != null) 'track_authorization': t.auth!,
-      });
+      final u = base.replace(
+        queryParameters: {
+          ...base.queryParameters,
+          'client_id': cid,
+          if (t.auth != null) 'track_authorization': t.auth!,
+        },
+      );
       try {
         final r = await http.get(u, headers: {'User-Agent': _ua}).timeout(const Duration(seconds: 12));
         if (r.statusCode != 200) continue;
         final url = (jsonDecode(r.body) as Map)['url'] as String?;
         if (url != null) return Uri.parse(url);
-      } catch (_) {}
+      } catch (e) {
+        log.w('sc:215', e);
+      }
     }
     throw Exception(tr('SoundCloud: нет доступного потока'));
   }
@@ -238,7 +269,7 @@ class ScService {
     final tol = seconds > 0 ? (seconds * 0.08).clamp(15, 40) : 1 << 30;
     final found = <(ScTrack, double)>[];
     var bestScore = -1e9;
-    final seen = <int>{if (exclude != null) exclude};
+    final seen = <int>{?exclude};
     for (final q in {'$artist $title', _norm(title)}) {
       if (q.trim().isEmpty) continue;
       List<ScTrack> res;
@@ -288,16 +319,16 @@ class ScService {
   // ── исполнитель ──
 
   ScArtist _artist(Map u) => ScArtist(
-        (u['id'] as num).toInt(),
-        '${u['username'] ?? ''}',
-        (u['avatar_url'] as String?)?.replaceAll('-large.', '-t500x500.'),
-        ((u['followers_count'] ?? 0) as num).toInt(),
-        ((u['track_count'] ?? 0) as num).toInt(),
-        u['verified'] == true,
-        (u['city'] as String?)?.trim(),
-        (u['description'] as String?)?.trim(),
-        (((u['visuals'] as Map?)?['visuals'] as List?)?.cast<Map>().firstOrNull?['visual_url']) as String?,
-      );
+    (u['id'] as num).toInt(),
+    '${u['username'] ?? ''}',
+    (u['avatar_url'] as String?)?.replaceAll('-large.', '-t500x500.'),
+    ((u['followers_count'] ?? 0) as num).toInt(),
+    ((u['track_count'] ?? 0) as num).toInt(),
+    u['verified'] == true,
+    (u['city'] as String?)?.trim(),
+    (u['description'] as String?)?.trim(),
+    (((u['visuals'] as Map?)?['visuals'] as List?)?.cast<Map>().firstOrNull?['visual_url']) as String?,
+  );
 
   /// Аккаунт по имени: точное совпадение имени, затем подписчики; «подтверждён» — в плюс.
   Future<ScArtist?> findArtist(String name) async {
@@ -310,8 +341,8 @@ class ScService {
       final exact = n == want
           ? 1000.0
           : (n.contains(want) || want.contains(n))
-              ? 300.0
-              : 0.0;
+          ? 300.0
+          : 0.0;
       return exact + (a.verified ? 200 : 0) + a.followers.clamp(0, 10000000) / 20000.0;
     }
 
@@ -322,8 +353,11 @@ class ScService {
   /// Поиск исполнителей (для экрана поиска): с аватаркой и подписчиками, популярные — выше.
   Future<List<ScArtist>> searchArtists(String q, {int limit = 10}) async {
     final j = await _api('/search/users', {'q': q, 'limit': '$limit'});
-    final list =
-        ((j as Map)['collection'] as List? ?? []).cast<Map>().map(_artist).where((a) => a.trackCount > 0).toList();
+    final list = ((j as Map)['collection'] as List? ?? [])
+        .cast<Map>()
+        .map(_artist)
+        .where((a) => a.trackCount > 0)
+        .toList();
     return list;
   }
 
@@ -358,9 +392,11 @@ class ScService {
 
   ScAlbum _album(Map p) {
     final tracks = (p['tracks'] as List? ?? []).cast<Map>();
-    String? art = (p['artwork_url'] ??
-        tracks.map((t) => t['artwork_url']).firstWhere((a) => a != null, orElse: () => null) ??
-        (p['user'] as Map?)?['avatar_url']) as String?;
+    String? art =
+        (p['artwork_url'] ??
+                tracks.map((t) => t['artwork_url']).firstWhere((a) => a != null, orElse: () => null) ??
+                (p['user'] as Map?)?['avatar_url'])
+            as String?;
     final date = '${p['release_date'] ?? p['published_at'] ?? p['created_at'] ?? ''}';
     return ScAlbum(
       (p['id'] as num).toInt(),

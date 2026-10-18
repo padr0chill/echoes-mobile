@@ -68,27 +68,35 @@ class WaTitleBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget stripes() => Expanded(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            for (var i = 0; i < 4; i++)
-              Container(
-                  height: 1.5,
-                  margin: const EdgeInsets.symmetric(vertical: 1),
-                  color: i.isEven ? const Color(0xFFD8D020) : Wa.hi),
-          ]),
-        );
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < 4; i++)
+            Container(
+              height: 1.5,
+              margin: const EdgeInsets.symmetric(vertical: 1),
+              color: i.isEven ? const Color(0xFFD8D020) : Wa.hi,
+            ),
+        ],
+      ),
+    );
     return SizedBox(
       height: context.u(30),
-      child: Row(children: [
-        if (leading != null) leading!,
-        stripes(),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(title,
-              style: Wa.mono.copyWith(color: Wa.text, fontWeight: FontWeight.w800, letterSpacing: 3, fontSize: 13)),
-        ),
-        stripes(),
-        SizedBox(width: context.u(8)),
-      ]),
+      child: Row(
+        children: [
+          ?leading,
+          stripes(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              title,
+              style: Wa.mono.copyWith(color: Wa.text, fontWeight: FontWeight.w800, letterSpacing: 3, fontSize: 13),
+            ),
+          ),
+          stripes(),
+          SizedBox(width: context.u(8)),
+        ],
+      ),
     );
   }
 }
@@ -104,31 +112,35 @@ class WinampPlayer extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(context.u(6)),
-          child: Column(children: [
-            WaBevel(
-              padding: EdgeInsets.all(context.u(6)),
-              child: Column(children: [
-                WaTitleBar(
-                  title: 'ECHOAMP',
-                  leading: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Icon(Icons.keyboard_arrow_down_rounded, color: Wa.text, size: context.u(24)),
+          child: Column(
+            children: [
+              WaBevel(
+                padding: EdgeInsets.all(context.u(6)),
+                child: Column(
+                  children: [
+                    WaTitleBar(
+                      title: 'ECHOAMP',
+                      leading: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Icon(Icons.keyboard_arrow_down_rounded, color: Wa.text, size: context.u(24)),
+                        ),
+                      ),
                     ),
-                  ),
+                    SizedBox(height: context.u(4)),
+                    const _Display(),
+                    SizedBox(height: context.u(8)),
+                    const _WaSeek(),
+                    SizedBox(height: context.u(8)),
+                    const _Buttons(),
+                  ],
                 ),
-                SizedBox(height: context.u(4)),
-                const _Display(),
-                SizedBox(height: context.u(8)),
-                const _WaSeek(),
-                SizedBox(height: context.u(8)),
-                const _Buttons(),
-              ]),
-            ),
-            SizedBox(height: context.u(6)),
-            const Expanded(child: _Playlist()),
-          ]),
+              ),
+              SizedBox(height: context.u(6)),
+              const Expanded(child: _Playlist()),
+            ],
+          ),
         ),
       ),
     );
@@ -147,82 +159,100 @@ class _Display extends StatelessWidget {
       padding: EdgeInsets.all(context.u(8)),
       child: ValueListenableBuilder<int>(
         valueListenable: audio.trackKey,
-        builder: (context, _, __) {
+        builder: (context, _, _) {
           final t = audio.current;
-          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(
-              width: context.u(128),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                StreamBuilder<Duration>(
-                  stream: audio.player.positionStream,
-                  builder: (context, snap) {
-                    final p = snap.data ?? Duration.zero;
-                    final mm = p.inMinutes.toString().padLeft(2, '0'),
-                        ss = (p.inSeconds % 60).toString().padLeft(2, '0');
-                    return Row(children: [
-                      StreamBuilder<bool>(
-                        stream: audio.player.playingStream,
-                        builder: (context, s) => Icon(
-                          (s.data ?? false) ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                          color: Wa.green,
-                          size: context.u(18),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text('$mm:$ss',
-                              style: Wa.mono
-                                  .copyWith(color: Wa.green, fontSize: 28, fontWeight: FontWeight.w700, height: 1)),
-                        ),
-                      ),
-                    ]);
-                  },
-                ),
-                SizedBox(height: context.u(6)),
-                // нажатие на спектр — MilkDrop (как щелчок по визуализации в Winamp)
-                GestureDetector(
-                  onTap: () => openMilkdrop(context),
-                  child: SizedBox(height: context.u(34), width: double.infinity, child: const Spectrum()),
-                ),
-              ]),
-            ),
-            SizedBox(width: context.u(10)),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(
-                  height: context.u(22),
-                  child: Marquee(
-                    text: t == null
-                        ? 'ECHOAMP — it really whips the llama\'s ass!'
-                        : '${audio.index.value + 1}. ${t.artist} - ${t.title} (${fmtDuration(t.duration)})',
-                    style: Wa.mono.copyWith(color: Wa.green, fontSize: 14),
-                  ),
-                ),
-                SizedBox(height: context.u(6)),
-                Text(
-                  t == null ? '' : (t.isSc ? '128 kbps  44 kHz  SoundCloud' : '128 kbps  44 kHz  YouTube'),
-                  style: Wa.mono.copyWith(color: Wa.green.withValues(alpha: 0.7), fontSize: 11),
-                ),
-                SizedBox(height: context.u(6)),
-                ValueListenableBuilder<String?>(
-                  valueListenable: audio.error,
-                  builder: (context, e, _) => ValueListenableBuilder<bool>(
-                    valueListenable: audio.loading,
-                    builder: (context, l, _) => Text(
-                      e != null ? 'ERROR' : (l ? 'BUFFERING…' : 'STEREO'),
-                      style: Wa.mono.copyWith(
-                          color: e != null ? const Color(0xFFE03020) : Wa.green,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700),
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: context.u(128),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    StreamBuilder<Duration>(
+                      stream: audio.player.positionStream,
+                      builder: (context, snap) {
+                        final p = snap.data ?? Duration.zero;
+                        final mm = p.inMinutes.toString().padLeft(2, '0'),
+                            ss = (p.inSeconds % 60).toString().padLeft(2, '0');
+                        return Row(
+                          children: [
+                            StreamBuilder<bool>(
+                              stream: audio.player.playingStream,
+                              builder: (context, s) => Icon(
+                                (s.data ?? false) ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                                color: Wa.green,
+                                size: context.u(18),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  '$mm:$ss',
+                                  style: Wa.mono.copyWith(
+                                    color: Wa.green,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ),
+                    SizedBox(height: context.u(6)),
+                    // нажатие на спектр — MilkDrop (как щелчок по визуализации в Winamp)
+                    GestureDetector(
+                      onTap: () => openMilkdrop(context),
+                      child: SizedBox(height: context.u(34), width: double.infinity, child: const Spectrum()),
+                    ),
+                  ],
                 ),
-              ]),
-            ),
-          ]);
+              ),
+              SizedBox(width: context.u(10)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      height: context.u(22),
+                      child: Marquee(
+                        text: t == null
+                            ? 'ECHOAMP — it really whips the llama\'s ass!'
+                            : '${audio.index.value + 1}. ${t.artist} - ${t.title} (${fmtDuration(t.duration)})',
+                        style: Wa.mono.copyWith(color: Wa.green, fontSize: 14),
+                      ),
+                    ),
+                    SizedBox(height: context.u(6)),
+                    Text(
+                      t == null ? '' : (t.isSc ? '128 kbps  44 kHz  SoundCloud' : '128 kbps  44 kHz  YouTube'),
+                      style: Wa.mono.copyWith(color: Wa.green.withValues(alpha: 0.7), fontSize: 11),
+                    ),
+                    SizedBox(height: context.u(6)),
+                    ValueListenableBuilder<String?>(
+                      valueListenable: audio.error,
+                      builder: (context, e, _) => ValueListenableBuilder<bool>(
+                        valueListenable: audio.loading,
+                        builder: (context, l, _) => Text(
+                          e != null ? 'ERROR' : (l ? 'BUFFERING…' : 'STEREO'),
+                          style: Wa.mono.copyWith(
+                            color: e != null ? const Color(0xFFE03020) : Wa.green,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -259,20 +289,22 @@ class _MarqueeState extends State<Marquee> with SingleTickerProviderStateMixin {
       textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
     )..layout();
-    return LayoutBuilder(builder: (context, box) {
-      if (tp.width / 2 < box.maxWidth * 0.95) {
-        return Text(widget.text, maxLines: 1, overflow: TextOverflow.clip, style: widget.style);
-      }
-      return ClipRect(
-        child: ValueListenableBuilder<double>(
-          valueListenable: _t,
-          builder: (context, t, _) {
-            final dx = -((t * 40) % tp.width);
-            return CustomPaint(painter: _MarqueePainter(tp, dx), size: Size(box.maxWidth, tp.height));
-          },
-        ),
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, box) {
+        if (tp.width / 2 < box.maxWidth * 0.95) {
+          return Text(widget.text, maxLines: 1, overflow: TextOverflow.clip, style: widget.style);
+        }
+        return ClipRect(
+          child: ValueListenableBuilder<double>(
+            valueListenable: _t,
+            builder: (context, t, _) {
+              final dx = -((t * 40) % tp.width);
+              return CustomPaint(painter: _MarqueePainter(tp, dx), size: Size(box.maxWidth, tp.height));
+            },
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -399,38 +431,47 @@ class _WaSeekState extends State<_WaSeek> {
         final total = audio.player.duration ?? audio.current?.duration ?? Duration.zero;
         final ms = total.inMilliseconds;
         final f = _drag ?? (ms <= 0 ? 0.0 : ((snap.data ?? Duration.zero).inMilliseconds / ms).clamp(0.0, 1.0));
-        return LayoutBuilder(builder: (context, box) {
-          final w = box.maxWidth, th = context.u(28);
-          double at(double x) => ((x - th / 2) / (w - th)).clamp(0.0, 1.0);
-          void end() {
-            if (_drag != null && ms > 0) audio.seek(Duration(milliseconds: (_drag! * ms).round()));
-            setState(() => _drag = null);
-          }
+        return LayoutBuilder(
+          builder: (context, box) {
+            final w = box.maxWidth, th = context.u(28);
+            double at(double x) => ((x - th / 2) / (w - th)).clamp(0.0, 1.0);
+            void end() {
+              if (_drag != null && ms > 0) audio.seek(Duration(milliseconds: (_drag! * ms).round()));
+              setState(() => _drag = null);
+            }
 
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onHorizontalDragStart: (d) => setState(() => _drag = at(d.localPosition.dx)),
-            onHorizontalDragUpdate: (d) => setState(() => _drag = at(d.localPosition.dx)),
-            onHorizontalDragEnd: (_) => end(),
-            onTapUp: (d) {
-              _drag = at(d.localPosition.dx);
-              end();
-            },
-            child: SizedBox(
-              height: context.u(22),
-              child: Stack(alignment: Alignment.centerLeft, children: [
-                WaBevel(sunken: true, color: Wa.bodyDark, child: SizedBox(height: context.u(8), width: w)),
-                Positioned(
-                  left: f * (w - th),
-                  child: WaBevel(
-                    color: const Color(0xFF8A8AA0),
-                    child: SizedBox(width: th - 3, height: context.u(14)),
-                  ),
+            return GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragStart: (d) => setState(() => _drag = at(d.localPosition.dx)),
+              onHorizontalDragUpdate: (d) => setState(() => _drag = at(d.localPosition.dx)),
+              onHorizontalDragEnd: (_) => end(),
+              onTapUp: (d) {
+                _drag = at(d.localPosition.dx);
+                end();
+              },
+              child: SizedBox(
+                height: context.u(22),
+                child: Stack(
+                  alignment: Alignment.centerLeft,
+                  children: [
+                    WaBevel(
+                      sunken: true,
+                      color: Wa.bodyDark,
+                      child: SizedBox(height: context.u(8), width: w),
+                    ),
+                    Positioned(
+                      left: f * (w - th),
+                      child: WaBevel(
+                        color: const Color(0xFF8A8AA0),
+                        child: SizedBox(width: th - 3, height: context.u(14)),
+                      ),
+                    ),
+                  ],
                 ),
-              ]),
-            ),
-          );
-        });
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -442,101 +483,121 @@ class _Buttons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget b(IconData i, VoidCallback onTap, {String? tip}) => Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 1.5),
-            child: GestureDetector(
-              onTap: onTap,
-              child: WaBevel(
-                color: Wa.btn,
-                padding: EdgeInsets.symmetric(vertical: context.u(7)),
-                child: Icon(i, color: Wa.text, size: context.u(20), semanticLabel: tip),
-              ),
-            ),
-          ),
-        );
-    Widget led(String label, Listenable l, bool Function() on, VoidCallback onTap) => GestureDetector(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1.5),
+        child: GestureDetector(
           onTap: onTap,
-          child: ListenableBuilder(
-            listenable: l,
-            builder: (context, _) => WaBevel(
-              color: Wa.btn,
-              padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  color: on() ? Wa.green : Wa.greenDim,
-                ),
-                const SizedBox(width: 4),
-                Text(label, style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
-              ]),
-            ),
+          child: WaBevel(
+            color: Wa.btn,
+            padding: EdgeInsets.symmetric(vertical: context.u(7)),
+            child: Icon(i, color: Wa.text, size: context.u(20), semanticLabel: tip),
           ),
-        );
-    return Column(children: [
-      Row(children: [
-        b(Icons.skip_previous_rounded, audio.skipToPrevious, tip: tr('Назад')),
-        b(Icons.play_arrow_rounded, audio.play, tip: tr('Играть')),
-        b(Icons.pause_rounded, audio.pause, tip: tr('Пауза')),
-        b(Icons.stop_rounded, () {
-          audio.pause();
-          audio.seek(Duration.zero);
-        }, tip: tr('Стоп')),
-        b(Icons.skip_next_rounded, audio.skipToNext, tip: tr('Дальше')),
-      ]),
-      SizedBox(height: context.u(6)),
-      Row(children: [
-        // лампочки-кнопки: не влезают в узкий экран — листаются вбок, ♥ остаётся справа
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              led('SHUFFLE', audio.shuffle, () => audio.shuffle.value, audio.toggleShuffle),
+        ),
+      ),
+    );
+    Widget led(String label, Listenable l, bool Function() on, VoidCallback onTap) => GestureDetector(
+      onTap: onTap,
+      child: ListenableBuilder(
+        listenable: l,
+        builder: (context, _) => WaBevel(
+          color: Wa.btn,
+          padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 6, height: 6, color: on() ? Wa.green : Wa.greenDim),
               const SizedBox(width: 4),
-              led('REPEAT', audio.repeat, () => audio.repeat.value != RepeatState.off, audio.cycleRepeat),
-              const SizedBox(width: 4),
-              // окно эквалайзера, как в Winamp
-              led('EQ', Store.instance, () => Store.instance.eqEnabled, () => openEqualizer(context)),
-              const SizedBox(width: 4),
-              // окно визуализации, как в Winamp
-              GestureDetector(
-                onTap: () => openMilkdrop(context),
-                child: WaBevel(
-                  color: Wa.btn,
-                  padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(Icons.auto_awesome, size: 10, color: Wa.green),
+              Text(
+                label,
+                style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return Column(
+      children: [
+        Row(
+          children: [
+            b(Icons.skip_previous_rounded, audio.skipToPrevious, tip: tr('Назад')),
+            b(Icons.play_arrow_rounded, audio.play, tip: tr('Играть')),
+            b(Icons.pause_rounded, audio.pause, tip: tr('Пауза')),
+            b(Icons.stop_rounded, () {
+              audio.pause();
+              audio.seek(Duration.zero);
+            }, tip: tr('Стоп')),
+            b(Icons.skip_next_rounded, audio.skipToNext, tip: tr('Дальше')),
+          ],
+        ),
+        SizedBox(height: context.u(6)),
+        Row(
+          children: [
+            // лампочки-кнопки: не влезают в узкий экран — листаются вбок, ♥ остаётся справа
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    led('SHUFFLE', audio.shuffle, () => audio.shuffle.value, audio.toggleShuffle),
                     const SizedBox(width: 4),
-                    Text('MILKDROP',
-                        style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
-                  ]),
+                    led('REPEAT', audio.repeat, () => audio.repeat.value != RepeatState.off, audio.cycleRepeat),
+                    const SizedBox(width: 4),
+                    // окно эквалайзера, как в Winamp
+                    if (eqAvailable) ...[
+                      led('EQ', Store.instance, () => Store.instance.eqEnabled, () => openEqualizer(context)),
+                      const SizedBox(width: 4),
+                    ],
+                    // окно визуализации, как в Winamp
+                    GestureDetector(
+                      onTap: () => openMilkdrop(context),
+                      child: WaBevel(
+                        color: Wa.btn,
+                        padding: EdgeInsets.symmetric(horizontal: context.u(6), vertical: context.u(6)),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.auto_awesome, size: 10, color: Wa.green),
+                            const SizedBox(width: 4),
+                            Text(
+                              'MILKDROP',
+                              style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ]),
-          ),
+            ),
+            const SizedBox(width: 4),
+            ValueListenableBuilder<int>(
+              valueListenable: audio.trackKey,
+              builder: (context, _, _) => ListenableBuilder(
+                listenable: Store.instance,
+                builder: (context, _) {
+                  final t = audio.current;
+                  final liked = t != null && Store.instance.isLiked(t);
+                  return GestureDetector(
+                    onTap: t == null ? null : () => Store.instance.toggleLike(t),
+                    child: WaBevel(
+                      color: Wa.btn,
+                      padding: EdgeInsets.all(context.u(5)),
+                      child: Icon(
+                        liked ? Icons.favorite : Icons.favorite_border,
+                        size: context.u(16),
+                        color: liked ? Wa.green : Wa.text,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 4),
-        ValueListenableBuilder<int>(
-          valueListenable: audio.trackKey,
-          builder: (context, _, __) => ListenableBuilder(
-            listenable: Store.instance,
-            builder: (context, _) {
-              final t = audio.current;
-              final liked = t != null && Store.instance.isLiked(t);
-              return GestureDetector(
-                onTap: t == null ? null : () => Store.instance.toggleLike(t),
-                child: WaBevel(
-                  color: Wa.btn,
-                  padding: EdgeInsets.all(context.u(5)),
-                  child: Icon(liked ? Icons.favorite : Icons.favorite_border,
-                      size: context.u(16), color: liked ? Wa.green : Wa.text),
-                ),
-              );
-            },
-          ),
-        ),
-      ]),
-    ]);
+      ],
+    );
   }
 }
 
@@ -548,50 +609,60 @@ class _Playlist extends StatelessWidget {
   Widget build(BuildContext context) {
     return WaBevel(
       padding: EdgeInsets.all(context.u(6)),
-      child: Column(children: [
-        const WaTitleBar(title: 'ECHOAMP PLAYLIST'),
-        SizedBox(height: context.u(4)),
-        Expanded(
-          child: WaBevel(
-            sunken: true,
-            color: Wa.lcd,
-            child: ListenableBuilder(
-              listenable: Listenable.merge([audio.tracks, audio.index]),
-              builder: (context, _) {
-                final l = audio.tracks.value, cur = audio.index.value;
-                if (l.isEmpty) {
-                  return Center(child: Text(tr('Плейлист пуст'), style: Wa.mono.copyWith(color: Wa.green)));
-                }
-                return ListView.builder(
-                  itemCount: l.length,
-                  itemExtent: MediaQuery.textScalerOf(context).scale(15) + context.u(10),
-                  itemBuilder: (context, i) {
-                    final t = l[i], on = i == cur;
-                    return GestureDetector(
-                      onTap: () => audio.jumpTo(i),
-                      child: Container(
-                        color: on ? Wa.sel : null,
-                        padding: EdgeInsets.symmetric(horizontal: context.u(6)),
-                        alignment: Alignment.centerLeft,
-                        child: Row(children: [
-                          Expanded(
-                            child: Text('${i + 1}. ${t.artist} - ${t.title}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Wa.mono.copyWith(color: on ? Colors.white : Wa.green, fontSize: 13)),
-                          ),
-                          Text(t.seconds > 0 ? fmtDuration(t.duration) : '',
-                              style: Wa.mono.copyWith(color: on ? Colors.white : Wa.green, fontSize: 13)),
-                        ]),
-                      ),
+      child: Column(
+        children: [
+          const WaTitleBar(title: 'ECHOAMP PLAYLIST'),
+          SizedBox(height: context.u(4)),
+          Expanded(
+            child: WaBevel(
+              sunken: true,
+              color: Wa.lcd,
+              child: ListenableBuilder(
+                listenable: Listenable.merge([audio.tracks, audio.index]),
+                builder: (context, _) {
+                  final l = audio.tracks.value, cur = audio.index.value;
+                  if (l.isEmpty) {
+                    return Center(
+                      child: Text(tr('Плейлист пуст'), style: Wa.mono.copyWith(color: Wa.green)),
                     );
-                  },
-                );
-              },
+                  }
+                  return ListView.builder(
+                    itemCount: l.length,
+                    itemExtent: MediaQuery.textScalerOf(context).scale(15) + context.u(10),
+                    itemBuilder: (context, i) {
+                      final t = l[i], on = i == cur;
+                      return GestureDetector(
+                        onTap: () => audio.jumpTo(i),
+                        child: Container(
+                          color: on ? Wa.sel : null,
+                          padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${i + 1}. ${t.artist} - ${t.title}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Wa.mono.copyWith(color: on ? Colors.white : Wa.green, fontSize: 13),
+                                ),
+                              ),
+                              Text(
+                                t.seconds > 0 ? fmtDuration(t.duration) : '',
+                                style: Wa.mono.copyWith(color: on ? Colors.white : Wa.green, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

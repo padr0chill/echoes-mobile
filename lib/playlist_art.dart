@@ -33,28 +33,43 @@ class PlaylistArt extends StatelessWidget {
     final own = file(playlist);
     Widget child;
     if (own != null) {
-      child = Image.file(own, width: size, height: size, fit: BoxFit.cover, gaplessPlayback: true);
+      // своя обложка бывает фото на 12 Мп — декодировать под размер плитки, а не целиком (~48 МБ)
+      child = Image.file(
+        own,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        // ×2 — запас для горизонтальных фото (их высота меньше ширины, а заполняется квадрат)
+        cacheWidth: (size * 2 * MediaQuery.devicePixelRatioOf(context)).round(),
+        gaplessPlayback: true,
+      );
     } else {
       final seen = <String>{};
       final covers = [
         for (final t in playlist.tracks)
-          if (seen.add(t.art ?? t.id)) t
+          if (seen.add(t.art ?? t.id)) t,
       ].take(4).toList();
       if (covers.length >= 4) {
         final h = size / 2;
         child = SizedBox(
           width: size,
           height: size,
-          child: Column(children: [
-            Row(children: [
-              Cover(track: covers[0], size: h, radius: 0),
-              Cover(track: covers[1], size: h, radius: 0),
-            ]),
-            Row(children: [
-              Cover(track: covers[2], size: h, radius: 0),
-              Cover(track: covers[3], size: h, radius: 0),
-            ]),
-          ]),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Cover(track: covers[0], size: h, radius: 0),
+                  Cover(track: covers[1], size: h, radius: 0),
+                ],
+              ),
+              Row(
+                children: [
+                  Cover(track: covers[2], size: h, radius: 0),
+                  Cover(track: covers[3], size: h, radius: 0),
+                ],
+              ),
+            ],
+          ),
         );
       } else if (covers.isNotEmpty) {
         child = Cover(track: covers.first, size: size, radius: 0);
@@ -76,24 +91,27 @@ Future<void> pickPlaylistCover(BuildContext context, Playlist p) async {
   final choice = await showGlassSheet<String>(
     context,
     (ctx) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(
-          leading: const Icon(Icons.photo_library_rounded),
-          title: Text(tr('Из галереи')),
-          onTap: () => Navigator.pop(ctx, 'gallery'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.folder_rounded),
-          title: Text(tr('Из «Файлов»')),
-          onTap: () => Navigator.pop(ctx, 'files'),
-        ),
-        if (p.cover != null)
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           ListTile(
-            leading: const Icon(Icons.grid_view_rounded),
-            title: Text(tr('Обложка из треков')),
-            onTap: () => Navigator.pop(ctx, 'reset'),
+            leading: const Icon(Icons.photo_library_rounded),
+            title: Text(tr('Из галереи')),
+            onTap: () => Navigator.pop(ctx, 'gallery'),
           ),
-      ]),
+          ListTile(
+            leading: const Icon(Icons.folder_rounded),
+            title: Text(tr('Из «Файлов»')),
+            onTap: () => Navigator.pop(ctx, 'files'),
+          ),
+          if (p.cover != null)
+            ListTile(
+              leading: const Icon(Icons.grid_view_rounded),
+              title: Text(tr('Обложка из треков')),
+              onTap: () => Navigator.pop(ctx, 'reset'),
+            ),
+        ],
+      ),
     ),
   );
   if (choice == null || !context.mounted) return;
@@ -105,13 +123,21 @@ Future<void> pickPlaylistCover(BuildContext context, Playlist p) async {
   try {
     f = choice == 'gallery'
         ? await ImagePicker().pickImage(
-            source: ImageSource.gallery, maxWidth: 1200, maxHeight: 1200, imageQuality: 88, requestFullMetadata: false)
-        : await openFile(acceptedTypeGroups: [
-            XTypeGroup(
+            source: ImageSource.gallery,
+            maxWidth: 1200,
+            maxHeight: 1200,
+            imageQuality: 88,
+            requestFullMetadata: false,
+          )
+        : await openFile(
+            acceptedTypeGroups: [
+              XTypeGroup(
                 label: tr('Фото'),
                 extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
-                uniformTypeIdentifiers: ['public.image']),
-          ]);
+                uniformTypeIdentifiers: ['public.image'],
+              ),
+            ],
+          );
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Не удалось открыть фото: {0}', [e]))));

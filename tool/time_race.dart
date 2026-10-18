@@ -30,10 +30,12 @@ Future<void> main() async {
       }();
       final ys = await yt, ss = await sc;
       // правило из audio.dart: YouTube — сразу, SoundCloud — с форой 0,8 с (YouTube уже отказывал — без форы)
-      final ready = [if (ys != null) ys, if (ss != null) ss + (ytWorks ? 800 : 0)];
+      final ready = [?ys, if (ss != null) ss + (ytWorks ? 800 : 0)];
       ready.sort();
-      print('  ${t.artist} — ${t.title}: YouTube ${ys ?? '—'} мс, SoundCloud ${ss ?? 'нет'} мс → '
-          'готов через ${ready.isEmpty ? 'не нашлось' : '${ready.first} мс'}');
+      print(
+        '  ${t.artist} — ${t.title}: YouTube ${ys ?? '—'} мс, SoundCloud ${ss ?? 'нет'} мс → '
+        'готов через ${ready.isEmpty ? 'не нашлось' : '${ready.first} мс'}',
+      );
     }
   }
 }

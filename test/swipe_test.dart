@@ -21,10 +21,16 @@ void main() {
   });
 
   Future<void> pump(WidgetTester tester) async {
-    await tester.pumpWidget(MaterialApp(
-      theme: buildTheme(Store.instance.accent, false),
-      home: Scaffold(body: ListView(children: [TrackTile(track: t, onTap: () {})])),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTheme(Store.instance.accent, false),
+        home: Scaffold(
+          body: ListView(
+            children: [TrackTile(track: t, onTap: () {})],
+          ),
+        ),
+      ),
+    );
   }
 
   testWidgets('вправо — в очередь', (tester) async {
@@ -49,8 +55,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(audio.tracks.value.length, 1);
     expect(find.text('Новый плейлист'), findsNothing);
-    final tr =
-        tester.widget<Transform>(find.descendant(of: find.byType(SwipeActions), matching: find.byType(Transform)).last);
+    final tr = tester.widget<Transform>(
+      find.descendant(of: find.byType(SwipeActions), matching: find.byType(Transform)).last,
+    );
     expect(tr.transform.getTranslation().x, 0);
   });
 }

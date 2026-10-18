@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../models.dart';
+import 'log.dart';
+import 'offline.dart';
 
 /// Чистая квадратная обложка для видео YouTube: превью в высоком качестве (1280×720), автоматически
 /// обрезаются однотонные полосы по краям (чёрные «леттербокс»/«пилларбокс»), вырезается квадрат по центру
@@ -37,7 +39,9 @@ class SquareCover {
     try {
       final base = await getTemporaryDirectory();
       _dir ??= Directory('${base.path}/square_covers')..createSync(recursive: true);
-    } catch (_) {}
+    } catch (e) {
+      log.w('square_cover:40', e);
+    }
   }
 
   Future<File?> get(Track t) {
@@ -49,7 +53,7 @@ class SquareCover {
   File? ready(Track t) {
     final d = _dir;
     if (d == null || !needed(t)) return null;
-    final f = File('${d.path}/${videoOf(t)}.png');
+    final f = File('${d.path}/${Offline.safeName(videoOf(t))}.png');
     return f.existsSync() ? f : null;
   }
 
@@ -80,7 +84,7 @@ class SquareCover {
     if (big != null) return big;
     final d = _dir;
     if (d == null || !needed(t)) return null;
-    final f = File('${d.path}/${videoOf(t)}_s.png');
+    final f = File('${d.path}/${Offline.safeName(videoOf(t))}_s.png');
     return f.existsSync() ? f : null;
   }
 
@@ -107,10 +111,11 @@ class SquareCover {
     final base = await getTemporaryDirectory();
     final d = _dir ??= Directory('${base.path}/square_covers')..createSync(recursive: true);
     final vid = videoOf(t);
-    final out = File('${d.path}/${vid}_s.png');
+    final out = File('${d.path}/${Offline.safeName(vid)}_s.png');
     if (out.existsSync()) return out;
-    final r =
-        await http.get(Uri.parse('https://i.ytimg.com/vi/$vid/hqdefault.jpg')).timeout(const Duration(seconds: 8));
+    final r = await http
+        .get(Uri.parse('https://i.ytimg.com/vi/$vid/hqdefault.jpg'))
+        .timeout(const Duration(seconds: 8));
     if (r.statusCode != 200 || r.bodyBytes.length < 1500) return null;
     final png = await squarePng(r.bodyBytes, maxSide: 240);
     if (png == null) return null;
@@ -122,19 +127,22 @@ class SquareCover {
     final base = await getTemporaryDirectory();
     final d = _dir ??= Directory('${base.path}/square_covers')..createSync(recursive: true);
     final vid = videoOf(t);
-    final out = File('${d.path}/$vid.png');
+    final out = File('${d.path}/${Offline.safeName(vid)}.png');
     if (out.existsSync()) return out;
     Uint8List? bytes;
     // maxres бывает не у всех видео (тогда YouTube отдаёт заглушку 120×90) — тогда sd/hq
     for (final name in ['maxresdefault', 'sddefault', 'hqdefault']) {
       try {
-        final r =
-            await http.get(Uri.parse('https://i.ytimg.com/vi/$vid/$name.jpg')).timeout(const Duration(seconds: 8));
+        final r = await http
+            .get(Uri.parse('https://i.ytimg.com/vi/$vid/$name.jpg'))
+            .timeout(const Duration(seconds: 8));
         if (r.statusCode == 200 && r.bodyBytes.length > 3000) {
           bytes = r.bodyBytes;
           break;
         }
-      } catch (_) {}
+      } catch (e) {
+        log.w('square_cover:137', e);
+      }
     }
     if (bytes == null) return null;
     final png = await squarePng(bytes);

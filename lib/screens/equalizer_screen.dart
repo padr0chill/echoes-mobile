@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:echoes_eq/echoes_eq.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../glass.dart';
@@ -26,6 +28,10 @@ const eqPresets = <String, List<double>>{
 
 /// Предусиление для пресета: чем сильнее подъём, тем ниже общий уровень (чтобы не перегружать звук).
 double presetPreamp(List<double> g) => -(g.reduce(math.max).clamp(0, 12) * 0.6).roundToDouble();
+
+/// Эквалайзер работает только на iOS (своя нативная часть); на Android кнопки не показываем, чтобы не
+/// обещать то, что не меняет звук.
+bool get eqAvailable => kIsWeb || !Platform.isAndroid;
 
 void openEqualizer(BuildContext context) =>
     Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(builder: (_) => const EqualizerScreen()));
@@ -73,7 +79,7 @@ class EqualizerScreen extends StatelessWidget {
                     scrollDirection: Axis.horizontal,
                     padding: EdgeInsets.symmetric(horizontal: context.u(16)),
                     itemCount: eqPresets.length,
-                    separatorBuilder: (_, __) => SizedBox(width: context.u(8)),
+                    separatorBuilder: (_, _) => SizedBox(width: context.u(8)),
                     itemBuilder: (context, i) {
                       final name = eqPresets.keys.elementAt(i);
                       return ChoiceChip(
@@ -94,61 +100,72 @@ class EqualizerScreen extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: context.u(8)),
                     child: SizedBox(
                       height: context.u(260),
-                      child: Row(children: [
-                        for (var i = 0; i < 10; i++)
-                          Expanded(
-                            child: Column(children: [
-                              Text(
-                                '${st.eqGains[i] > 0 ? '+' : ''}${st.eqGains[i].toStringAsFixed(st.eqGains[i] % 1 == 0 ? 0 : 1)}',
-                                style: TextStyle(fontSize: 11, color: dim),
-                              ),
-                              Expanded(
-                                child: RotatedBox(
-                                  quarterTurns: 3,
-                                  child: Slider(
-                                    value: st.eqGains[i],
-                                    min: -12,
-                                    max: 12,
-                                    divisions: 48,
-                                    onChanged: (v) {
-                                      final g = List.of(st.eqGains)..[i] = v;
-                                      st.setEq(gains: g, preset: 'Свой', enabled: true);
-                                    },
+                      child: Row(
+                        children: [
+                          for (var i = 0; i < 10; i++)
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    '${st.eqGains[i] > 0 ? '+' : ''}${st.eqGains[i].toStringAsFixed(st.eqGains[i] % 1 == 0 ? 0 : 1)}',
+                                    style: TextStyle(fontSize: 11, color: dim),
                                   ),
-                                ),
+                                  Expanded(
+                                    child: RotatedBox(
+                                      quarterTurns: 3,
+                                      child: Slider(
+                                        value: st.eqGains[i],
+                                        min: -12,
+                                        max: 12,
+                                        divisions: 48,
+                                        onChanged: (v) {
+                                          final g = List.of(st.eqGains)..[i] = v;
+                                          st.setEq(gains: g, preset: 'Свой', enabled: true);
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  Text(_hz(EchoesEq.frequencies[i]), style: TextStyle(fontSize: 11, color: dim)),
+                                ],
                               ),
-                              Text(_hz(EchoesEq.frequencies[i]), style: TextStyle(fontSize: 11, color: dim)),
-                            ]),
-                          ),
-                      ]),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
                 SizedBox(height: context.u(10)),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-                  child: Row(children: [
-                    Text(tr('Уровень')),
-                    Expanded(
-                      child: Slider(
-                        value: st.eqPreamp.clamp(-12, 6),
-                        min: -12,
-                        max: 6,
-                        divisions: 36,
-                        onChanged: (v) => st.setEq(preamp: v),
+                  child: Row(
+                    children: [
+                      Text(tr('Уровень')),
+                      Expanded(
+                        child: Slider(
+                          value: st.eqPreamp.clamp(-12, 6),
+                          min: -12,
+                          max: 6,
+                          divisions: 36,
+                          onChanged: (v) => st.setEq(preamp: v),
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      width: context.u(52),
-                      child: Text(tr('{0}{1} дБ', [st.eqPreamp > 0 ? '+' : '', st.eqPreamp.toStringAsFixed(1)]),
-                          textAlign: TextAlign.end, style: TextStyle(color: dim, fontSize: 12)),
-                    ),
-                  ]),
+                      SizedBox(
+                        width: context.u(52),
+                        child: Text(
+                          tr('{0}{1} дБ', [st.eqPreamp > 0 ? '+' : '', st.eqPreamp.toStringAsFixed(1)]),
+                          textAlign: TextAlign.end,
+                          style: TextStyle(color: dim, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(context.u(16), context.u(12), context.u(16), 0),
                   child: Text(
-                    tr('Действует на обычные потоки и скачанные треки. Часть треков SoundCloud приходит потоком HLS — iOS не даёт его обрабатывать, они играют без эквалайзера.'),
+                    tr(
+                      'Действует на обычные потоки и скачанные треки. Часть треков SoundCloud приходит потоком HLS — iOS не даёт его обрабатывать, они играют без эквалайзера.',
+                    ),
                     style: TextStyle(color: dim, fontSize: 12),
                   ),
                 ),

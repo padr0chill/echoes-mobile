@@ -90,7 +90,7 @@ class Versions {
     if (!_w.hasMatch(t)) return const {};
     return {
       for (final e in _tags.entries)
-        if (e.value.hasMatch(t)) e.key
+        if (e.value.hasMatch(t)) e.key,
     };
   }
 

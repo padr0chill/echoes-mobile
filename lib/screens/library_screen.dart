@@ -42,37 +42,47 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return l;
   }
 
-  void _open(BuildContext context, String title, List<Track> Function() tracks,
-      {Playlist? playlist, bool offline = false}) {
+  void _open(
+    BuildContext context,
+    String title,
+    List<Track> Function() tracks, {
+    Playlist? playlist,
+    bool offline = false,
+  }) {
     if (playlist != null) Store.instance.touchPlaylist(playlist);
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => TrackListScreen(title: title, tracks: tracks, playlist: playlist, offline: offline),
-    ));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TrackListScreen(title: title, tracks: tracks, playlist: playlist, offline: offline),
+      ),
+    );
   }
 
   Future<void> _add(BuildContext context) async {
     final v = await showGlassSheet<String>(
       context,
       (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.playlist_add_rounded),
-            title: Text(tr('Новый плейлист')),
-            onTap: () => Navigator.pop(ctx, 'new'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.audio_file_rounded),
-            title: Text(tr('Добавить аудиофайлы')),
-            subtitle: Text(tr('Свои mp3, m4a, wav, flac — из «Файлов»')),
-            onTap: () => Navigator.pop(ctx, 'files'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.computer_rounded),
-            title: Text(tr('Импорт с ПК')),
-            subtitle: Text(tr('Плейлисты из ECHOES на компьютере')),
-            onTap: () => Navigator.pop(ctx, 'import'),
-          ),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.playlist_add_rounded),
+              title: Text(tr('Новый плейлист')),
+              onTap: () => Navigator.pop(ctx, 'new'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.audio_file_rounded),
+              title: Text(tr('Добавить аудиофайлы')),
+              subtitle: Text(tr('Свои mp3, m4a, wav, flac — из «Файлов»')),
+              onTap: () => Navigator.pop(ctx, 'files'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.computer_rounded),
+              title: Text(tr('Импорт с ПК')),
+              subtitle: Text(tr('Плейлисты из ECHOES на компьютере')),
+              onTap: () => Navigator.pop(ctx, 'import'),
+            ),
+          ],
+        ),
       ),
     );
     if (!context.mounted) return;
@@ -90,20 +100,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Future<void> _addFiles(BuildContext context) async {
     try {
       final files = await openFiles(
-          acceptedTypeGroups: defaultTargetPlatform == TargetPlatform.android
-              ? const []
-              : [
-                  XTypeGroup(
-                    label: tr('Аудио'),
-                    extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'aiff', 'aif', 'caf', 'alac'],
-                    uniformTypeIdentifiers: ['public.audio'],
-                  ),
-                ]);
+        acceptedTypeGroups: defaultTargetPlatform == TargetPlatform.android
+            ? const []
+            : [
+                XTypeGroup(
+                  label: tr('Аудио'),
+                  extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'aiff', 'aif', 'caf', 'alac'],
+                  uniformTypeIdentifiers: ['public.audio'],
+                ),
+              ],
+      );
       if (files.isEmpty) return;
       final added = await Offline.instance.importFiles(files);
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(tr('Добавлено файлов: {0} — в «Мои файлы»', [added.length]))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(tr('Добавлено файлов: {0} — в «Мои файлы»', [added.length]))));
       }
     } catch (e) {
       if (context.mounted) {
@@ -117,19 +129,22 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final v = await showGlassSheet<String>(
       context,
       (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(
-            padding: EdgeInsets.all(ctx.u(14)),
-            child: Text(tr('Сортировка'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          ),
-          for (final e in _sorts.entries)
-            ListTile(
-              title: Text(tr(e.value)),
-              subtitle: e.key == 'custom' ? Text(tr('Удерживайте плейлист и перетащите')) : null,
-              trailing: st.librarySort == e.key ? Icon(Icons.check_rounded, color: ctx.accent) : null,
-              onTap: () => Navigator.pop(ctx, e.key),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(ctx.u(14)),
+              child: Text(tr('Сортировка'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             ),
-        ]),
+            for (final e in _sorts.entries)
+              ListTile(
+                title: Text(tr(e.value)),
+                subtitle: e.key == 'custom' ? Text(tr('Удерживайте плейлист и перетащите')) : null,
+                trailing: st.librarySort == e.key ? Icon(Icons.check_rounded, color: ctx.accent) : null,
+                onTap: () => Navigator.pop(ctx, e.key),
+              ),
+          ],
+        ),
       ),
     );
     if (v != null) st.setLibraryView(sort: v);
@@ -153,7 +168,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               _Item(
                 title: tr('Мне нравится'),
                 sub: tr('Плейлист • {0}', [
-                  tr('{0} тр.', [st.liked.length])
+                  tr('{0} тр.', [st.liked.length]),
                 ]),
                 art: (s) => _Gradient(size: s, icon: Icons.favorite_rounded),
                 onTap: () => _open(context, tr('Мне нравится'), () => st.liked),
@@ -170,21 +185,24 @@ class _LibraryScreenState extends State<LibraryScreen> {
             if (showPl && Offline.instance.downloaded.isNotEmpty)
               _Item(
                 title: tr('Скачанное'),
-                sub: tr('{0} тр. · {1}', [Offline.instance.downloaded.length, fmtBytes(Offline.instance.bytes)]),
+                sub: tr('{0} тр. · {1}', [
+                  Offline.instance.downloadedCount,
+                  fmtBytes(Offline.instance.downloadedBytes),
+                ]),
                 art: (s) => _Gradient(size: s, icon: Icons.download_done_rounded, green: true),
                 onTap: () => _open(context, tr('Скачанное'), () => Offline.instance.downloaded, offline: true),
                 pinned: true,
               ),
           ];
           _Item plItem(Playlist p) => _Item(
-                title: p.name,
-                sub: tr('Плейлист • {0}', [
-                  tr('{0} тр.', [p.tracks.length])
-                ]),
-                art: (s) => PlaylistArt(playlist: p, size: s, radius: 6),
-                onTap: () => _open(context, p.name, () => p.tracks, playlist: p),
-                onLong: () => pickPlaylistCover(context, p),
-              );
+            title: p.name,
+            sub: tr('Плейлист • {0}', [
+              tr('{0} тр.', [p.tracks.length]),
+            ]),
+            art: (s) => PlaylistArt(playlist: p, size: s, radius: 6),
+            onTap: () => _open(context, p.name, () => p.tracks, playlist: p),
+            onLong: () => pickPlaylistCover(context, p),
+          );
           // исполнители — только те, на кого вы подписаны
           final followed = _filter == 'pl' ? <Map<String, String>>[] : st.follows;
           final arItems = [
@@ -197,120 +215,138 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   backgroundColor: context.accent.withValues(alpha: 0.22),
                   backgroundImage: f['img'] != null ? NetworkImage(f['img']!) : null,
                   child: f['img'] == null
-                      ? Text((f['name'] ?? '?').characters.first.toUpperCase(),
-                          style: TextStyle(fontSize: s * 0.38, fontWeight: FontWeight.w800, color: context.accent))
+                      ? Text(
+                          (f['name'] ?? '?').characters.first.toUpperCase(),
+                          style: TextStyle(fontSize: s * 0.38, fontWeight: FontWeight.w800, color: context.accent),
+                        )
                       : null,
                 ),
-                onTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => ArtistScreen(name: f['name'] ?? '', ytm: f['ytm']))),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ArtistScreen(name: f['name'] ?? '', ytm: f['ytm']),
+                  ),
+                ),
                 round: true,
               ),
           ];
           final items = [...pinned, if (showPl) ...pls.map(plItem), ...arItems];
           final canDrag = !grid && showPl && st.librarySort == 'custom';
-          return CustomScrollView(slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(8), 0),
-                child: Row(children: [
-                  Expanded(child: ScreenTitle(tr('Моя музыка'))),
-                  IconButton(
-                      tooltip: tr('Добавить'),
-                      icon: const Icon(Icons.add_rounded, size: 30),
-                      onPressed: () => _add(context)),
-                ]),
-              ),
-            ),
-            // фильтры
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(context.u(16), context.u(4), context.u(16), 0),
-                child: Wrap(spacing: context.u(8), children: [
-                  for (final f in [('pl', tr('Плейлисты')), ('ar', tr('Исполнители'))])
-                    ChoiceChip(
-                      label: Text(f.$2),
-                      selected: _filter == f.$1,
-                      onSelected: (v) => setState(() => _filter = v ? f.$1 : null),
-                    ),
-                ]),
-              ),
-            ),
-            // сортировка и вид
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(context.u(8), context.u(4), context.u(8), context.u(4)),
-                child: Row(children: [
-                  TextButton.icon(
-                    onPressed: () => _pickSort(context),
-                    icon: const Icon(Icons.swap_vert_rounded),
-                    label: Text(tr(_sorts[st.librarySort] ?? 'Свой порядок')),
-                    style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: grid ? tr('Списком') : tr('Сеткой'),
-                    icon: Icon(grid ? Icons.view_list_rounded : Icons.grid_view_rounded),
-                    onPressed: () => st.setLibraryView(grid: !grid),
-                  ),
-                ]),
-              ),
-            ),
-            if (grid)
-              SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-                sliver: SliverGrid(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: MediaQuery.sizeOf(context).width > 700 ? 5 : 3,
-                    mainAxisSpacing: context.u(14),
-                    crossAxisSpacing: context.u(12),
-                    childAspectRatio: 0.70,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, i) => _GridItem(item: items[i], dim: dim),
-                    childCount: items.length,
-                  ),
-                ),
-              )
-            else if (canDrag) ...[
-              SliverList.builder(
-                itemCount: pinned.length,
-                itemBuilder: (context, i) => _ListItem(item: pinned[i], dim: dim),
-              ),
-              SliverReorderableList(
-                itemCount: pls.length,
-                onReorderItem: (from, to) => st.movePlaylist(from, to),
-                itemBuilder: (context, i) => ReorderableDelayedDragStartListener(
-                  key: ObjectKey(pls[i]),
-                  index: i,
-                  child: Material(type: MaterialType.transparency, child: _ListItem(item: plItem(pls[i]), dim: dim)),
-                ),
-              ),
-              SliverList.builder(
-                itemCount: arItems.length,
-                itemBuilder: (context, i) => _ListItem(item: arItems[i], dim: dim),
-              ),
-            ] else
-              SliverList.builder(
-                itemCount: items.length,
-                itemBuilder: (context, i) => _ListItem(item: items[i], dim: dim),
-              ),
-            if (showPl && st.playlists.isEmpty)
+          return CustomScrollView(
+            slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.all(context.u(16)),
-                  child: Text(tr('Плейлистов пока нет — нажмите «+» или «Добавить в плейлист» у трека')),
+                  padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(8), 0),
+                  child: Row(
+                    children: [
+                      Expanded(child: ScreenTitle(tr('Моя музыка'))),
+                      IconButton(
+                        tooltip: tr('Добавить'),
+                        icon: const Icon(Icons.add_rounded, size: 30),
+                        onPressed: () => _add(context),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            if (st.history.isNotEmpty && _filter == null) ...[
-              SliverToBoxAdapter(child: SectionTitle(tr('Недавно играли'))),
-              SliverList.builder(
-                itemCount: st.history.length < 30 ? st.history.length : 30,
-                itemBuilder: (context, i) =>
-                    TrackTile(track: st.history[i], onTap: () => audio.playList(st.history, i)),
+              // фильтры
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(context.u(16), context.u(4), context.u(16), 0),
+                  child: Wrap(
+                    spacing: context.u(8),
+                    children: [
+                      for (final f in [('pl', tr('Плейлисты')), ('ar', tr('Исполнители'))])
+                        ChoiceChip(
+                          label: Text(f.$2),
+                          selected: _filter == f.$1,
+                          onSelected: (v) => setState(() => _filter = v ? f.$1 : null),
+                        ),
+                    ],
+                  ),
+                ),
               ),
+              // сортировка и вид
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(context.u(8), context.u(4), context.u(8), context.u(4)),
+                  child: Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () => _pickSort(context),
+                        icon: const Icon(Icons.swap_vert_rounded),
+                        label: Text(tr(_sorts[st.librarySort] ?? 'Свой порядок')),
+                        style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.onSurface),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: grid ? tr('Списком') : tr('Сеткой'),
+                        icon: Icon(grid ? Icons.view_list_rounded : Icons.grid_view_rounded),
+                        onPressed: () => st.setLibraryView(grid: !grid),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (grid)
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+                  sliver: SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: MediaQuery.sizeOf(context).width > 700 ? 5 : 3,
+                      mainAxisSpacing: context.u(14),
+                      crossAxisSpacing: context.u(12),
+                      childAspectRatio: 0.70,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) => _GridItem(item: items[i], dim: dim),
+                      childCount: items.length,
+                    ),
+                  ),
+                )
+              else if (canDrag) ...[
+                SliverList.builder(
+                  itemCount: pinned.length,
+                  itemBuilder: (context, i) => _ListItem(item: pinned[i], dim: dim),
+                ),
+                SliverReorderableList(
+                  itemCount: pls.length,
+                  onReorderItem: (from, to) => st.movePlaylist(from, to),
+                  itemBuilder: (context, i) => ReorderableDelayedDragStartListener(
+                    key: ObjectKey(pls[i]),
+                    index: i,
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: _ListItem(item: plItem(pls[i]), dim: dim),
+                    ),
+                  ),
+                ),
+                SliverList.builder(
+                  itemCount: arItems.length,
+                  itemBuilder: (context, i) => _ListItem(item: arItems[i], dim: dim),
+                ),
+              ] else
+                SliverList.builder(
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _ListItem(item: items[i], dim: dim),
+                ),
+              if (showPl && st.playlists.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(context.u(16)),
+                    child: Text(tr('Плейлистов пока нет — нажмите «+» или «Добавить в плейлист» у трека')),
+                  ),
+                ),
+              if (st.history.isNotEmpty && _filter == null) ...[
+                SliverToBoxAdapter(child: SectionTitle(tr('Недавно играли'))),
+                SliverList.builder(
+                  itemCount: st.history.length < 30 ? st.history.length : 30,
+                  itemBuilder: (context, i) =>
+                      TrackTile(track: st.history[i], onTap: () => audio.playList(st.history, i)),
+                ),
+              ],
+              SliverToBoxAdapter(child: SizedBox(height: context.u(200))),
             ],
-            SliverToBoxAdapter(child: SizedBox(height: context.u(200))),
-          ]);
+          );
         },
       ),
     );
@@ -325,14 +361,15 @@ class _Item {
   final VoidCallback? onLong;
   final bool pinned;
   final bool round;
-  const _Item(
-      {required this.title,
-      required this.sub,
-      required this.art,
-      required this.onTap,
-      this.onLong,
-      this.pinned = false,
-      this.round = false});
+  const _Item({
+    required this.title,
+    required this.sub,
+    required this.art,
+    required this.onTap,
+    this.onLong,
+    this.pinned = false,
+    this.round = false,
+  });
 }
 
 class _ListItem extends StatelessWidget {
@@ -348,28 +385,42 @@ class _ListItem extends StatelessWidget {
       onLongPress: item.onLong,
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(6)),
-        child: Row(children: [
-          SizedBox(width: s, height: s, child: item.art(s)),
-          SizedBox(width: context.u(12)),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              SizedBox(height: context.u(2)),
-              Row(children: [
-                if (item.pinned) ...[
-                  Icon(Icons.push_pin_rounded, size: 14, color: context.accent),
-                  SizedBox(width: context.u(4)),
+        child: Row(
+          children: [
+            SizedBox(width: s, height: s, child: item.art(s)),
+            SizedBox(width: context.u(12)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                  SizedBox(height: context.u(2)),
+                  Row(
+                    children: [
+                      if (item.pinned) ...[
+                        Icon(Icons.push_pin_rounded, size: 14, color: context.accent),
+                        SizedBox(width: context.u(4)),
+                      ],
+                      Expanded(
+                        child: Text(
+                          item.sub,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: dim),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
-                Expanded(
-                  child: Text(item.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim)),
-                ),
-              ]),
-            ]),
-          ),
-        ]),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -382,22 +433,34 @@ class _GridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, c) {
-      final s = c.maxWidth;
-      return GestureDetector(
-        onTap: item.onTap,
-        onLongPress: item.onLong,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          SizedBox(width: s, height: s, child: item.art(s)),
-          SizedBox(height: context.u(6)),
-          Text(item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-          Text(item.sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim, fontSize: 12)),
-        ]),
-      );
-    });
+    return LayoutBuilder(
+      builder: (context, c) {
+        final s = c.maxWidth;
+        return GestureDetector(
+          onTap: item.onTap,
+          onLongPress: item.onLong,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: s, height: s, child: item.art(s)),
+              SizedBox(height: context.u(6)),
+              Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+              Text(
+                item.sub,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: dim, fontSize: 12),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -457,12 +520,12 @@ class _TrackListScreenState extends State<TrackListScreen> {
   bool get offline => widget.offline;
 
   static List<(String, IconData, String)> get _sorts => [
-        ('order', Icons.south_rounded, tr('Как добавлены (сверху вниз)')),
-        ('recent', Icons.north_rounded, tr('Сначала новые (снизу вверх)')),
-        ('title', Icons.sort_by_alpha_rounded, tr('По названию (А → Я)')),
-        ('artist', Icons.person_rounded, tr('По исполнителю')),
-        ('duration', Icons.timer_outlined, tr('По длительности')),
-      ];
+    ('order', Icons.south_rounded, tr('Как добавлены (сверху вниз)')),
+    ('recent', Icons.north_rounded, tr('Сначала новые (снизу вверх)')),
+    ('title', Icons.sort_by_alpha_rounded, tr('По названию (А → Я)')),
+    ('artist', Icons.person_rounded, tr('По исполнителю')),
+    ('duration', Icons.timer_outlined, tr('По длительности')),
+  ];
 
   /// Порядок показа (и игры — играет то, что видно): как добавлены / наоборот / по названию / исполнителю /
   /// длительности. Сравнение названий — без регистра.
@@ -475,9 +538,9 @@ class _TrackListScreenState extends State<TrackListScreen> {
         return [...l]..sort((a, b) => byText(a.title, b.title));
       case 'artist':
         return [...l]..sort((a, b) {
-            final c = byText(a.artist, b.artist);
-            return c != 0 ? c : byText(a.title, b.title);
-          });
+          final c = byText(a.artist, b.artist);
+          return c != 0 ? c : byText(a.title, b.title);
+        });
       case 'duration':
         return [...l]..sort((a, b) => a.seconds.compareTo(b.seconds));
       default:
@@ -490,18 +553,21 @@ class _TrackListScreenState extends State<TrackListScreen> {
     await showGlassSheet<void>(
       context,
       (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          for (final (k, icon, label) in _sorts)
-            ListTile(
-              leading: Icon(icon),
-              title: Text(label),
-              trailing: st.playlistSort == k ? Icon(Icons.check_rounded, color: ctx.accent) : null,
-              onTap: () {
-                st.setPlaylistView(sort: k);
-                Navigator.pop(ctx);
-              },
-            ),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final (k, icon, label) in _sorts)
+              ListTile(
+                leading: Icon(icon),
+                title: Text(label),
+                trailing: st.playlistSort == k ? Icon(Icons.check_rounded, color: ctx.accent) : null,
+                onTap: () {
+                  st.setPlaylistView(sort: k);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -526,197 +592,221 @@ class _TrackListScreenState extends State<TrackListScreen> {
   Widget build(BuildContext context) {
     final st = Store.instance;
     return Ambient(
-        child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(playlist?.name ?? title),
-        actions: [
-          IconButton(
-            tooltip: tr('Порядок'),
-            icon: const Icon(Icons.sort_rounded),
-            onPressed: () => _pickSort(context),
-          ),
-          ListenableBuilder(
-            listenable: st,
-            builder: (context, _) => IconButton(
-              tooltip: st.playlistGrid ? tr('Списком') : tr('Сеткой'),
-              icon: Icon(st.playlistGrid ? Icons.view_list_rounded : Icons.grid_view_rounded),
-              onPressed: () => st.setPlaylistView(grid: !st.playlistGrid),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(playlist?.name ?? title),
+          actions: [
+            IconButton(
+              tooltip: tr('Порядок'),
+              icon: const Icon(Icons.sort_rounded),
+              onPressed: () => _pickSort(context),
             ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (v) async {
-              if (v == 'rename') {
-                final n = await askText(context, tr('Переименовать'), tr('Название'), initial: playlist!.name);
-                if (n != null) st.renamePlaylist(playlist!, n);
-              } else if (v == 'cover') {
-                await pickPlaylistCover(context, playlist!);
-              } else if (v == 'snake') {
-                openSnake(context, tracks());
-              } else if (v == 'guess') {
-                openGuess(context, tracks());
-              } else if (v == 'delete') {
-                st.deletePlaylist(playlist!);
-                if (context.mounted) Navigator.pop(context);
-              }
-            },
-            itemBuilder: (_) => [
-              if (playlist != null) ...[
-                PopupMenuItem(
+            ListenableBuilder(
+              listenable: st,
+              builder: (context, _) => IconButton(
+                tooltip: st.playlistGrid ? tr('Списком') : tr('Сеткой'),
+                icon: Icon(st.playlistGrid ? Icons.view_list_rounded : Icons.grid_view_rounded),
+                onPressed: () => st.setPlaylistView(grid: !st.playlistGrid),
+              ),
+            ),
+            PopupMenuButton<String>(
+              onSelected: (v) async {
+                if (v == 'rename') {
+                  final n = await askText(context, tr('Переименовать'), tr('Название'), initial: playlist!.name);
+                  if (n != null) st.renamePlaylist(playlist!, n);
+                } else if (v == 'cover') {
+                  await pickPlaylistCover(context, playlist!);
+                } else if (v == 'snake') {
+                  openSnake(context, tracks());
+                } else if (v == 'guess') {
+                  openGuess(context, tracks());
+                } else if (v == 'delete') {
+                  st.deletePlaylist(playlist!);
+                  if (context.mounted) Navigator.pop(context);
+                }
+              },
+              itemBuilder: (_) => [
+                if (playlist != null) ...[
+                  PopupMenuItem(
                     value: 'rename',
-                    child: ListTile(leading: const Icon(Icons.edit_rounded), title: Text(tr('Переименовать')))),
-                PopupMenuItem(
+                    child: ListTile(leading: const Icon(Icons.edit_rounded), title: Text(tr('Переименовать'))),
+                  ),
+                  PopupMenuItem(
                     value: 'cover',
-                    child: ListTile(leading: const Icon(Icons.image_rounded), title: Text(tr('Сменить обложку')))),
-              ],
-              PopupMenuItem(
-                  value: 'snake',
-                  child: ListTile(leading: const Icon(Icons.gesture_rounded), title: Text(tr('Игра: змейка')))),
-              PopupMenuItem(
-                  value: 'guess',
-                  child: ListTile(leading: const Icon(Icons.quiz_rounded), title: Text(tr('Игра: угадай песню')))),
-              if (playlist != null)
+                    child: ListTile(leading: const Icon(Icons.image_rounded), title: Text(tr('Сменить обложку'))),
+                  ),
+                ],
                 PopupMenuItem(
+                  value: 'snake',
+                  child: ListTile(leading: const Icon(Icons.gesture_rounded), title: Text(tr('Игра: змейка'))),
+                ),
+                PopupMenuItem(
+                  value: 'guess',
+                  child: ListTile(leading: const Icon(Icons.quiz_rounded), title: Text(tr('Игра: угадай песню'))),
+                ),
+                if (playlist != null)
+                  PopupMenuItem(
                     value: 'delete',
                     child: ListTile(
-                        leading: const Icon(Icons.delete_outline_rounded), title: Text(tr('Удалить плейлист')))),
-            ],
-          ),
-        ],
-      ),
-      body: ListenableBuilder(
-        listenable: Listenable.merge([st, Offline.instance]),
-        builder: (context, _) {
-          final list = _sorted(tracks(), st.playlistSort);
-          if (list.isEmpty) {
-            return Center(child: Text(tr('Пока пусто')));
-          }
-          final words = _norm(_query).split(' ').where((w) => w.isNotEmpty).toList();
-          // индексы найденных треков в полном списке (играем весь плейлист — с выбранного трека)
-          final shown = [
-            for (var i = 0; i < list.length; i++)
-              if (words.isEmpty || _match(list[i], words)) i
-          ];
-          final head = <Widget>[
-            if (playlist != null && words.isEmpty)
+                      leading: const Icon(Icons.delete_outline_rounded),
+                      title: Text(tr('Удалить плейлист')),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+        body: ListenableBuilder(
+          listenable: Listenable.merge([st, Offline.instance]),
+          builder: (context, _) {
+            final list = _sorted(tracks(), st.playlistSort);
+            if (list.isEmpty) {
+              return Center(child: Text(tr('Пока пусто')));
+            }
+            final words = _norm(_query).split(' ').where((w) => w.isNotEmpty).toList();
+            // индексы найденных треков в полном списке (играем весь плейлист — с выбранного трека)
+            final shown = [
+              for (var i = 0; i < list.length; i++)
+                if (words.isEmpty || _match(list[i], words)) i,
+            ];
+            final head = <Widget>[
+              if (playlist != null && words.isEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: context.u(8), bottom: context.u(4)),
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () => pickPlaylistCover(context, playlist!),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 30,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: PlaylistArt(playlist: playlist!, size: context.u(190), radius: context.u(8)),
+                      ),
+                    ),
+                  ),
+                ),
               Padding(
-                padding: EdgeInsets.only(top: context.u(8), bottom: context.u(4)),
-                child: Center(
-                  child: GestureDetector(
-                    onTap: () => pickPlaylistCover(context, playlist!),
-                    child: Container(
-                      decoration: BoxDecoration(boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.45), blurRadius: 30, offset: const Offset(0, 12)),
-                      ]),
-                      child: PlaylistArt(playlist: playlist!, size: context.u(190), radius: context.u(8)),
+                padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
+                // кнопки делят ширину; на узком экране / крупном шрифте подпись ужимается, а не вылезает
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => audio.playList(list, 0),
+                        icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(tr('Слушать'), style: TextStyle(color: Colors.black)),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: context.u(8)),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          audio.shuffle.value = true; // список перемешает playList
+                          audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
+                        },
+                        icon: const Icon(Icons.shuffle_rounded),
+                        label: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Вперемешку'))),
+                      ),
+                    ),
+                    if (!offline) _DownloadAll(list: list),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(6)),
+                child: TextField(
+                  controller: _q,
+                  onChanged: (v) => setState(() => _query = v),
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: tr('Поиск в плейлисте'),
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(() {
+                              _q.clear();
+                              _query = '';
+                            }),
+                          ),
+                    isDense: true,
+                    filled: true,
+                    fillColor: Theme.of(context).cardColor,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(context.r(28)),
+                      borderSide: BorderSide.none,
                     ),
                   ),
                 ),
               ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
-              // кнопки делят ширину; на узком экране / крупном шрифте подпись ужимается, а не вылезает
-              child: Row(children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => audio.playList(list, 0),
-                    icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
-                    label: FittedBox(
-                        fit: BoxFit.scaleDown, child: Text(tr('Слушать'), style: TextStyle(color: Colors.black))),
-                  ),
+              if (words.isNotEmpty && shown.isEmpty)
+                Padding(
+                  padding: EdgeInsets.all(context.u(24)),
+                  child: Text(tr('В этом плейлисте такого нет'), textAlign: TextAlign.center),
                 ),
-                SizedBox(width: context.u(8)),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      audio.shuffle.value = true; // список перемешает playList
-                      audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
+            ];
+            // список строится по мере прокрутки — быстро даже на 500+ треках
+            if (st.playlistGrid) {
+              // сетка обложек слева направо: столбцов — сколько влезает (2 на телефоне, больше на iPad)
+              return LayoutBuilder(
+                builder: (context, box) {
+                  final cols = (box.maxWidth / context.u(180)).floor().clamp(2, 6);
+                  final rows = (shown.length + cols - 1) ~/ cols;
+                  return ListView.builder(
+                    padding: EdgeInsets.only(bottom: context.u(200)),
+                    itemCount: head.length + rows,
+                    itemBuilder: (context, k) {
+                      if (k < head.length) return head[k];
+                      final r = k - head.length;
+                      return Padding(
+                        padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(14)),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var c = 0; c < cols; c++) ...[
+                              if (c > 0) SizedBox(width: context.u(12)),
+                              Expanded(
+                                child: r * cols + c < shown.length
+                                    ? _GridTrack(
+                                        track: list[shown[r * cols + c]],
+                                        playlist: playlist,
+                                        onTap: () => audio.playList(list, shown[r * cols + c]),
+                                      )
+                                    : const SizedBox(),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
                     },
-                    icon: const Icon(Icons.shuffle_rounded),
-                    label: FittedBox(fit: BoxFit.scaleDown, child: Text(tr('Вперемешку'))),
-                  ),
-                ),
-                if (!offline) _DownloadAll(list: list),
-              ]),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(6)),
-              child: TextField(
-                controller: _q,
-                onChanged: (v) => setState(() => _query = v),
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: tr('Поиск в плейлисте'),
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close_rounded),
-                          onPressed: () => setState(() {
-                            _q.clear();
-                            _query = '';
-                          }),
-                        ),
-                  isDense: true,
-                  filled: true,
-                  fillColor: Theme.of(context).cardColor,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(context.r(28)), borderSide: BorderSide.none),
-                ),
-              ),
-            ),
-            if (words.isNotEmpty && shown.isEmpty)
-              Padding(
-                padding: EdgeInsets.all(context.u(24)),
-                child: Text(tr('В этом плейлисте такого нет'), textAlign: TextAlign.center),
-              ),
-          ];
-          // список строится по мере прокрутки — быстро даже на 500+ треках
-          if (st.playlistGrid) {
-            // сетка обложек слева направо: столбцов — сколько влезает (2 на телефоне, больше на iPad)
-            return LayoutBuilder(builder: (context, box) {
-              final cols = (box.maxWidth / context.u(180)).floor().clamp(2, 6);
-              final rows = (shown.length + cols - 1) ~/ cols;
-              return ListView.builder(
-                padding: EdgeInsets.only(bottom: context.u(200)),
-                itemCount: head.length + rows,
-                itemBuilder: (context, k) {
-                  if (k < head.length) return head[k];
-                  final r = k - head.length;
-                  return Padding(
-                    padding: EdgeInsets.fromLTRB(context.u(16), 0, context.u(16), context.u(14)),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      for (var c = 0; c < cols; c++) ...[
-                        if (c > 0) SizedBox(width: context.u(12)),
-                        Expanded(
-                          child: r * cols + c < shown.length
-                              ? _GridTrack(
-                                  track: list[shown[r * cols + c]],
-                                  playlist: playlist,
-                                  onTap: () => audio.playList(list, shown[r * cols + c]),
-                                )
-                              : const SizedBox(),
-                        ),
-                      ],
-                    ]),
                   );
                 },
               );
-            });
-          }
-          return ListView.builder(
-            padding: EdgeInsets.only(bottom: context.u(200)),
-            itemCount: head.length + shown.length,
-            itemBuilder: (context, k) {
-              if (k < head.length) return head[k];
-              final i = shown[k - head.length];
-              return TrackTile(track: list[i], playlist: playlist, onTap: () => audio.playList(list, i));
-            },
-          );
-        },
+            }
+            return ListView.builder(
+              padding: EdgeInsets.only(bottom: context.u(200)),
+              itemCount: head.length + shown.length,
+              itemBuilder: (context, k) {
+                if (k < head.length) return head[k];
+                final i = shown[k - head.length];
+                return TrackTile(track: list[i], playlist: playlist, onTap: () => audio.playList(list, i));
+              },
+            );
+          },
+        ),
       ),
-    ));
+    );
   }
 }
 
@@ -740,7 +830,10 @@ class _DownloadAll extends StatelessWidget {
     if (busy > 0) {
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: context.u(8)),
-        child: Text('$done/${list.length}', style: TextStyle(color: context.accent, fontWeight: FontWeight.w700)),
+        child: Text(
+          '$done/${list.length}',
+          style: TextStyle(color: context.accent, fontWeight: FontWeight.w700),
+        ),
       );
     }
     return IconButton(
@@ -749,7 +842,8 @@ class _DownloadAll extends StatelessWidget {
       onPressed: () {
         o.downloadAll(list);
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(tr('Скачиваю {0} тр. — потом будут играть без интернета', [list.length - done]))));
+          SnackBar(content: Text(tr('Скачиваю {0} тр. — потом будут играть без интернета', [list.length - done]))),
+        );
       },
     );
   }
@@ -770,15 +864,25 @@ class _GridTrack extends StatelessWidget {
       onTap: onTap,
       onLongPress: () => showTrackMenu(context, track, playlist: playlist),
       child: LayoutBuilder(
-        builder: (context, box) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Cover(track: track, size: box.maxWidth, radius: context.r(14)),
-          SizedBox(height: context.u(6)),
-          Text(track.title,
+        builder: (context, box) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Cover(track: track, size: box.maxWidth, radius: context.r(14)),
+            SizedBox(height: context.u(6)),
+            Text(
+              track.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontWeight: FontWeight.w700, color: cur ? context.accent : null)),
-          Text(track.artist, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: dim)),
-        ]),
+              style: TextStyle(fontWeight: FontWeight.w700, color: cur ? context.accent : null),
+            ),
+            Text(
+              track.artist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: dim),
+            ),
+          ],
+        ),
       ),
     );
   }

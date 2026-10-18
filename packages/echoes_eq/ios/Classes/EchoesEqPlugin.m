@@ -218,6 +218,17 @@ static void EchoesSwizzle(void) {
     gEnabled = [args[@"enabled"] boolValue] ? 1 : 0;
     gVersion = gVersion + 1;
     result(nil);
+  } else if ([call.method isEqualToString:@"noBackup"]) {
+    // папка скачанных треков — не в резервную копию iCloud (их можно скачать заново)
+    NSString *path = call.arguments[@"path"];
+    if (![path isKindOfClass:[NSString class]]) {
+      result(@NO);
+      return;
+    }
+    NSURL *url = [NSURL fileURLWithPath:path isDirectory:YES];
+    NSError *err = nil;
+    BOOL ok = [url setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:&err];
+    result(@(ok));
   } else {
     result(FlutterMethodNotImplemented);
   }

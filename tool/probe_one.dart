@@ -21,7 +21,8 @@ Future<void> main(List<String> args) async {
             .timeout(const Duration(seconds: 15));
         const full = '-';
         print(
-            '${e.key} itag ${s.tag} c=${s.url.queryParameters['c']}: header ${h.statusCode}, param ${p.statusCode}, explode.get chunks $full');
+          '${e.key} itag ${s.tag} c=${s.url.queryParameters['c']}: header ${h.statusCode}, param ${p.statusCode}, explode.get chunks $full',
+        );
       }
     } catch (err) {
       print('${e.key}: FAIL ${'$err'.split('\n').first}');

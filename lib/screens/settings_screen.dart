@@ -1,3 +1,5 @@
+import '../services/log.dart';
+import 'package:flutter/services.dart';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -62,8 +64,11 @@ class SettingsScreen extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(16), 0),
                 child: Text(
-                    tr('Эховамп — весь интерфейс как Winamp 2 на ПК: ЖК-дисплей, спектр, MilkDrop, плейлисты. Без размытий — самая лёгкая тема.'),
-                    style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
+                  tr(
+                    'Эховамп — весь интерфейс как Winamp 2 на ПК: ЖК-дисплей, спектр, MilkDrop, плейлисты. Без размытий — самая лёгкая тема.',
+                  ),
+                  style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6)),
+                ),
               ),
             if (!st.winamp) ...[
               SwitchListTile(
@@ -77,15 +82,18 @@ class SettingsScreen extends StatelessWidget {
                 leading: const Icon(Icons.wallpaper_rounded),
                 title: Text(tr('Своё фото на фон')),
                 subtitle: Text(st.bgPath == null ? tr('Сейчас — размытая обложка трека') : tr('Выбрано своё фото')),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  if (st.bgPath != null)
-                    IconButton(
-                      tooltip: tr('Убрать фото'),
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () => _clearBackground(st),
-                    ),
-                  FilledButton.tonal(onPressed: () => _pickBackground(context), child: Text(tr('Выбрать'))),
-                ]),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (st.bgPath != null)
+                      IconButton(
+                        tooltip: tr('Убрать фото'),
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => _clearBackground(st),
+                      ),
+                    FilledButton.tonal(onPressed: () => _pickBackground(context), child: Text(tr('Выбрать'))),
+                  ],
+                ),
               ),
               // размытие фона — и своего фото, и обложки трека
               ListTile(
@@ -95,49 +103,47 @@ class SettingsScreen extends StatelessWidget {
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: context.u(8)),
-                child: Slider(
-                  value: st.bgBlurAmount.clamp(0, 1),
-                  divisions: 20,
-                  onChanged: st.setBgBlurAmount,
-                ),
+                child: Slider(value: st.bgBlurAmount.clamp(0, 1), divisions: 20, onChanged: st.setBgBlurAmount),
               ),
             ],
             SectionTitle(tr('Цвет')),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-              child: Wrap(spacing: context.u(12), runSpacing: context.u(12), children: [
-                for (var i = 0; i < Store.accents.length; i++)
-                  GestureDetector(
-                    onTap: () => st.setAccent(i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      width: context.u(44),
-                      height: context.u(44),
-                      decoration: BoxDecoration(
-                        color: Store.accents[i],
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: i == st.accentIndex ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
-                          width: 3,
+              child: Wrap(
+                spacing: context.u(12),
+                runSpacing: context.u(12),
+                children: [
+                  for (var i = 0; i < Store.accents.length; i++)
+                    GestureDetector(
+                      onTap: () => st.setAccent(i),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: context.u(44),
+                        height: context.u(44),
+                        decoration: BoxDecoration(
+                          color: Store.accents[i],
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: i == st.accentIndex ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
+                            width: 3,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ]),
+                ],
+              ),
             ),
             SizedBox(height: context.u(8)),
-            SwitchListTile(
-              title: Text(tr('Светлая тема')),
-              value: st.light,
-              onChanged: st.setLight,
-            ),
+            SwitchListTile(title: Text(tr('Светлая тема')), value: st.light, onChanged: st.setLight),
             SectionTitle(tr('Звук')),
             ListTile(
               leading: const Icon(Icons.swap_horiz_rounded),
               title: Text(tr('Плавный переход')),
-              subtitle: Text(st.crossfade <= 0
-                  ? tr('Выключен — треки сменяются сразу')
-                  : tr('Конец трека перетекает в начало следующего: {0} с', [st.crossfade.round()])),
+              subtitle: Text(
+                st.crossfade <= 0
+                    ? tr('Выключен — треки сменяются сразу')
+                    : tr('Конец трека перетекает в начало следующего: {0} с', [st.crossfade.round()]),
+              ),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: context.u(8)),
@@ -150,13 +156,14 @@ class SettingsScreen extends StatelessWidget {
                 onChanged: st.setCrossfade,
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.equalizer_rounded),
-              title: Text(tr('Эквалайзер')),
-              subtitle: Text(st.eqEnabled ? tr('Вкл · {0}', [tr(st.eqPreset)]) : tr('Выключен')),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => openEqualizer(context),
-            ),
+            if (eqAvailable)
+              ListTile(
+                leading: const Icon(Icons.equalizer_rounded),
+                title: Text(tr('Эквалайзер')),
+                subtitle: Text(st.eqEnabled ? tr('Вкл · {0}', [tr(st.eqPreset)]) : tr('Выключен')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => openEqualizer(context),
+              ),
             SwitchListTile(
               title: Text(tr('Экономия трафика')),
               subtitle: Text(tr('Лёгкий аудиопоток, если YouTube его отдаёт')),
@@ -170,9 +177,13 @@ class SettingsScreen extends StatelessWidget {
                 final o = Offline.instance;
                 return ListTile(
                   leading: const Icon(Icons.download_done_rounded),
-                  title: Text(tr('Скачано: {0} тр. · {1}', [o.count, fmtBytes(o.bytes)])),
-                  subtitle: Text(tr('Хранятся внутри приложения и играют без интернета')),
-                  trailing: o.count == 0
+                  title: Text(tr('Скачано: {0} тр. · {1}', [o.downloadedCount, fmtBytes(o.downloadedBytes)])),
+                  subtitle: Text(
+                    o.localCount == 0
+                        ? tr('Хранятся внутри приложения и играют без интернета')
+                        : tr('Свои файлы: {0} — «Очистить» их не трогает', [o.localCount]),
+                  ),
+                  trailing: o.downloadedCount == 0
                       ? null
                       : TextButton(
                           onPressed: () async {
@@ -180,9 +191,12 @@ class SettingsScreen extends StatelessWidget {
                               context: context,
                               builder: (ctx) => AlertDialog(
                                 title: Text(tr('Очистить загрузки?')),
-                                content: Text(tr(
-                                    'Удалить {0} тр. ({1}) из памяти телефона? Плейлисты и лайки останутся.',
-                                    [o.count, fmtBytes(o.bytes)])),
+                                content: Text(
+                                  tr('Удалить {0} тр. ({1}) из памяти телефона? Плейлисты и лайки останутся.', [
+                                    o.downloadedCount,
+                                    fmtBytes(o.downloadedBytes),
+                                  ]),
+                                ),
                                 actions: [
                                   TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Отмена'))),
                                   FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Удалить'))),
@@ -196,11 +210,25 @@ class SettingsScreen extends StatelessWidget {
                 );
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.bug_report_outlined),
+              title: Text(tr('Журнал ошибок')),
+              subtitle: Text(tr('Если что-то не работает — скопируйте и пришлите разработчику')),
+              onTap: () => _showLog(context),
+            ),
             SectionTitle(tr('О приложении')),
             ListTile(
-              title: Text(tr('ECHOES mobile — тестовая версия')),
-              subtitle: Text(tr(
-                  'Музыка играет потоком и не сохраняется на телефон. В памяти хранятся только списки: «Мне нравится», плейлисты и история.')),
+              // номер сборки — из CI (--dart-define=APP_BUILD); локальная сборка — без номера
+              title: Text(
+                const String.fromEnvironment('APP_BUILD').isEmpty
+                    ? tr('ECHOES mobile — тестовая версия')
+                    : tr('ECHOES mobile — сборка {0}', [const String.fromEnvironment('APP_BUILD')]),
+              ),
+              subtitle: Text(
+                tr(
+                  'Музыка играет потоком. На телефоне хранятся только скачанные вами треки, свои файлы и списки: «Мне нравится», плейлисты, история.',
+                ),
+              ),
             ),
           ],
         ),
@@ -215,20 +243,23 @@ Future<void> _pickBackground(BuildContext context) async {
   final fromGallery = await showGlassSheet<bool>(
     context,
     (ctx) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(
-          leading: const Icon(Icons.photo_library_rounded),
-          title: Text(tr('Из галереи')),
-          subtitle: Text(tr('Фото и картинки с телефона')),
-          onTap: () => Navigator.pop(ctx, true),
-        ),
-        ListTile(
-          leading: const Icon(Icons.folder_rounded),
-          title: Text(tr('Из «Файлов»')),
-          subtitle: Text(tr('iCloud Drive, загрузки, Telegram')),
-          onTap: () => Navigator.pop(ctx, false),
-        ),
-      ]),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library_rounded),
+            title: Text(tr('Из галереи')),
+            subtitle: Text(tr('Фото и картинки с телефона')),
+            onTap: () => Navigator.pop(ctx, true),
+          ),
+          ListTile(
+            leading: const Icon(Icons.folder_rounded),
+            title: Text(tr('Из «Файлов»')),
+            subtitle: Text(tr('iCloud Drive, загрузки, Telegram')),
+            onTap: () => Navigator.pop(ctx, false),
+          ),
+        ],
+      ),
     ),
   );
   if (fromGallery == null || !context.mounted) return;
@@ -248,20 +279,22 @@ Future<void> _pickBackground(BuildContext context) async {
 /// Системная галерея iOS (PHPicker): разрешение на доступ ко всем фото не нужно — приложение получает
 /// только выбранную картинку. Большие фото ужимаются до 2400 px — фону хватает, памяти меньше.
 Future<XFile?> _fromGallery() => ImagePicker().pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 2400,
-      maxHeight: 2400,
-      imageQuality: 90,
-      requestFullMetadata: false,
-    );
+  source: ImageSource.gallery,
+  maxWidth: 2400,
+  maxHeight: 2400,
+  imageQuality: 90,
+  requestFullMetadata: false,
+);
 
-Future<XFile?> _fromFiles() => openFile(acceptedTypeGroups: [
-      XTypeGroup(
-        label: tr('Фото'),
-        extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
-        uniformTypeIdentifiers: ['public.image'],
-      ),
-    ]);
+Future<XFile?> _fromFiles() => openFile(
+  acceptedTypeGroups: [
+    XTypeGroup(
+      label: tr('Фото'),
+      extensions: ['jpg', 'jpeg', 'png', 'heic', 'webp'],
+      uniformTypeIdentifiers: ['public.image'],
+    ),
+  ],
+);
 
 Future<void> _saveBackground(XFile f) async {
   final dir = await getApplicationSupportDirectory();
@@ -286,4 +319,46 @@ void _clearBackground(Store st) {
       File(old).deleteSync();
     } catch (_) {}
   }
+}
+
+/// Журнал ошибок: последние строки, «Скопировать» (в буфер — вставить в Telegram), «Очистить».
+void _showLog(BuildContext context) {
+  final lines = log.lines;
+  final text = lines.isEmpty ? '' : lines.join('\n');
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(tr('Журнал ошибок')),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: MediaQuery.sizeOf(ctx).height * 0.5,
+        child: lines.isEmpty
+            ? Center(child: Text(tr('Ошибок не было')))
+            : SingleChildScrollView(
+                reverse: true,
+                child: SelectableText(text, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+              ),
+      ),
+      actions: [
+        if (lines.isNotEmpty)
+          TextButton(
+            onPressed: () {
+              log.clear();
+              Navigator.pop(ctx);
+            },
+            child: Text(tr('Очистить')),
+          ),
+        if (lines.isNotEmpty)
+          FilledButton(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: text));
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Журнал скопирован'))));
+            },
+            child: Text(tr('Скопировать')),
+          ),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Закрыть'))),
+      ],
+    ),
+  );
 }

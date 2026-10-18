@@ -18,8 +18,10 @@ void main() {
     final ext = await Offline.instance.downloadTo(t, f);
     final head = f.openSync().readSync(12);
     // ignore: avoid_print
-    print('${t.artist} — ${t.title}: ${(f.lengthSync() / 1048576).toStringAsFixed(1)} МБ .$ext '
-        '${sw.elapsedMilliseconds} мс, начало: ${String.fromCharCodes(head.where((b) => b >= 32 && b < 127))}');
+    print(
+      '${t.artist} — ${t.title}: ${(f.lengthSync() / 1048576).toStringAsFixed(1)} МБ .$ext '
+      '${sw.elapsedMilliseconds} мс, начало: ${String.fromCharCodes(head.where((b) => b >= 32 && b < 127))}',
+    );
     expect(f.lengthSync(), greaterThan(500000));
   }
 

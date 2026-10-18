@@ -57,11 +57,12 @@ class Importer {
       final artist = '${t['artist'] ?? ''}'.trim();
       final s = ((t['duration'] ?? 0) as num).round();
       final ref = '${t['id'] ?? ''}';
-      final id = ref.startsWith('yt:') && ref.length == 14
+      // id YouTube — строго 11 символов [A-Za-z0-9_-] (он попадает в имена файлов: «../» недопустимо)
+      final id = RegExp(r'^yt:[A-Za-z0-9_-]{11}$').hasMatch(ref)
           ? ref.substring(3)
           : ref.startsWith('sc:') && int.tryParse(ref.substring(3)) != null
-              ? ref
-              : 'q:$artist — $title';
+          ? ref
+          : 'q:$artist — $title';
       tracks.add(Track(id: id, title: title, artist: artist, seconds: s));
     }
     final name = '${p['name'] ?? ''}'.trim();
@@ -115,7 +116,7 @@ class Importer {
                 found[t.scId]!
               else
                 Track(id: 'q:${t.artist} — ${t.title}', title: t.title, artist: t.artist, seconds: t.seconds),
-          ]
+          ],
         ),
     ];
   }

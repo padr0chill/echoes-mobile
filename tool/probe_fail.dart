@@ -1,4 +1,4 @@
-﻿// ignore_for_file: avoid_print
+// ignore_for_file: avoid_print
 import 'package:echoes_mobile/models.dart';
 import 'package:echoes_mobile/services/sc.dart';
 import 'package:echoes_mobile/services/yt.dart';

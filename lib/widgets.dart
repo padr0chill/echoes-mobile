@@ -31,10 +31,10 @@ class Cover extends StatelessWidget {
     final t = track;
     final radius = context.echoamp ? 0.0 : this.radius; // Эховамп — квадратные обложки
     Widget ph() => Container(
-          color: Theme.of(context).cardColor,
-          alignment: Alignment.center,
-          child: Icon(Icons.music_note_rounded, size: size * 0.4, color: context.accent.withValues(alpha: 0.7)),
-        );
+      color: Theme.of(context).cardColor,
+      alignment: Alignment.center,
+      child: Icon(Icons.music_note_rounded, size: size * 0.4, color: context.accent.withValues(alpha: 0.7)),
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: SizedBox(
@@ -45,22 +45,26 @@ class Cover extends StatelessWidget {
             // обложка-превью YouTube — всегда без полос: готовый обрезанный квадрат, а пока его нет —
             // то же превью, приближенное так, что полосы уходят за край (без «прыжка» при открытии плеера)
             : SquareCover.instance.needed(t) && debugImage == null
-                ? _SquareYt(track: t, size: size, big: big, fallback: ph)
-                : debugImage != null
-                    ? FittedBox(
-                        fit: BoxFit.cover,
-                        clipBehavior: Clip.hardEdge,
-                        child: SizedBox(
-                          width: size * 16 / 9,
-                          height: size * 16 / 9 * 0.75,
-                          child: Image(image: debugImage!(t), fit: BoxFit.cover),
-                        ),
-                      )
-                    : Image.network(t.cover,
-                        fit: BoxFit.cover,
-                        cacheWidth: (size * 3).round(),
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) => ph()), // квадратная обложка (SoundCloud, YouTube Music)
+            ? _SquareYt(track: t, size: size, big: big, fallback: ph)
+            : debugImage != null
+            ? FittedBox(
+                fit: BoxFit.cover,
+                clipBehavior: Clip.hardEdge,
+                child: SizedBox(
+                  width: size * 16 / 9,
+                  height: size * 16 / 9 * 0.75,
+                  child: Image(image: debugImage!(t), fit: BoxFit.cover),
+                ),
+              )
+            : t.cover == null
+            ? ph() // своя запись без обложки
+            : Image.network(
+                t.cover!,
+                fit: BoxFit.cover,
+                cacheWidth: (size * 3).round(),
+                gaplessPlayback: true,
+                errorBuilder: (_, _, _) => ph(),
+              ), // квадратная обложка (SoundCloud, YouTube Music)
       ),
     );
   }
@@ -93,63 +97,74 @@ class TrackTile extends StatelessWidget {
     final dur = track.seconds > 0 ? fmtDuration(track.duration) : '';
     // свайп вправо — в очередь, влево — в плейлист (как в Spotify)
     return SwipeActions(
-        onRight: () {
-          audio.addToQueue(track);
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(
-              content: Text(tr('«{0}» — в очереди', [track.title])),
-              duration: const Duration(seconds: 2),
-            ));
-        },
-        onLeft: () => pickPlaylist(context, track),
-        // подсветка нажатия — скруглённая и с отступом от краёв экрана (в Эховампе — прямая)
-        child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: context.u(6)),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(context.r(16)),
-              onTap: onTap,
-              onLongPress: () => showTrackMenu(context, track, playlist: playlist),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: context.u(10), vertical: context.u(7)),
-                child: Row(children: [
-                  Cover(track: track, size: context.u(50), radius: context.u(8)),
-                  SizedBox(width: context.u(12)),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null)),
+      onRight: () {
+        audio.addToQueue(track);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text(tr('«{0}» — в очереди', [track.title])), duration: const Duration(seconds: 2)),
+          );
+      },
+      onLeft: () => pickPlaylist(context, track),
+      // подсветка нажатия — скруглённая и с отступом от краёв экрана (в Эховампе — прямая)
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(context.r(16)),
+          onTap: onTap,
+          onLongPress: () => showTrackMenu(context, track, playlist: playlist),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.u(10), vertical: context.u(7)),
+            child: Row(
+              children: [
+                Cover(track: track, size: context.u(50), radius: context.u(8)),
+                SizedBox(width: context.u(12)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: cur ? context.accent : null),
+                      ),
                       const SizedBox(height: 2),
-                      Row(children: [
-                        // имя исполнителя — ссылка на его страницу
-                        if (showArtist && track.artist.isNotEmpty)
-                          Flexible(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => openArtist(context, track),
-                              child: Text(track.artist,
+                      Row(
+                        children: [
+                          // имя исполнителя — ссылка на его страницу
+                          if (showArtist && track.artist.isNotEmpty)
+                            Flexible(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () => openArtist(context, track),
+                                child: Text(
+                                  track.artist,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 13, color: sub)),
+                                  style: TextStyle(fontSize: 13, color: sub),
+                                ),
+                              ),
                             ),
-                          ),
-                        if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
-                          Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
-                        if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
-                        OfflineMark(track: track),
-                      ]),
-                    ]),
+                          if (showArtist && track.artist.isNotEmpty && dur.isNotEmpty)
+                            Text('  ·  ', style: TextStyle(fontSize: 13, color: sub)),
+                          if (dur.isNotEmpty) Text(dur, style: TextStyle(fontSize: 13, color: sub)),
+                          OfflineMark(track: track),
+                        ],
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.more_horiz_rounded),
-                    onPressed: () => showTrackMenu(context, track, playlist: playlist),
-                  ),
-                ]),
-              ),
-            )));
+                ),
+                IconButton(
+                  icon: const Icon(Icons.more_horiz_rounded),
+                  onPressed: () => showTrackMenu(context, track, playlist: playlist),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -212,50 +227,69 @@ class _SwipeActionsState extends State<SwipeActions> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, box) {
-      _w = box.maxWidth;
-      final right = _dx > 0;
-      final p = (_dx.abs() / _threshold).clamp(0.0, 1.0);
-      final color = right ? const Color(0xFF1DB954) : context.accent;
-      return GestureDetector(
-        onHorizontalDragUpdate: _update,
-        onHorizontalDragEnd: _end,
-        onHorizontalDragCancel: () => _end(DragEndDetails()),
-        child: Stack(children: [
-          if (_dx != 0)
-            Positioned.fill(
-              child: Container(
-                color: color.withValues(alpha: 0.25 + 0.6 * p),
-                alignment: right ? Alignment.centerLeft : Alignment.centerRight,
-                padding: EdgeInsets.symmetric(horizontal: context.u(22)),
-                child: Transform.scale(
-                  scale: 0.7 + 0.3 * p + (_dx.abs() >= _threshold ? 0.12 : 0),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (!right && p > 0.6)
-                      Text(tr('В плейлист'),
-                          style: TextStyle(color: Colors.black.withValues(alpha: p), fontWeight: FontWeight.w800)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: context.u(6)),
-                      child: Icon(right ? Icons.queue_music_rounded : Icons.playlist_add_rounded,
-                          color: Colors.black.withValues(alpha: 0.5 + 0.5 * p)),
+    return LayoutBuilder(
+      builder: (context, box) {
+        _w = box.maxWidth;
+        final right = _dx > 0;
+        final p = (_dx.abs() / _threshold).clamp(0.0, 1.0);
+        final color = right ? const Color(0xFF1DB954) : context.accent;
+        return GestureDetector(
+          onHorizontalDragUpdate: _update,
+          onHorizontalDragEnd: _end,
+          onHorizontalDragCancel: () => _end(DragEndDetails()),
+          child: Stack(
+            children: [
+              if (_dx != 0)
+                Positioned.fill(
+                  child: Container(
+                    color: color.withValues(alpha: 0.25 + 0.6 * p),
+                    alignment: right ? Alignment.centerLeft : Alignment.centerRight,
+                    padding: EdgeInsets.symmetric(horizontal: context.u(22)),
+                    child: Transform.scale(
+                      scale: 0.7 + 0.3 * p + (_dx.abs() >= _threshold ? 0.12 : 0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!right && p > 0.6)
+                            Text(
+                              tr('В плейлист'),
+                              style: TextStyle(
+                                color: Colors.black.withValues(alpha: p),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+                            child: Icon(
+                              right ? Icons.queue_music_rounded : Icons.playlist_add_rounded,
+                              color: Colors.black.withValues(alpha: 0.5 + 0.5 * p),
+                            ),
+                          ),
+                          if (right && p > 0.6)
+                            Text(
+                              tr('В очередь'),
+                              style: TextStyle(
+                                color: Colors.black.withValues(alpha: p),
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                    if (right && p > 0.6)
-                      Text(tr('В очередь'),
-                          style: TextStyle(color: Colors.black.withValues(alpha: p), fontWeight: FontWeight.w800)),
-                  ]),
+                  ),
+                ),
+              Transform.translate(
+                offset: Offset(_dx, 0),
+                child: ColoredBox(
+                  color: _dx == 0 ? Colors.transparent : Theme.of(context).scaffoldBackgroundColor,
+                  child: widget.child,
                 ),
               ),
-            ),
-          Transform.translate(
-            offset: Offset(_dx, 0),
-            child: ColoredBox(
-              color: _dx == 0 ? Colors.transparent : Theme.of(context).scaffoldBackgroundColor,
-              child: widget.child,
-            ),
+            ],
           ),
-        ]),
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -291,7 +325,10 @@ class OfflineMark extends StatelessWidget {
           );
         }
         if (w == null) return const SizedBox.shrink();
-        return Padding(padding: EdgeInsets.only(left: context.u(6)), child: w);
+        return Padding(
+          padding: EdgeInsets.only(left: context.u(6)),
+          child: w,
+        );
       },
     );
   }
@@ -302,84 +339,87 @@ Future<void> showTrackMenu(BuildContext context, Track t, {Playlist? playlist}) 
   return showGlassSheet(
     context,
     (ctx) => SafeArea(
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(
-          leading: Cover(track: t, size: 44),
-          title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-          subtitle: Text(t.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
-        const Divider(height: 1),
-        // по пункту на каждого исполнителя (фиты — отдельно)
-        for (final name in splitArtists(t.artist))
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           ListTile(
-            leading: const Icon(Icons.person_rounded),
-            title: Text(tr('Перейти к исполнителю: {0}', [name]), maxLines: 1, overflow: TextOverflow.ellipsis),
-            onTap: () {
-              Navigator.pop(ctx);
-              pushInTab(context, ArtistScreen(name: name));
-            },
+            leading: Cover(track: t, size: 44),
+            title: Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(t.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
-        ListTile(
-          leading: Icon(st.isLiked(t) ? Icons.favorite_rounded : Icons.favorite_border_rounded),
-          title: Text(st.isLiked(t) ? tr('Убрать из «Мне нравится»') : tr('Мне нравится')),
-          onTap: () {
-            st.toggleLike(t);
-            Navigator.pop(ctx);
-          },
-        ),
-        if (Offline.instance.has(t))
+          const Divider(height: 1),
+          // по пункту на каждого исполнителя (фиты — отдельно)
+          for (final name in splitArtists(t.artist))
+            ListTile(
+              leading: const Icon(Icons.person_rounded),
+              title: Text(tr('Перейти к исполнителю: {0}', [name]), maxLines: 1, overflow: TextOverflow.ellipsis),
+              onTap: () {
+                Navigator.pop(ctx);
+                pushInTab(context, ArtistScreen(name: name));
+              },
+            ),
           ListTile(
-            leading: const Icon(Icons.delete_outline_rounded),
-            title: Text(tr('Удалить из загрузок')),
+            leading: Icon(st.isLiked(t) ? Icons.favorite_rounded : Icons.favorite_border_rounded),
+            title: Text(st.isLiked(t) ? tr('Убрать из «Мне нравится»') : tr('Мне нравится')),
             onTap: () {
-              Offline.instance.remove(t);
-              Navigator.pop(ctx);
-            },
-          )
-        else
-          ListTile(
-            leading: const Icon(Icons.download_rounded),
-            title: Text(Offline.instance.busy(t) ? tr('Скачивается…') : tr('Скачать в приложение')),
-            subtitle: Text(tr('Будет играть без интернета')),
-            onTap: () {
-              Offline.instance.download(t);
+              st.toggleLike(t);
               Navigator.pop(ctx);
             },
           ),
-        ListTile(
-          leading: const Icon(Icons.playlist_play_rounded),
-          title: Text(tr('Играть следующим')),
-          onTap: () {
-            audio.playNext(t);
-            Navigator.pop(ctx);
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.queue_music_rounded),
-          title: Text(tr('В конец очереди')),
-          onTap: () {
-            audio.addToQueue(t);
-            Navigator.pop(ctx);
-          },
-        ),
-        ListTile(
-          leading: const Icon(Icons.playlist_add_rounded),
-          title: Text(tr('Добавить в плейлист')),
-          onTap: () {
-            Navigator.pop(ctx);
-            pickPlaylist(context, t);
-          },
-        ),
-        if (playlist != null)
+          if (Offline.instance.has(t))
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded),
+              title: Text(tr('Удалить из загрузок')),
+              onTap: () {
+                Offline.instance.remove(t);
+                Navigator.pop(ctx);
+              },
+            )
+          else
+            ListTile(
+              leading: const Icon(Icons.download_rounded),
+              title: Text(Offline.instance.busy(t) ? tr('Скачивается…') : tr('Скачать в приложение')),
+              subtitle: Text(tr('Будет играть без интернета')),
+              onTap: () {
+                Offline.instance.download(t);
+                Navigator.pop(ctx);
+              },
+            ),
           ListTile(
-            leading: const Icon(Icons.remove_circle_outline_rounded),
-            title: Text(tr('Убрать из «{0}»', [playlist.name])),
+            leading: const Icon(Icons.playlist_play_rounded),
+            title: Text(tr('Играть следующим')),
             onTap: () {
-              st.removeFromPlaylist(playlist, t);
+              audio.playNext(t);
               Navigator.pop(ctx);
             },
           ),
-      ]),
+          ListTile(
+            leading: const Icon(Icons.queue_music_rounded),
+            title: Text(tr('В конец очереди')),
+            onTap: () {
+              audio.addToQueue(t);
+              Navigator.pop(ctx);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.playlist_add_rounded),
+            title: Text(tr('Добавить в плейлист')),
+            onTap: () {
+              Navigator.pop(ctx);
+              pickPlaylist(context, t);
+            },
+          ),
+          if (playlist != null)
+            ListTile(
+              leading: const Icon(Icons.remove_circle_outline_rounded),
+              title: Text(tr('Убрать из «{0}»', [playlist.name])),
+              onTap: () {
+                st.removeFromPlaylist(playlist, t);
+                Navigator.pop(ctx);
+              },
+            ),
+        ],
+      ),
     ),
   );
 }
@@ -389,28 +429,31 @@ Future<void> pickPlaylist(BuildContext context, Track t) async {
   await showGlassSheet(
     context,
     (ctx) => SafeArea(
-      child: ListView(shrinkWrap: true, children: [
-        ListTile(
-          leading: const Icon(Icons.add_rounded),
-          title: Text(tr('Новый плейлист')),
-          onTap: () async {
-            Navigator.pop(ctx);
-            final name = await askText(context, tr('Новый плейлист'), tr('Название'));
-            if (name != null) st.addToPlaylist(st.createPlaylist(name), t);
-          },
-        ),
-        for (final p in st.playlists)
+      child: ListView(
+        shrinkWrap: true,
+        children: [
           ListTile(
-            leading: const Icon(Icons.queue_music_rounded),
-            title: Text(p.name),
-            subtitle: Text(tr('{0} тр.', [p.tracks.length])),
-            onTap: () {
-              st.addToPlaylist(p, t);
+            leading: const Icon(Icons.add_rounded),
+            title: Text(tr('Новый плейлист')),
+            onTap: () async {
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Добавлено в «{0}»', [p.name]))));
+              final name = await askText(context, tr('Новый плейлист'), tr('Название'));
+              if (name != null) st.addToPlaylist(st.createPlaylist(name), t);
             },
           ),
-      ]),
+          for (final p in st.playlists)
+            ListTile(
+              leading: const Icon(Icons.queue_music_rounded),
+              title: Text(p.name),
+              subtitle: Text(tr('{0} тр.', [p.tracks.length])),
+              onTap: () {
+                st.addToPlaylist(p, t);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Добавлено в «{0}»', [p.name]))));
+              },
+            ),
+        ],
+      ),
     ),
   );
 }
@@ -421,7 +464,11 @@ Future<String?> askText(BuildContext context, String title, String hint, {String
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
-      content: TextField(controller: c, autofocus: true, decoration: InputDecoration(hintText: hint)),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        decoration: InputDecoration(hintText: hint),
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Отмена'))),
         FilledButton(onPressed: () => Navigator.pop(ctx, c.text), child: Text(tr('Готово'))),
@@ -439,7 +486,7 @@ class MiniPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<int>(
       valueListenable: audio.trackKey,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final t = audio.current;
         if (t == null) return const SizedBox.shrink();
         return GestureDetector(
@@ -453,32 +500,48 @@ class MiniPlayer extends StatelessWidget {
             child: Glass(
               radius: context.u(22),
               tint: 1.3,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Padding(
-                  padding: EdgeInsets.all(context.u(8)),
-                  child: Row(children: [
-                    Hero(tag: 'cover', child: Cover(track: t, size: context.u(44), radius: context.u(8))),
-                    SizedBox(width: context.u(10)),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(t.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text(t.artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
-                      ]),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(context.u(8)),
+                    child: Row(
+                      children: [
+                        Hero(
+                          tag: 'cover',
+                          child: Cover(track: t, size: context.u(44), radius: context.u(8)),
+                        ),
+                        SizedBox(width: context.u(10)),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                t.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const PlayPauseButton(size: 40),
+                        IconButton(icon: const Icon(Icons.skip_next_rounded), onPressed: audio.skipToNext),
+                      ],
                     ),
-                    const PlayPauseButton(size: 40),
-                    IconButton(icon: const Icon(Icons.skip_next_rounded), onPressed: audio.skipToNext),
-                  ]),
-                ),
-                const _ThinProgress(),
-              ]),
+                  ),
+                  const _ThinProgress(),
+                ],
+              ),
             ),
           ),
         );
@@ -518,18 +581,22 @@ class PlayPauseButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
       valueListenable: audio.loading,
-      builder: (context, loading, _) => StreamBuilder<bool>(
-        stream: audio.player.playingStream,
-        builder: (context, snap) {
-          final playing = snap.data ?? false;
+      builder: (context, loading, _) => ValueListenableBuilder<bool>(
+        valueListenable: audio.playingNow,
+        builder: (context, playing, _) {
           final s = context.u(size);
-          final icon = loading
+          // во время перехода звук уже идёт с «моста» — показываем «пауза», а не крутилку
+          final icon = loading && !playing
               ? SizedBox(
                   width: s * 0.45,
                   height: s * 0.45,
-                  child: CircularProgressIndicator(strokeWidth: 2.4, color: filled ? Colors.black : context.accent))
-              : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  size: s * (filled ? 0.55 : 0.7), color: filled ? Colors.black : null);
+                  child: CircularProgressIndicator(strokeWidth: 2.4, color: filled ? Colors.black : context.accent),
+                )
+              : Icon(
+                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  size: s * (filled ? 0.55 : 0.7),
+                  color: filled ? Colors.black : null,
+                );
           return SizedBox(
             width: s,
             height: s,
@@ -559,10 +626,14 @@ class SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(context.u(16), context.u(18), context.u(8), context.u(6)),
-      child: Row(children: [
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800))),
-        if (trailing != null) trailing!,
-      ]),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          ),
+          ?trailing,
+        ],
+      ),
     );
   }
 }
@@ -585,11 +656,13 @@ class _SquareYt extends StatelessWidget {
       child: SizedBox(
         width: size * 16 / 9,
         height: size * 16 / 9 * 0.75,
-        child: Image.network(url,
-            fit: BoxFit.cover,
-            cacheWidth: (size * 3).round(),
-            gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => fallback()),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          cacheWidth: (size * 3).round(),
+          gaplessPlayback: true,
+          errorBuilder: (_, _, _) => fallback(),
+        ),
       ),
     );
   }
@@ -597,8 +670,10 @@ class _SquareYt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ready = SquareCover.instance.ready(track);
+    // декодировать под размер на экране: плитке 50 px не нужен PNG 720×720 в памяти
+    final px = (size * MediaQuery.devicePixelRatioOf(context)).round();
     Widget file(File f) =>
-        Image.file(f, fit: BoxFit.cover, gaplessPlayback: true, errorBuilder: (_, __, ___) => _zoomed());
+        Image.file(f, fit: BoxFit.cover, cacheWidth: px, gaplessPlayback: true, errorBuilder: (_, _, _) => _zoomed());
     if (ready != null) return file(ready);
     // мелкие (списки) — своя быстрая обрезка по маленькому превью; пока не готова — приближенное превью
     if (!big && size < 120) {

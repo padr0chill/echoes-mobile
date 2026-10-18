@@ -12,9 +12,13 @@ final _cache = <String, Color?>{};
 /// оттенок по насыщенности и яркости. null — обложка не загрузилась или она серая.
 Future<Color?> coverColor(Track t) async {
   if (_cache.containsKey(t.id)) return _cache[t.id];
-  final ImageProvider src = Cover.debugImage?.call(t) ?? NetworkImage(t.art ?? t.thumb);
-  final c = await _dominant(ResizeImage(src, width: 24, height: 24))
-      .timeout(const Duration(seconds: 8), onTimeout: () => null);
+  final url = t.art ?? t.thumb;
+  final dbg = Cover.debugImage?.call(t);
+  if (dbg == null && url == null) return null; // обложки нет (свой файл, импорт) — цвет по умолчанию
+  final ImageProvider src = dbg ?? NetworkImage(url!);
+  final c = await _dominant(
+    ResizeImage(src, width: 24, height: 24),
+  ).timeout(const Duration(seconds: 8), onTimeout: () => null);
   if (_cache.length > 300) _cache.clear();
   return _cache[t.id] = c;
 }
@@ -23,13 +27,17 @@ Future<Color?> _dominant(ImageProvider p) async {
   final done = Completer<ui.Image?>();
   final stream = p.resolve(ImageConfiguration.empty);
   late final ImageStreamListener l;
-  l = ImageStreamListener((info, _) {
-    if (!done.isCompleted) done.complete(info.image.clone());
-    stream.removeListener(l);
-  }, onError: (_, __) {
-    if (!done.isCompleted) done.complete(null);
-    stream.removeListener(l);
-  });
+  l = ImageStreamListener(
+    (info, _) {
+      if (!done.isCompleted) done.complete(info.image.clone());
+      info.dispose(); // копия взята — оригинал из потока больше не нужен
+      stream.removeListener(l);
+    },
+    onError: (_, _) {
+      if (!done.isCompleted) done.complete(null);
+      stream.removeListener(l);
+    },
+  );
   stream.addListener(l);
   final img = await done.future;
   if (img == null) return null;

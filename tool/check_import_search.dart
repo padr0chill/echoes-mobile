@@ -11,8 +11,10 @@ Future<void> main(List<String> args) async {
     var lists = Importer.parse(File(args.first).readAsStringSync());
     lists = await Importer.resolve(lists);
     for (final (name, ts) in lists) {
-      print('$name: ${ts.length} — yt ${ts.where((t) => t.isYt).length}, sc ${ts.where((t) => t.isSc).length}, '
-          'отрывки ${ts.where((t) => t.isPreview).length}, по названию ${ts.where((t) => t.isQuery).length}');
+      print(
+        '$name: ${ts.length} — yt ${ts.where((t) => t.isYt).length}, sc ${ts.where((t) => t.isSc).length}, '
+        'отрывки ${ts.where((t) => t.isPreview).length}, по названию ${ts.where((t) => t.isQuery).length}',
+      );
     }
     print('импорт: ${sw.elapsedMilliseconds} мс');
   }

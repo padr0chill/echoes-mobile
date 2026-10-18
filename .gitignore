@@ -23,3 +23,7 @@ web/
 # итоговые файлы
 *.ipa
 Payload/
+
+# артефакты упавших golden-тестов и мусор macOS — не в репозиторий
+test/failures/
+.DS_Store

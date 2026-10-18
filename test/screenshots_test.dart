@@ -54,7 +54,7 @@ void main() {
     final cov = Directory(Platform.environment['COVERS_DIR'] ?? '');
     final files = cov.existsSync()
         ? (cov.listSync().whereType<File>().where((f) => f.path.endsWith('.jpg')).toList()
-          ..sort((a, b) => a.path.compareTo(b.path)))
+            ..sort((a, b) => a.path.compareTo(b.path)))
         : <File>[];
     for (var i = 0; i < tracks.length && files.isNotEmpty; i++) {
       images[tracks[i].id] = MemoryImage(files[(i * 37) % files.length].readAsBytesSync());
@@ -176,16 +176,21 @@ void main() {
     });
   }
   testWidgets(
-      'phone playlist',
-      (t) => shoot(t, phone, 'phone_playlist', () async {
-            await openTab(t, 'Моя музыка');
-            await t.tap(find.text('В дорогу'));
-            await t.pump();
-            await t.pump(const Duration(milliseconds: 600));
-          }));
+    'phone playlist',
+    (t) => shoot(t, phone, 'phone_playlist', () async {
+      await openTab(t, 'Моя музыка');
+      await t.tap(find.text('В дорогу'));
+      await t.pump();
+      await t.pump(const Duration(milliseconds: 600));
+    }),
+  );
   testWidgets('phone equalizer', (t) async {
-    Store.instance
-        .setEq(enabled: true, gains: eqPresets['Бас+'], preamp: presetPreamp(eqPresets['Бас+']!), preset: 'Бас+');
+    Store.instance.setEq(
+      enabled: true,
+      gains: eqPresets['Бас+'],
+      preamp: presetPreamp(eqPresets['Бас+']!),
+      preset: 'Бас+',
+    );
     addTearDown(() => Store.instance.setEq(enabled: false, gains: eqPresets['Плоский'], preamp: 0, preset: 'Плоский'));
     await shoot(t, phone, 'phone_equalizer', () async {
       await openPlayer(t);

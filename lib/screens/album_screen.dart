@@ -31,7 +31,7 @@ class AlbumArt extends StatelessWidget {
       borderRadius: BorderRadius.circular(radius),
       child: album.art == null
           ? ph
-          : Image.network(album.art!, width: size, height: size, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ph),
+          : Image.network(album.art!, width: size, height: size, fit: BoxFit.cover, errorBuilder: (_, _, _) => ph),
     );
   }
 }
@@ -50,21 +50,25 @@ class AlbumCard extends StatelessWidget {
       onTap: () => openAlbum(context, album),
       child: SizedBox(
         width: w,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          AlbumArt(album: album, size: w, radius: context.u(12)),
-          SizedBox(height: context.u(6)),
-          Text(album.title,
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-          Text(
-            [
-              if (showArtist) album.artist else album.kindLabel,
-              if (album.year != null) '${album.year}',
-            ].join(' · '),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: dim),
-          ),
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AlbumArt(album: album, size: w, radius: context.u(12)),
+            SizedBox(height: context.u(6)),
+            Text(
+              album.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              [if (showArtist) album.artist else album.kindLabel, if (album.year != null) '${album.year}'].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: dim),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -85,7 +89,7 @@ class AlbumRow extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: context.u(16)),
         itemCount: albums.length,
-        separatorBuilder: (_, __) => SizedBox(width: context.u(12)),
+        separatorBuilder: (_, _) => SizedBox(width: context.u(12)),
         itemBuilder: (context, i) => AlbumCard(album: albums[i], showArtist: showArtist),
       ),
     );
@@ -117,148 +121,171 @@ class _AlbumScreenState extends State<AlbumScreen> {
       image: a.art,
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Stack(children: [
-          FutureBuilder<List<Track>>(
-            future: _f,
-            builder: (context, snap) {
-              final list = snap.data ?? const <Track>[];
-              final head = <Widget>[
-                SizedBox(height: MediaQuery.paddingOf(context).top + context.u(40)),
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(context.r(20)),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.4), blurRadius: 40, offset: const Offset(0, 16)),
-                      ],
+        body: Stack(
+          children: [
+            FutureBuilder<List<Track>>(
+              future: _f,
+              builder: (context, snap) {
+                final list = snap.data ?? const <Track>[];
+                final head = <Widget>[
+                  SizedBox(height: MediaQuery.paddingOf(context).top + context.u(40)),
+                  Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(context.r(20)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            blurRadius: 40,
+                            offset: const Offset(0, 16),
+                          ),
+                        ],
+                      ),
+                      child: AlbumArt(album: a, size: size, radius: context.u(20)),
                     ),
-                    child: AlbumArt(album: a, size: size, radius: context.u(20)),
                   ),
-                ),
-                SizedBox(height: context.u(16)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: context.u(24)),
-                  child: Text(a.title,
+                  SizedBox(height: context.u(16)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: context.u(24)),
+                    child: Text(
+                      a.title,
                       textAlign: TextAlign.center,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, height: 1.15)),
-                ),
-                SizedBox(height: context.u(4)),
-                Center(
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(context.r(12)),
-                    onTap: () => openArtist(
-                        context, Track(id: '', title: '', artist: a.artist, seconds: 0, artistId: a.artistId)),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(2)),
-                      child: Text(a.artist,
-                          style: TextStyle(color: context.accent, fontSize: 16, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, height: 1.15),
                     ),
                   ),
-                ),
-                Text(
-                  [
-                    a.kindLabel,
-                    if (a.year != null) '${a.year}',
-                    tr('{0} тр.', [a.count > 0 ? a.count : list.length])
-                  ].join(' · '),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: dim),
-                ),
-                SizedBox(height: context.u(16)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: context.u(20)),
-                  child: Row(children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: context.u(50),
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(shape: context.pill),
-                          onPressed: list.isEmpty ? null : () => audio.playList(list, 0),
-                          icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
-                          label:
-                              Text(tr('Слушать'), style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+                  SizedBox(height: context.u(4)),
+                  Center(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(context.r(12)),
+                      onTap: () => openArtist(
+                        context,
+                        Track(id: '', title: '', artist: a.artist, seconds: 0, artistId: a.artistId),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(2)),
+                        child: Text(
+                          a.artist,
+                          style: TextStyle(color: context.accent, fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
-                    SizedBox(width: context.u(12)),
-                    Expanded(
-                      child: Glass(
-                        radius: context.u(25),
-                        shadow: false,
-                        child: SizedBox(
-                          height: context.u(50),
-                          child: Material(
-                            type: MaterialType.transparency,
-                            child: InkWell(
-                              customBorder: context.pill,
-                              onTap: list.isEmpty
-                                  ? null
-                                  : () {
-                                      audio.shuffle.value = true; // список перемешает playList
-                                      audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
-                                    },
-                              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Icon(Icons.shuffle_rounded),
-                                SizedBox(width: 6),
-                                Text(tr('Вперемешку'), style: TextStyle(fontWeight: FontWeight.w800)),
-                              ]),
+                  ),
+                  Text(
+                    [
+                      a.kindLabel,
+                      if (a.year != null) '${a.year}',
+                      tr('{0} тр.', [a.count > 0 ? a.count : list.length]),
+                    ].join(' · '),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: dim),
+                  ),
+                  SizedBox(height: context.u(16)),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: context.u(20)),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: context.u(50),
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(shape: context.pill),
+                              onPressed: list.isEmpty ? null : () => audio.playList(list, 0),
+                              icon: const Icon(Icons.play_arrow_rounded, color: Colors.black),
+                              label: Text(
+                                tr('Слушать'),
+                                style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                        SizedBox(width: context.u(12)),
+                        Expanded(
+                          child: Glass(
+                            radius: context.u(25),
+                            shadow: false,
+                            child: SizedBox(
+                              height: context.u(50),
+                              child: Material(
+                                type: MaterialType.transparency,
+                                child: InkWell(
+                                  customBorder: context.pill,
+                                  onTap: list.isEmpty
+                                      ? null
+                                      : () {
+                                          audio.shuffle.value = true; // список перемешает playList
+                                          audio.playList(list, DateTime.now().millisecondsSinceEpoch % list.length);
+                                        },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.shuffle_rounded),
+                                      SizedBox(width: 6),
+                                      Text(tr('Вперемешку'), style: TextStyle(fontWeight: FontWeight.w800)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ]),
-                ),
-                SizedBox(height: context.u(8)),
-              ];
-              Widget? tail;
-              if (snap.connectionState != ConnectionState.done) {
-                tail = Padding(
-                  padding: EdgeInsets.all(context.u(32)),
-                  child: Center(child: CircularProgressIndicator(color: context.accent)),
-                );
-              } else if (snap.hasError) {
-                tail = Padding(
-                  padding: EdgeInsets.all(context.u(24)),
-                  child: Column(children: [
-                    Text(tr('Не удалось загрузить треки альбома'), textAlign: TextAlign.center),
-                    SizedBox(height: context.u(12)),
-                    FilledButton(
-                      onPressed: () => setState(() => _f = _tracks()),
-                      child: Text(tr('Повторить')),
+                  ),
+                  SizedBox(height: context.u(8)),
+                ];
+                Widget? tail;
+                if (snap.connectionState != ConnectionState.done) {
+                  tail = Padding(
+                    padding: EdgeInsets.all(context.u(32)),
+                    child: Center(child: CircularProgressIndicator(color: context.accent)),
+                  );
+                } else if (snap.hasError) {
+                  tail = Padding(
+                    padding: EdgeInsets.all(context.u(24)),
+                    child: Column(
+                      children: [
+                        Text(tr('Не удалось загрузить треки альбома'), textAlign: TextAlign.center),
+                        SizedBox(height: context.u(12)),
+                        FilledButton(onPressed: () => setState(() => _f = _tracks()), child: Text(tr('Повторить'))),
+                      ],
                     ),
-                  ]),
+                  );
+                } else if (list.isEmpty) {
+                  tail = Padding(
+                    padding: EdgeInsets.all(context.u(24)),
+                    child: Text(tr('В альбоме нет треков, которые можно слушать целиком'), textAlign: TextAlign.center),
+                  );
+                }
+                return ListView.builder(
+                  padding: EdgeInsets.only(bottom: context.u(200)), // место под мини-плеер и вкладки
+                  itemCount: head.length + (tail != null ? 1 : list.length),
+                  itemBuilder: (context, i) {
+                    if (i < head.length) return head[i];
+                    if (tail != null) return tail;
+                    final j = i - head.length;
+                    return TrackTile(
+                      track: list[j],
+                      onTap: () => audio.playList(list, j),
+                      showArtist: list[j].artist != a.artist,
+                    );
+                  },
                 );
-              } else if (list.isEmpty) {
-                tail = Padding(
-                  padding: EdgeInsets.all(context.u(24)),
-                  child: Text(tr('В альбоме нет треков, которые можно слушать целиком'), textAlign: TextAlign.center),
-                );
-              }
-              return ListView.builder(
-                padding: EdgeInsets.only(bottom: context.u(200)), // место под мини-плеер и вкладки
-                itemCount: head.length + (tail != null ? 1 : list.length),
-                itemBuilder: (context, i) {
-                  if (i < head.length) return head[i];
-                  if (tail != null) return tail;
-                  final j = i - head.length;
-                  return TrackTile(
-                      track: list[j], onTap: () => audio.playList(list, j), showArtist: list[j].artist != a.artist);
-                },
-              );
-            },
-          ),
-          SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(context.u(8)),
-              child: GlassIconButton(
-                  icon: Icons.arrow_back_ios_new_rounded, size: 40, onTap: () => Navigator.pop(context)),
+              },
             ),
-          ),
-        ]),
+            SafeArea(
+              child: Padding(
+                padding: EdgeInsets.all(context.u(8)),
+                child: GlassIconButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  size: 40,
+                  onTap: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

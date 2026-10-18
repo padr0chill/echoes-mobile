@@ -20,28 +20,35 @@ class Track {
   bool get isLocal => id.startsWith('local:'); // свой аудиофайл с телефона
   bool get isYt => !isSc && !needsLookup && !isLocal;
 
-  String get thumb => art ?? 'https://i.ytimg.com/vi/$id/hqdefault.jpg';
-  String get cover => art ?? 'https://i.ytimg.com/vi/$id/maxresdefault.jpg';
+  /// Обложка: своя (art) или кадр YouTube. У треков не с YouTube (свои файлы, импорт, SoundCloud без
+  /// обложки) кадра нет — null (а не ссылка, которая каждый раз отвечает 404).
+  String? get thumb => art ?? (isYt ? 'https://i.ytimg.com/vi/$id/hqdefault.jpg' : null);
+  String? get cover => art ?? (isYt ? 'https://i.ytimg.com/vi/$id/maxresdefault.jpg' : null);
 
   Duration get duration => Duration(seconds: seconds);
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        't': title,
-        'a': artist,
-        's': seconds,
-        if (art != null) 'art': art,
-        if (artistId != null) 'aid': artistId
-      };
+    'id': id,
+    't': title,
+    'a': artist,
+    's': seconds,
+    if (art != null) 'art': art,
+    if (artistId != null) 'aid': artistId,
+  };
 
-  factory Track.fromJson(Map<String, dynamic> j) => Track(
-        id: j['id'] as String,
-        title: (j['t'] ?? '') as String,
-        artist: (j['a'] ?? '') as String,
-        seconds: (j['s'] ?? 0) as int,
-        art: j['art'] as String?,
-        artistId: j['aid'] as int?,
-      );
+  factory Track.fromJson(Map<String, dynamic> j) {
+    final id = j['id'];
+    if (id is! String || id.isEmpty) throw const FormatException('track without id');
+    final art = j['art'], aid = j['aid'];
+    return Track(
+      id: id,
+      title: '${j['t'] ?? ''}',
+      artist: '${j['a'] ?? ''}',
+      seconds: (j['s'] as num?)?.toInt() ?? 0, // бывает 215.0
+      art: art is String ? art : null,
+      artistId: aid is num ? aid.toInt() : null,
+    );
+  }
 
   @override
   bool operator ==(Object other) => other is Track && other.id == id;
@@ -57,22 +64,26 @@ class Playlist {
   int touched; // когда меняли/слушали (мс) — для сортировки «Недавние»
 
   Playlist(this.name, [List<Track>? tracks, this.cover, int? touched])
-      : tracks = tracks ?? [],
-        touched = touched ?? DateTime.now().millisecondsSinceEpoch;
+    : tracks = tracks ?? [],
+      touched = touched ?? DateTime.now().millisecondsSinceEpoch;
 
   Map<String, dynamic> toJson() => {
-        'n': name,
-        'tr': tracks.map((t) => t.toJson()).toList(),
-        if (cover != null) 'c': cover,
-        'tm': touched,
-      };
+    'n': name,
+    'tr': tracks.map((t) => t.toJson()).toList(),
+    if (cover != null) 'c': cover,
+    'tm': touched,
+  };
 
-  factory Playlist.fromJson(Map<String, dynamic> j) => Playlist(
-        (j['n'] ?? 'Плейлист') as String,
-        ((j['tr'] ?? []) as List).map((e) => Track.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
-        j['c'] as String?,
-        (j['tm'] as num?)?.toInt() ?? 0,
-      );
+  factory Playlist.fromJson(Map<String, dynamic> j) {
+    final raw = j['tr'], c = j['c'];
+    final tracks = <Track>[];
+    for (final e in raw is List ? raw : const []) {
+      try {
+        tracks.add(Track.fromJson(Map<String, dynamic>.from(e as Map)));
+      } catch (_) {} // один битый трек не должен терять весь плейлист
+    }
+    return Playlist('${j['n'] ?? 'Плейлист'}', tracks, c is String ? c : null, (j['tm'] as num?)?.toInt() ?? 0);
+  }
 }
 
 /// «Исполнитель - Название» из заголовка YouTube; канал «… - Topic» → исполнитель.
@@ -80,9 +91,12 @@ Track trackFromVideo(String id, String rawTitle, String author, Duration? d) {
   var artist = author.replaceAll(RegExp(r'\s*-\s*Topic$'), '').replaceAll(RegExp(r'VEVO$'), '').trim();
   var title = rawTitle;
   title = title.replaceAll(
-      RegExp(r'\s*[\(\[](official\s*(music\s*)?(video|audio|lyric[s]?\s*video)|lyrics?|audio|clip|hd|4k)[\)\]]',
-          caseSensitive: false),
-      '');
+    RegExp(
+      r'\s*[\(\[](official\s*(music\s*)?(video|audio|lyric[s]?\s*video)|lyrics?|audio|clip|hd|4k)[\)\]]',
+      caseSensitive: false,
+    ),
+    '',
+  );
   final dash = title.indexOf(' - ');
   if (dash > 0 && dash < title.length - 3) {
     artist = title.substring(0, dash).trim();

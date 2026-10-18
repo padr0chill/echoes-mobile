@@ -45,7 +45,7 @@ final _manual = <MdPreset>[
     'wx': 0.5,
     'wy': -0.2,
     'remap': 1,
-    'zexp': 0.6
+    'zexp': 0.6,
   }),
   _p('drain to the corner', {
     'zoom': 1.045,
@@ -61,7 +61,7 @@ final _manual = <MdPreset>[
     'wy': 0.3,
     'remap': 4,
     'hue0': 0.75,
-    'decay': 0.972
+    'decay': 0.972,
   }),
   _p('lopsided vortex', {
     'zoom': 1.018,
@@ -76,7 +76,7 @@ final _manual = <MdPreset>[
     'wsize': 0.40,
     'wx': 0.35,
     'wy': 0.3,
-    'remap': 2
+    'remap': 2,
   }),
   _p('comet wake', {
     'zoom': 1.012,
@@ -89,7 +89,7 @@ final _manual = <MdPreset>[
     'wave': 9,
     'wsize': 0.45,
     'remap': 1,
-    'decay': 0.975
+    'decay': 0.975,
   }),
   _p('orbit garden', {
     'zoom': 1.022,
@@ -104,7 +104,7 @@ final _manual = <MdPreset>[
     'wx': 0.25,
     'wy': -0.1,
     'remap': 6,
-    'hue_speed': 0.05
+    'hue_speed': 0.05,
   }),
   _p('sideways spectrum', {
     'zoom': 1.008,
@@ -117,7 +117,7 @@ final _manual = <MdPreset>[
     'aniso': 1.04,
     'wave': 7,
     'wsize': 0.6,
-    'remap': 7
+    'remap': 7,
   }),
   _p('spiral off-center', {
     'zoom': 1.028,
@@ -132,7 +132,7 @@ final _manual = <MdPreset>[
     'wx': -0.3,
     'wy': 0.35,
     'remap': 1,
-    'hue_speed': 0.14
+    'hue_speed': 0.14,
   }),
   _p('ember drift', {
     'zoom': 1.006,
@@ -150,7 +150,7 @@ final _manual = <MdPreset>[
     'remap': 5,
     'decay': 0.976,
     'hue0': 0.02,
-    'hue_speed': 0.02
+    'hue_speed': 0.02,
   }),
   _p('frost crawl', {
     'zoom': 1.004,
@@ -165,7 +165,7 @@ final _manual = <MdPreset>[
     'wsize': 0.30,
     'wy': -0.35,
     'remap': 6,
-    'decay': 0.974
+    'decay': 0.974,
   }),
   _p('acid scope askew', {
     'zoom': 0.994,
@@ -181,7 +181,7 @@ final _manual = <MdPreset>[
     'wx': 0.4,
     'wy': 0.25,
     'remap': 2,
-    'decay': 0.958
+    'decay': 0.958,
   }),
   _p('chrome river bend', {
     'zoom': 1.010,
@@ -196,7 +196,7 @@ final _manual = <MdPreset>[
     'wsize': 0.34,
     'wy': 0.3,
     'remap': 3,
-    'decay': 0.972
+    'decay': 0.972,
   }),
   _p('feathers leaning', {
     'zoom': 1.024,
@@ -212,7 +212,7 @@ final _manual = <MdPreset>[
     'wsize': 0.30,
     'wx': 0.3,
     'remap': 1,
-    'decay': 0.980
+    'decay': 0.980,
   }),
   _p('plasma drain east', {
     'zoom': 0.975,
@@ -225,7 +225,7 @@ final _manual = <MdPreset>[
     'wsize': 0.38,
     'wx': 0.6,
     'remap': 2,
-    'decay': 0.960
+    'decay': 0.960,
   }),
   _p('neon spiral slip', {
     'zoom': 1.035,
@@ -241,7 +241,7 @@ final _manual = <MdPreset>[
     'wx': -0.45,
     'wy': -0.3,
     'remap': 0,
-    'hue_speed': 0.20
+    'hue_speed': 0.20,
   }),
   _p('heart of a red giant', {
     'zoom': 1.050,
@@ -257,7 +257,7 @@ final _manual = <MdPreset>[
     'wy': 0.4,
     'remap': 5,
     'hue0': 0.0,
-    'hue_speed': 0.03
+    'hue_speed': 0.03,
   }),
   _p('ripple pond', {
     'zoom': 1.004,
@@ -274,7 +274,7 @@ final _manual = <MdPreset>[
     'wx': -0.4,
     'wy': 0.2,
     'remap': 4,
-    'hue0': 0.55
+    'hue0': 0.55,
   }),
   _p('tilted horizon', {
     'zoom': 1.015,
@@ -287,7 +287,7 @@ final _manual = <MdPreset>[
     'wsize': 0.45,
     'wy': -0.5,
     'remap': 7,
-    'hue_speed': 0.11
+    'hue_speed': 0.11,
   }),
   _p('magnet sparks', {
     'zoom': 1.03,
@@ -302,7 +302,7 @@ final _manual = <MdPreset>[
     'wx': 0.5,
     'wy': -0.4,
     'remap': 1,
-    'decay': 0.966
+    'decay': 0.966,
   }),
   _p('violet undertow', {
     'zoom': 0.985,
@@ -318,7 +318,7 @@ final _manual = <MdPreset>[
     'wy': 0.5,
     'remap': 4,
     'hue0': 0.78,
-    'hue_speed': 0.03
+    'hue_speed': 0.03,
   }),
   _p('lazy lissajous', {
     'zoom': 1.01,
@@ -332,7 +332,7 @@ final _manual = <MdPreset>[
     'wave': 9,
     'wsize': 0.55,
     'remap': 6,
-    'decay': 0.978
+    'decay': 0.978,
   }),
   _p('bent oscilloscope', {
     'zoom': 1.02,
@@ -346,7 +346,7 @@ final _manual = <MdPreset>[
     'wsize': 0.5,
     'wx': -0.3,
     'wy': 0.4,
-    'remap': 3
+    'remap': 3,
   }),
   _p('hot pink current', {
     'zoom': 1.012,
@@ -361,7 +361,7 @@ final _manual = <MdPreset>[
     'remap': 4,
     'hue0': 0.9,
     'hue_speed': 0.02,
-    'decay': 0.97
+    'decay': 0.97,
   }),
   _p('cyclone eye', {
     'zoom': 1.04,
@@ -377,7 +377,7 @@ final _manual = <MdPreset>[
     'wx': -0.55,
     'wy': -0.35,
     'remap': 1,
-    'hue_speed': 0.16
+    'hue_speed': 0.16,
   }),
   _p('liquid stairs', {
     'zoom': 1.008,
@@ -391,7 +391,7 @@ final _manual = <MdPreset>[
     'wave': 7,
     'wsize': 0.5,
     'remap': 7,
-    'decay': 0.97
+    'decay': 0.97,
   }),
   _p('smoke signal', {
     'zoom': 1.0,
@@ -407,7 +407,7 @@ final _manual = <MdPreset>[
     'wx': -0.5,
     'wy': 0.7,
     'remap': 3,
-    'decay': 0.982
+    'decay': 0.982,
   }),
   _p('gravity well', {
     'zoom': 1.06,
@@ -421,7 +421,7 @@ final _manual = <MdPreset>[
     'wave': 6,
     'wsize': 0.7,
     'remap': 5,
-    'decay': 0.962
+    'decay': 0.962,
   }),
   // ── глобальные: картинка на весь кадр ──
   _p('[full] wave curtains', {
@@ -435,7 +435,7 @@ final _manual = <MdPreset>[
     'wsize': 0.18,
     'remap': 1,
     'decay': 0.962,
-    'hue_speed': 0.07
+    'hue_speed': 0.07,
   }),
   _p('[full] spectrum floor', {
     'zoom': 1.012,
@@ -450,7 +450,7 @@ final _manual = <MdPreset>[
     'wave': 11,
     'wsize': 0.9,
     'remap': 7,
-    'decay': 0.968
+    'decay': 0.968,
   }),
   _p('[full] plasma sea', {
     'zoom': 1.004,
@@ -465,7 +465,7 @@ final _manual = <MdPreset>[
     'wsize': 1.0,
     'remap': 4,
     'decay': 0.95,
-    'hue_speed': 0.05
+    'hue_speed': 0.05,
   }),
   _p('[full] lattice pulse', {
     'zoom': 1.02,
@@ -479,7 +479,7 @@ final _manual = <MdPreset>[
     'wsize': 1.0,
     'remap': 1,
     'decay': 0.955,
-    'hue_speed': 0.09
+    'hue_speed': 0.09,
   }),
   _p('[full] diagonal storm', {
     'zoom': 1.01,
@@ -493,7 +493,7 @@ final _manual = <MdPreset>[
     'wave': 14,
     'wsize': 0.25,
     'remap': 2,
-    'decay': 0.96
+    'decay': 0.96,
   }),
   _p('[full] aurora', {
     'zoom': 1.003,
@@ -509,7 +509,7 @@ final _manual = <MdPreset>[
     'remap': 6,
     'decay': 0.975,
     'hue0': 0.4,
-    'hue_speed': 0.03
+    'hue_speed': 0.03,
   }),
   _p('[full] lava lamp', {
     'zoom': 0.998,
@@ -526,7 +526,7 @@ final _manual = <MdPreset>[
     'wave': 12,
     'wsize': 1.0,
     'remap': 5,
-    'decay': 0.955
+    'decay': 0.955,
   }),
   _p('[full] equalizer rain', {
     'zoom': 1.0,
@@ -540,7 +540,7 @@ final _manual = <MdPreset>[
     'wsize': 0.7,
     'remap': 1,
     'decay': 0.962,
-    'hue_speed': 0.12
+    'hue_speed': 0.12,
   }),
   _p('[full] starfield wind', {
     'zoom': 1.035,
@@ -554,7 +554,7 @@ final _manual = <MdPreset>[
     'wave': 13,
     'wsize': 1.0,
     'remap': 6,
-    'decay': 0.958
+    'decay': 0.958,
   }),
   _p('[full] neon grid melt', {
     'zoom': 1.008,
@@ -568,7 +568,7 @@ final _manual = <MdPreset>[
     'wave': 13,
     'wsize': 1.0,
     'remap': 7,
-    'decay': 0.962
+    'decay': 0.962,
   }),
   _p('[full] crossfire', {
     'zoom': 1.018,
@@ -582,7 +582,7 @@ final _manual = <MdPreset>[
     'wsize': 0.3,
     'remap': 4,
     'hue0': 0.08,
-    'decay': 0.962
+    'decay': 0.962,
   }),
   _p('[full] tidal curtains', {
     'zoom': 0.99,
@@ -595,7 +595,7 @@ final _manual = <MdPreset>[
     'wave': 10,
     'wsize': 0.2,
     'remap': 3,
-    'decay': 0.966
+    'decay': 0.966,
   }),
   _p('[full] solar plasma', {
     'zoom': 1.015,
@@ -609,19 +609,19 @@ final _manual = <MdPreset>[
     'wsize': 1.0,
     'remap': 1,
     'decay': 0.952,
-    'hue_speed': 0.1
+    'hue_speed': 0.1,
   }),
 ];
 
 const _adj = [
   'burning', 'drifting', 'broken', 'velvet', 'toxic', 'glass', 'midnight', 'electric', 'sunken', //
   'restless', 'crooked', 'silent', 'molten', 'frozen', 'hollow', 'wild', 'lonely', 'feral', 'liquid', 'static', //
-  'violet', 'golden', 'haunted', 'distant'
+  'violet', 'golden', 'haunted', 'distant',
 ];
 const _noun = [
   'comet', 'harbor', 'nebula', 'engine', 'garden', 'signal', 'reef', 'tide', 'orbit', 'cathedral', //
   'highway', 'swamp', 'satellite', 'prism', 'furnace', 'dune', 'storm', 'lantern', 'glacier', 'circuit', //
-  'mirage', 'abyss', 'meadow', 'ribbon'
+  'mirage', 'abyss', 'meadow', 'ribbon',
 ];
 
 /// Ещё 96 вариаций из «генов» ручных пресетов (как _generate на ПК): центр всегда смещён и блуждает.
@@ -664,7 +664,7 @@ final List<MdPreset> mdPresets = [..._manual, ..._generate(96)];
 
 const _numKeys = [
   'zoom', 'rot', 'warp', 'wscale', 'wspeed', 'decay', 'zexp', 'dx', 'dy', 'cx', 'cy', 'orbit', //
-  'ospeed', 'aniso', 'wsize', 'wx', 'wy', 'hue_speed'
+  'ospeed', 'aniso', 'wsize', 'wx', 'wy', 'hue_speed',
 ];
 const _discreteKeys = ['wave', 'remap', 'wmode', 'hue0'];
 
@@ -702,7 +702,8 @@ class _Audio {
       for (var j = 0; j < 512; j++) {
         final x = j / 512.0;
         // плавная «музыкальная» волна: низ (бас), середина, немного верха — без шума по точкам
-        final v = math.sin(x * 12 + _ph1) * (0.45 + 0.45 * kick) +
+        final v =
+            math.sin(x * 12 + _ph1) * (0.45 + 0.45 * kick) +
             math.sin(x * 31 + _ph2) * 0.16 * treb +
             math.sin(x * 4.5 + _ph3) * 0.5 * bass * 0.6;
         wave[j] = v;
@@ -756,7 +757,7 @@ class MilkdropEngine {
       final recent = _history.length > 12 ? _history.sublist(_history.length - 12) : _history;
       final choices = [
         for (var i = 0; i < mdPresets.length; i++)
-          if (i != index && !recent.contains(i)) i
+          if (i != index && !recent.contains(i)) i,
       ];
       idx = choices[_rng.nextInt(choices.length)];
     }
@@ -920,7 +921,7 @@ class MdWaveDrawer {
               final ang = i / n * 2 * math.pi + t * 0.3;
               final r = size * (1 + 0.45 * wv(i % n));
               return _pt(ox + math.cos(ang) * r * 1.15, oy + math.sin(ang) * r * 0.85);
-            }()
+            }(),
         ], col);
       case 1: // линия с наклоном
         final ang = 0.25 + math.sin(t * 0.23) * 0.5, cs = math.cos(ang), sn = math.sin(ang);
@@ -929,12 +930,12 @@ class MdWaveDrawer {
             () {
               final x = -A * 0.95 + i / (n - 1) * A * 1.9, y = wv(i) * size;
               return _pt(ox + x * cs - y * sn, oy + x * sn + y * cs);
-            }()
+            }(),
         ], col);
       case 2: // XY-осциллограф
-        _line(
-            [for (var i = 0; i < 240; i++) _pt(ox + ww[i * 2] * size * 1.6, oy + ww[(i * 2 + 13) % 512] * size * 1.2)],
-            col);
+        _line([
+          for (var i = 0; i < 240; i++) _pt(ox + ww[i * 2] * size * 1.6, oy + ww[(i * 2 + 13) % 512] * size * 1.2),
+        ], col);
       case 3: // две несимметричные линии
         final off = 0.3 + 0.1 * math.sin(t * 0.5);
         _line([
@@ -942,21 +943,24 @@ class MdWaveDrawer {
             () {
               final x = -A * 0.95 + i / (n - 1) * A * 1.9;
               return _pt(x, oy + off + wv(i) * size * 0.6 + x * 0.12);
-            }()
+            }(),
         ], col);
         _line([
           for (var i = 0; i < n; i++)
             () {
               final x = -A * 0.95 + i / (n - 1) * A * 1.9;
               return _pt(x * 0.8 + 0.2, oy - off * 0.6 - wv(n - 1 - i) * size * 0.4);
-            }()
+            }(),
         ], col2);
       case 4: // лучи — спектр по кругу
         for (var k = 0; k < 24; k++) {
           final ang = k / 24 * 2 * math.pi + t * 0.4;
           final r0 = size * 0.25, r1 = size * (0.3 + 1.4 * a.spec[k * 2]);
-          c.drawLine(_pt(ox + math.cos(ang) * r0, oy + math.sin(ang) * r0 * 0.8),
-              _pt(ox + math.cos(ang) * r1, oy + math.sin(ang) * r1 * 0.8), _paint(hsv(hue + k / 24, 0.9, 1, bright)));
+          c.drawLine(
+            _pt(ox + math.cos(ang) * r0, oy + math.sin(ang) * r0 * 0.8),
+            _pt(ox + math.cos(ang) * r1, oy + math.sin(ang) * r1 * 0.8),
+            _paint(hsv(hue + k / 24, 0.9, 1, bright)),
+          );
         }
       case 5: // спираль
         _line([
@@ -966,7 +970,7 @@ class MdWaveDrawer {
               final r = size * (0.08 + th / (5 * math.pi)) * (1 + 0.35 * wv(i));
               final ang = th + t * 0.9;
               return _pt(ox + math.cos(ang) * r * 1.2, oy + math.sin(ang) * r);
-            }()
+            }(),
         ], col);
       case 6: // искры от излучателя
         final cnt = (30 + 140 * math.min(1.5, a.trebAtt) * math.min(1.0, a.vol * 2 + 0.1)).round();
@@ -985,7 +989,10 @@ class MdWaveDrawer {
         for (var k = 0; k < 40; k++) {
           final y = -0.9 + k / 39 * 1.8 + oy * 0.2;
           c.drawLine(
-              _pt(x0, y), _pt(x0 + size * 2.2 * a.spec[k] * A, y), _paint(hsv(hue + k / 39 * 0.5, 0.9, 1, bright)));
+            _pt(x0, y),
+            _pt(x0 + size * 2.2 * a.spec[k] * A, y),
+            _paint(hsv(hue + k / 39 * 0.5, 0.9, 1, bright)),
+          );
         }
       case 8: // орбиты
         final bands = [a.bassAtt, a.midAtt, a.trebAtt, a.bass, a.mid];
@@ -996,15 +1003,19 @@ class MdWaveDrawer {
           final rr = 0.03 + 0.05 * math.min(2.0, bands[i]);
           _line([
             for (var j = 0; j <= 48; j++)
-              _pt(px + math.cos(j / 48 * 2 * math.pi) * rr, py + math.sin(j / 48 * 2 * math.pi) * rr)
+              _pt(px + math.cos(j / 48 * 2 * math.pi) * rr, py + math.sin(j / 48 * 2 * math.pi) * rr),
           ], hsv(hue + i * 0.13, 0.85, 1, bright));
         }
       case 9: // комета-лиссажу
         final pts = <Offset>[];
         for (var i = 0; i < n; i++) {
           final tt = t - 0.6 + i / (n - 1) * 0.6;
-          pts.add(_pt(ox + math.sin(tt * 1.3) * size * 1.6 + wv(i) * 0.05,
-              oy + math.sin(tt * 1.9 + 0.7) * size + wv(n - 1 - i) * 0.05));
+          pts.add(
+            _pt(
+              ox + math.sin(tt * 1.3) * size * 1.6 + wv(i) * 0.05,
+              oy + math.sin(tt * 1.9 + 0.7) * size + wv(n - 1 - i) * 0.05,
+            ),
+          );
         }
         for (var s = 0; s < 4; s++) {
           final seg = pts.sublist(s * n ~/ 4, math.min(n, (s + 1) * n ~/ 4 + 1));
@@ -1020,15 +1031,20 @@ class MdWaveDrawer {
               () {
                 final x = -A + i / (n - 1) * 2 * A;
                 return _pt(
-                    x, yb + wv((i + r * 37) % n) * amp + 0.05 * math.sin(x * (1.3 + r * 0.4) + t * (0.5 + r * 0.13)));
-              }()
+                  x,
+                  yb + wv((i + r * 37) % n) * amp + 0.05 * math.sin(x * (1.3 + r * 0.4) + t * (0.5 + r * 0.13)),
+                );
+              }(),
           ], hsv(hue + r / 6 * 0.6, 0.85, 1, bright));
         }
       case 11: // спектр-пол на всю ширину
         for (var k = 0; k < 48; k++) {
           final x = -A * 0.98 + k / 47 * A * 1.96;
           c.drawLine(
-              _pt(x, 0.98), _pt(x, 0.98 - size * 1.9 * a.spec[k]), _paint(hsv(hue + k / 47 * 0.7, 0.9, 1, bright), 3));
+            _pt(x, 0.98),
+            _pt(x, 0.98 - size * 1.9 * a.spec[k]),
+            _paint(hsv(hue + k / 47 * 0.7, 0.9, 1, bright), 3),
+          );
         }
       case 12: // плазма (крупными «пикселями») + волна поверх
         const gx = 24, gy = 40;
@@ -1037,21 +1053,24 @@ class MdWaveDrawer {
         for (var yy = 0; yy < gy; yy++) {
           for (var xx = 0; xx < gx; xx++) {
             final px = (xx / (gx - 1) * 2 - 1) * A, py = yy / (gy - 1) * 2 - 1;
-            final fld = math.sin(px * 2.1 + t * 0.9) +
+            final fld =
+                math.sin(px * 2.1 + t * 0.9) +
                 math.sin(py * 3.3 - t * 1.2 + px * 0.7) +
                 math.sin((px + py * 1.4) * 2.6 + t * 0.6) +
                 math.sin(math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) * 5 - t * 2);
             final band = (1 - (fld - 1.2 * math.sin(t * 0.3)).abs() * 2.2).clamp(0.0, 1.0);
             if (band < 0.02) continue;
             c.drawRect(
-                Offset(xx * w / gx, yy * h / gy) & cell,
-                Paint()
-                  ..color = hsv(hue, 0.8, 1, band * k)
-                  ..blendMode = BlendMode.lighten);
+              Offset(xx * w / gx, yy * h / gy) & cell,
+              Paint()
+                ..color = hsv(hue, 0.8, 1, band * k)
+                ..blendMode = BlendMode.lighten,
+            );
           }
         }
-        _line([for (var i = 0; i < n; i++) _pt(ox + (-A + i / (n - 1) * 2 * A) * 0.9, oy + wv(i) * size * 0.35)],
-            hsv(hue, 0.85, 1, bright * 0.8));
+        _line([
+          for (var i = 0; i < n; i++) _pt(ox + (-A + i / (n - 1) * 2 * A) * 0.9, oy + wv(i) * size * 0.35),
+        ], hsv(hue, 0.85, 1, bright * 0.8));
       case 13: // решётка точек
         for (var yy = 0; yy < 15; yy++) {
           final pts = <Offset>[];
@@ -1076,7 +1095,7 @@ class MdWaveDrawer {
                 final l = -2.2 + j / (n - 1) * 4.4;
                 final sg = wv((j + i * 61) % n) * size;
                 return _pt(l * cs - (off + sg) * sn + cx * 0.3, l * sn + (off + sg) * cs + cy * 0.3);
-              }()
+              }(),
           ], hsv(hue + i * 0.21, 0.85, 1, bright));
         }
     }
@@ -1088,7 +1107,7 @@ class MdWaveDrawer {
     for (final r in e.rings) {
       _line([
         for (var j = 0; j <= 96; j++)
-          _pt(r[0] + math.cos(j / 96 * 2 * math.pi) * r[2] * 1.2, r[1] + math.sin(j / 96 * 2 * math.pi) * r[2] * 0.9)
+          _pt(r[0] + math.cos(j / 96 * 2 * math.pi) * r[2] * 1.2, r[1] + math.sin(j / 96 * 2 * math.pi) * r[2] * 0.9),
       ], hsv(r[4], 0.9, 1, r[3]));
       r[2] += dt * 1.1;
       r[3] *= math.pow(0.86, dt * 30);

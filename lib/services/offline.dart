@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:echoes_eq/echoes_eq.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,7 @@ import '../models.dart';
 import 'sc.dart';
 import 'yt.dart';
 import '../i18n.dart';
+import 'log.dart';
 
 /// Загрузки «для офлайна» — как в Spotify / Яндекс Музыке: звук сохраняется во внутреннее хранилище
 /// приложения (Application Support/offline), а не в «Файлы» и не в медиатеку. Снаружи этих файлов не видно,
@@ -27,6 +29,17 @@ class Offline extends ChangeNotifier {
   int _running = 0;
   Directory? _dir;
   static const _parallel = 3; // треков одновременно (у каждого ещё по 6 соединений)
+
+  /// Для тестов: забыть всё в памяти (папка будет взята заново).
+  @visibleForTesting
+  void resetForTest() {
+    _items.clear();
+    _queue.clear();
+    progress.clear();
+    failed.clear();
+    _dir = null;
+  }
+
   final _client = http.Client();
 
   Future<Directory> _folder() async {
@@ -34,19 +47,40 @@ class Offline extends ChangeNotifier {
     final base = await getApplicationSupportDirectory();
     final d = Directory('${base.path}/offline');
     if (!d.existsSync()) d.createSync(recursive: true);
+    if (!kIsWeb && Platform.isIOS) EchoesEq.excludeFromBackup(d.path).ignore(); // не в iCloud
     return _dir = d;
   }
 
   File get _index => File('${_dir!.path}/index.json');
 
   Future<void> load() async {
+    final d = await _folder();
+    // на старте ничего не качается — недокачанные куски прочь
     try {
-      await _folder();
-      if (!_index.existsSync()) return;
-      final j = jsonDecode(_index.readAsStringSync()) as Map;
-      j.forEach((id, v) {
+      for (final f in d.listSync().whereType<File>()) {
+        if (f.path.endsWith('.part') || f.path.endsWith('.tmp')) f.deleteSync();
+      }
+    } catch (e) {
+      log.w('offline:49', e);
+    }
+    if (!_index.existsSync()) return;
+    Map j;
+    try {
+      j = jsonDecode(_index.readAsStringSync()) as Map;
+    } catch (_) {
+      // индекс испорчен целиком — сохранить как есть (следующая запись его не затрёт), начать заново
+      try {
+        _index.renameSync('${d.path}/index.json.broken');
+      } catch (e) {
+        log.w('offline:58', e);
+      }
+      return;
+    }
+    // каждая запись отдельно: одна битая не отменяет остальные
+    j.forEach((id, v) {
+      try {
         final m = v as Map;
-        final f = File('${_dir!.path}/${m['f']}');
+        final f = File('${d.path}/${m['f']}');
         if (f.existsSync()) {
           _items['$id'] = (
             '${m['f']}',
@@ -54,21 +88,54 @@ class Offline extends ChangeNotifier {
             Track.fromJson(Map<String, dynamic>.from(m['t'] as Map)),
           );
         }
-      });
-    } catch (_) {}
+      } catch (e) {
+        log.w('offline:73', e);
+      }
+    });
+    // раньше разные треки с кириллицей могли получить одно имя файла — такие записи ненадёжны:
+    // убрать их и сам файл (трек можно скачать заново)
+    final byFile = <String, List<String>>{};
+    _items.forEach((id, e) => byFile.putIfAbsent(e.$1, () => []).add(id));
+    var dropped = false;
+    for (final e in byFile.entries.where((e) => e.value.length > 1)) {
+      for (final id in e.value) {
+        _items.remove(id);
+      }
+      try {
+        File('${d.path}/${e.key}').deleteSync();
+      } catch (e) {
+        log.w('offline:86', e);
+      }
+      dropped = true;
+    }
+    if (dropped) _saveIndex();
   }
 
+  /// Запись индекса атомарно: сначала во временный файл, потом переименование — обрыв посередине
+  /// (приложение закрыли во время загрузки) не оставляет пустой или обрезанный index.json.
   void _saveIndex() {
     if (_dir == null) return;
-    _index.writeAsStringSync(jsonEncode({
-      for (final e in _items.entries) e.key: {'f': e.value.$1, 'b': e.value.$2, 't': e.value.$3.toJson()},
-    }));
+    final tmp = File('${_dir!.path}/index.json.tmp');
+    tmp.writeAsStringSync(
+      jsonEncode({
+        for (final e in _items.entries) e.key: {'f': e.value.$1, 'b': e.value.$2, 't': e.value.$3.toJson()},
+      }),
+      flush: true,
+    );
+    tmp.renameSync(_index.path);
   }
 
   bool has(Track t) => _items.containsKey(t.id);
   bool busy(Track t) => progress.containsKey(t.id) || _queue.contains(t);
   int get count => _items.length;
   int get bytes => _items.values.fold(0, (s, e) => s + e.$2);
+
+  /// Только скачанное из сети (без своих файлов) — что удалит «Очистить загрузки».
+  int get downloadedCount => _items.values.where((e) => !e.$3.isLocal).length;
+  int get downloadedBytes => _items.values.where((e) => !e.$3.isLocal).fold(0, (s, e) => s + e.$2);
+
+  /// Свои аудиофайлы.
+  int get localCount => _items.values.where((e) => e.$3.isLocal).length;
   List<Track> get tracks => _items.values.map((e) => e.$3).toList().reversed.toList();
 
   /// Скачанное из сети (без своих файлов).
@@ -134,22 +201,29 @@ class Offline extends ChangeNotifier {
     progress.remove(t.id);
     try {
       f?.deleteSync();
-    } catch (_) {}
+    } catch (e) {
+      log.w('offline:181', e);
+    }
     _saveIndex();
     notifyListeners();
   }
 
+  /// Удалить скачанное. Свои аудиофайлы остаются: их в сети нет, заново не скачать.
   Future<void> clear() async {
     _queue.clear();
-    for (final t in tracks) {
+    for (final t in downloaded) {
       remove(t);
     }
+    // файлы-сироты (без записи в индексе) — тоже прочь; файлы оставшихся записей не трогаем
     final d = await _folder();
-    for (final f in d.listSync()) {
-      if (f is File && !f.path.endsWith('index.json')) {
+    final keep = {for (final e in _items.values) e.$1, 'index.json', 'index.json.broken'};
+    for (final f in d.listSync().whereType<File>()) {
+      if (!keep.contains(f.uri.pathSegments.last)) {
         try {
           f.deleteSync();
-        } catch (_) {}
+        } catch (e) {
+          log.w('offline:199', e);
+        }
       }
     }
     notifyListeners();
@@ -176,7 +250,27 @@ class Offline extends ChangeNotifier {
     }
   }
 
-  static String _safe(String id) => id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+  static String _safe(String id) => safeName(id);
+
+  /// Имя файла для трека. Латиница/цифры (id YouTube и т. п.) — как есть; иначе к «очищенному» имени
+  /// добавляется хеш: «q:Кино — Пачка» и «q:Сплин — Мать» раньше оба превращались в «q_____________».
+  /// Тем же способом называются файлы обложек и текстов песен.
+  static String safeName(String id) {
+    final ascii = id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    if (ascii == id) return id;
+    final head = ascii.length > 40 ? ascii.substring(0, 40) : ascii;
+    return '${head}_${_hash(id)}';
+  }
+
+  /// FNV-1a (64 бита) от UTF-8 — 16 hex-символов.
+  static String _hash(String s) {
+    var h = 0xcbf29ce484222325;
+    for (final b in utf8.encode(s)) {
+      h ^= b;
+      h *= 0x100000001b3;
+    }
+    return h.toUnsigned(64).toRadixString(16).padLeft(16, '0');
+  }
 
   Future<void> _fetch(Track t) async {
     final d = await _folder();
@@ -191,7 +285,9 @@ class Offline extends ChangeNotifier {
       failed[t.id] = '$e'.replaceFirst('Exception: ', '');
       try {
         if (tmp.existsSync()) tmp.deleteSync();
-      } catch (_) {}
+      } catch (e) {
+        log.w('offline:261', e);
+      }
     } finally {
       progress.remove(t.id);
       notifyListeners();
@@ -212,7 +308,9 @@ class Offline extends ChangeNotifier {
         for (final m in (await ScService.instance.matches(t.artist, t.title, t.seconds, exclude: t.scId)).take(3)) {
           try {
             return await _sc(m, t, tmp);
-          } catch (_) {}
+          } catch (e) {
+            log.w('offline:282', e);
+          }
         }
         rethrow;
       }
@@ -251,20 +349,23 @@ class Offline extends ChangeNotifier {
     final n = (pick.size + chunk - 1) ~/ chunk;
     final parts = List<List<int>?>.filled(n, null);
     var next = 0, written = 0, done = 0;
+    var failed = false; // один кусок не скачался — остальные работники останавливаются (не копят МБ в памяти)
     final sink = tmp.openWrite();
     Future<List<int>> fetch(int i) async {
       final s = i * chunk;
       final e = ((i + 1) * chunk).clamp(0, pick.size) - 1;
+      final want = e - s + 1;
       for (var attempt = 0; attempt < 3; attempt++) {
         try {
           var r = await _client.get(pick.url, headers: {'Range': 'bytes=$s-$e'}).timeout(const Duration(seconds: 25));
-          if (r.statusCode != 206 && r.statusCode != 200) {
+          // сервер не выполнил Range (весь файл с начала) — запасной путь: параметр &range= в ссылке
+          if ((r.statusCode != 206 && r.statusCode != 200) || r.bodyBytes.length != want) {
             r = await _client
                 .get(pick.url.replace(queryParameters: {...pick.url.queryParameters, 'range': '$s-$e'}))
                 .timeout(const Duration(seconds: 25));
           }
-          if (r.statusCode == 206 || r.statusCode == 200) return r.bodyBytes;
-          if (attempt == 2) throw Exception('HTTP ${r.statusCode}');
+          if ((r.statusCode == 206 || r.statusCode == 200) && r.bodyBytes.length == want) return r.bodyBytes;
+          if (attempt == 2) throw Exception('HTTP ${r.statusCode}, ${r.bodyBytes.length}/$want байт');
         } on TimeoutException {
           if (attempt == 2) rethrow;
         }
@@ -273,10 +374,16 @@ class Offline extends ChangeNotifier {
     }
 
     Future<void> worker() async {
-      while (true) {
+      while (!failed) {
         final i = next++;
         if (i >= n) return;
-        parts[i] = await fetch(i);
+        try {
+          parts[i] = await fetch(i);
+        } catch (_) {
+          failed = true;
+          rethrow;
+        }
+        if (failed) return;
         done++;
         if (report) _tick(t, done / n);
         // готовые куски — в файл по порядку, память не копится
@@ -302,7 +409,7 @@ class Offline extends ChangeNotifier {
   /// Скачать по ссылке SoundCloud: обычный mp3 — потоком, HLS — сегменты подряд.
   Future<String> _fetchUrl(Uri u, Track t, File tmp, {bool report = true}) async {
     if (!u.path.contains('.m3u8') && !u.toString().contains('playlist.m3u8')) {
-      final r = await _client.send(http.Request('GET', u));
+      final r = await _client.send(http.Request('GET', u)).timeout(const Duration(seconds: 15));
       if (r.statusCode != 200) {
         await r.stream.drain<void>();
         throw Exception('SoundCloud: HTTP ${r.statusCode}');
@@ -311,7 +418,7 @@ class Offline extends ChangeNotifier {
       var got = 0;
       final sink = tmp.openWrite();
       try {
-        await for (final b in r.stream) {
+        await for (final b in r.stream.timeout(const Duration(seconds: 20))) {
           sink.add(b);
           got += b.length;
           if (total > 0 && report) _tick(t, got / total);
@@ -321,7 +428,7 @@ class Offline extends ChangeNotifier {
       }
       return (r.headers['content-type'] ?? '').contains('mp4') ? 'm4a' : 'mp3';
     }
-    final list = await http.get(u);
+    final list = await http.get(u).timeout(const Duration(seconds: 15));
     final lines = const LineSplitter().convert(list.body);
     final segs = <Uri>[];
     var mp4 = false;
@@ -369,7 +476,22 @@ extension PlaybackCache on Offline {
   /// Запасной путь для игры: плеер iOS не открыл ссылку (бывает «unsupported URL», а после фона —
   /// «не удалось подключиться» к его внутреннему прокси) — быстро качаем трек во временный кэш
   /// (Caches, iOS чистит его сам; держим последние 25) и играем из файла.
-  Future<File> playbackFile(Track t, {Uri? url, StreamPick? pick}) async {
+  /// Временные файлы, которые качаются прямо сейчас: тот же трек из того же источника — один общий
+  /// Future (повторный запрос ждёт его, а не пишет в тот же файл параллельно).
+  static final _playing = <String, Future<File>>{};
+
+  Future<File> playbackFile(Track t, {Uri? url, StreamPick? pick}) {
+    final key = '${t.id}|${pick != null ? 'yt:${pick.url}' : '$url'}';
+    final run = _playing[key];
+    if (run != null) return run;
+    final f = _playbackFile(t, url: url, pick: pick);
+    _playing[key] = f;
+    return f.whenComplete(() => _playing.remove(key));
+  }
+
+  static int _partSeq = 0;
+
+  Future<File> _playbackFile(Track t, {Uri? url, StreamPick? pick}) async {
     final base = await getTemporaryDirectory();
     final d = Directory('${base.path}/echoes_play');
     if (!d.existsSync()) d.createSync(recursive: true);
@@ -377,22 +499,34 @@ extension PlaybackCache on Offline {
     for (final f in d.listSync().whereType<File>()) {
       if (f.uri.pathSegments.last.startsWith('$name.') && !f.path.endsWith('.part')) return f;
     }
-    final tmp = File('${d.path}/$name.part');
+    // своё имя у каждой загрузки: разные источники одного трека не портят байты друг другу
+    final tmp = File('${d.path}/$name.${DateTime.now().microsecondsSinceEpoch}-${_partSeq++}.part');
     String ext;
-    if (pick != null) {
-      await _ranged(pick, t, tmp, report: false);
-      ext = pick.mime.contains('video') ? 'mp4' : 'm4a';
-    } else {
-      ext = await _fetchUrl(url!, t, tmp, report: false);
+    try {
+      if (pick != null) {
+        await _ranged(pick, t, tmp, report: false);
+        ext = pick.mime.contains('video') ? 'mp4' : 'm4a';
+      } else {
+        ext = await _fetchUrl(url!, t, tmp, report: false);
+      }
+    } catch (_) {
+      try {
+        if (tmp.existsSync()) tmp.deleteSync();
+      } catch (e) {
+        log.w('offline:475', e);
+      }
+      rethrow;
     }
     final out = tmp.renameSync('${d.path}/$name.$ext');
-    // старые — прочь
-    final all = d.listSync().whereType<File>().toList()
+    // старые — прочь (недокачанные .part не трогаем: их ещё пишут)
+    final all = d.listSync().whereType<File>().where((f) => !f.path.endsWith('.part')).toList()
       ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
     for (final f in all.skip(25)) {
       try {
         f.deleteSync();
-      } catch (_) {}
+      } catch (e) {
+        log.w('offline:485', e);
+      }
     }
     return out;
   }

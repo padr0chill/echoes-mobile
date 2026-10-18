@@ -68,9 +68,9 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
   static Future<void>? _loading;
   static ui.FragmentProgram? _warpP, _compP; // уже загружены — берём сразу
   static Future<void> _load() => _loading ??= Future.wait([
-        ui.FragmentProgram.fromAsset('shaders/md_warp.frag').then((p) => _warpP = p),
-        ui.FragmentProgram.fromAsset('shaders/md_comp.frag').then((p) => _compP = p),
-      ]).catchError((_) => <ui.FragmentProgram>[]);
+    ui.FragmentProgram.fromAsset('shaders/md_warp.frag').then((p) => _warpP = p),
+    ui.FragmentProgram.fromAsset('shaders/md_comp.frag').then((p) => _compP = p),
+  ]).catchError((_) => <ui.FragmentProgram>[]);
 
   ui.FragmentShader? _warp, _comp;
   late final Ticker _ticker;
@@ -155,29 +155,38 @@ class _MilkdropViewState extends State<MilkdropView> with SingleTickerProviderSt
     if (widget.controller == null) _c.dispose();
     _frame.dispose();
     _buf?.dispose();
+    _warp?.dispose();
+    _comp?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_comp == null) return const ColoredBox(color: Colors.black);
-    return LayoutBuilder(builder: (context, box) {
-      if (box.maxHeight > 0 && box.maxWidth.isFinite && box.maxHeight.isFinite) {
-        _aspect = (box.maxWidth / box.maxHeight).clamp(0.3, 3.0);
-      }
-      return Stack(fit: StackFit.expand, children: [
-        RepaintBoundary(
-          child: CustomPaint(size: Size.infinite, painter: _CompPainter(_frame, _comp!, () => _buf, _c.engine)),
-        ),
-        // слова текста песни — ПОВЕРХ картинки (как на ПК), кнопка «ТЕКСТ» включает/выключает
-        ListenableBuilder(
-          listenable: Store.instance,
-          builder: (context, _) => Store.instance.milkdropText
-              ? RepaintBoundary(child: MilkdropWords(frame: _frame, hue: () => _c.engine.hue))
-              : const SizedBox.shrink(),
-        ),
-      ]);
-    });
+    return LayoutBuilder(
+      builder: (context, box) {
+        if (box.maxHeight > 0 && box.maxWidth.isFinite && box.maxHeight.isFinite) {
+          _aspect = (box.maxWidth / box.maxHeight).clamp(0.3, 3.0);
+        }
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            RepaintBoundary(
+              child: CustomPaint(size: Size.infinite, painter: _CompPainter(_frame, _comp!, () => _buf, _c.engine)),
+            ),
+            // слова текста песни — ПОВЕРХ картинки (как на ПК), кнопка «ТЕКСТ» включает/выключает
+            ListenableBuilder(
+              listenable: Store.instance,
+              builder: (context, _) => Store.instance.milkdropText
+                  ? RepaintBoundary(
+                      child: MilkdropWords(frame: _frame, hue: () => _c.engine.hue),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -249,87 +258,105 @@ class _MilkdropScreenState extends State<MilkdropScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(children: [
-          WaBevel(
-            padding: EdgeInsets.all(context.u(4)),
-            child: Row(children: [
-              Expanded(
-                child: WaTitleBar(
-                  title: 'MILKDROP',
-                  leading: GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Icon(Icons.close_rounded, color: Wa.text, size: context.u(22)),
-                    ),
-                  ),
-                ),
-              ),
-              // «ТЕКСТ»: строки текста песни вжигаются в картинку (лампочка — вкл/выкл)
-              ListenableBuilder(
-                listenable: Store.instance,
-                builder: (context, _) {
-                  final on = Store.instance.milkdropText;
-                  return GestureDetector(
-                    onTap: () => Store.instance.setMilkdropText(!on),
-                    child: WaBevel(
-                      color: Wa.btn,
-                      padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(6)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Container(width: 6, height: 6, color: on ? Wa.green : Wa.greenDim),
-                        const SizedBox(width: 5),
-                        Text(tr('ТЕКСТ'),
-                            style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ]),
-                    ),
-                  );
-                },
-              ),
-            ]),
-          ),
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _c.next,
-              // свайп влево — следующий, вправо — прошлый; долгое нажатие — режим смены (авто / на удар / замок)
-              onHorizontalDragEnd: (d) => (d.primaryVelocity ?? 0) > 0 ? _c.prev() : _c.next(),
-              onLongPress: _c.cycleMode,
-              child: Stack(fit: StackFit.expand, children: [
-                MilkdropView(controller: _c),
-                Positioned(
-                  left: context.u(12),
-                  right: context.u(12),
-                  top: context.u(12),
-                  child: AnimatedOpacity(
-                    opacity: _showName ? 1 : 0,
-                    duration: const Duration(milliseconds: 400),
-                    child: ListenableBuilder(
-                      listenable: _c,
-                      builder: (context, _) => Text(
-                        '${_c.index + 1}/${mdPresets.length}  ${_c.name}\n'
-                        '${switch (_c.mode) { MdMode.auto => 'AUTO', MdMode.beat => 'BEAT', MdMode.lock => 'LOCK' }}',
-                        style: Wa.mono.copyWith(
-                          color: Wa.green,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+        child: Column(
+          children: [
+            WaBevel(
+              padding: EdgeInsets.all(context.u(4)),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: WaTitleBar(
+                      title: 'MILKDROP',
+                      leading: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          child: Icon(Icons.close_rounded, color: Wa.text, size: context.u(22)),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: context.u(14),
-                  child: Text(tr('нажатие / свайп — пресет · удерживать — режим'),
-                      textAlign: TextAlign.center,
-                      style: Wa.mono.copyWith(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
-                ),
-              ]),
+                  // «ТЕКСТ»: строки текста песни вжигаются в картинку (лампочка — вкл/выкл)
+                  ListenableBuilder(
+                    listenable: Store.instance,
+                    builder: (context, _) {
+                      final on = Store.instance.milkdropText;
+                      return GestureDetector(
+                        onTap: () => Store.instance.setMilkdropText(!on),
+                        child: WaBevel(
+                          color: Wa.btn,
+                          padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(6)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(width: 6, height: 6, color: on ? Wa.green : Wa.greenDim),
+                              const SizedBox(width: 5),
+                              Text(
+                                tr('ТЕКСТ'),
+                                style: Wa.mono.copyWith(color: Wa.text, fontSize: 10, fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]),
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _c.next,
+                // свайп влево — следующий, вправо — прошлый; долгое нажатие — режим смены (авто / на удар / замок)
+                onHorizontalDragEnd: (d) => (d.primaryVelocity ?? 0) > 0 ? _c.prev() : _c.next(),
+                onLongPress: _c.cycleMode,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    MilkdropView(controller: _c),
+                    Positioned(
+                      left: context.u(12),
+                      right: context.u(12),
+                      top: context.u(12),
+                      child: AnimatedOpacity(
+                        opacity: _showName ? 1 : 0,
+                        duration: const Duration(milliseconds: 400),
+                        child: ListenableBuilder(
+                          listenable: _c,
+                          builder: (context, _) => Text(
+                            '${_c.index + 1}/${mdPresets.length}  ${_c.name}\n'
+                            '${switch (_c.mode) {
+                              MdMode.auto => 'AUTO',
+                              MdMode.beat => 'BEAT',
+                              MdMode.lock => 'LOCK',
+                            }}',
+                            style: Wa.mono.copyWith(
+                              color: Wa.green,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: context.u(14),
+                      child: Text(
+                        tr('нажатие / свайп — пресет · удерживать — режим'),
+                        textAlign: TextAlign.center,
+                        style: Wa.mono.copyWith(color: Colors.white.withValues(alpha: 0.35), fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models.dart';
 import 'text_match.dart';
+import 'log.dart';
+import 'offline.dart';
 
 class LyricLine {
   final Duration at;
@@ -14,21 +16,44 @@ class LyricLine {
 }
 
 class Lyrics {
-  final List<LyricLine> lines; // с таймингами (synced) — at > 0; без — все нули
+  final List<LyricLine> lines; // с таймингами (synced) — at > 0; без — все нули (уже со сдвигом shift)
+  final List<LyricLine> _base; // как сохранено, без сдвига
   final bool synced;
   final String source; // откуда: lrclib, lyrics.ovh, «свой», «синхронизировано вручную», «авто»
   final bool approx; // тайминги примерные (авто-синхронизация) — стоит подправить
   final int srcSeconds; // длительность записи, под которую расставлены тайминги (0 — неизвестна)
-  const Lyrics(this.lines, this.synced, {this.source = 'lrclib', this.approx = false, this.srcSeconds = 0});
+
+  /// Сдвиг «раньше/позже» — отдельно от таймингов: строки вступления не «слипаются» на 0:00, если
+  /// несколько раз нажать «раньше», а потом «позже».
+  final Duration shift;
+
+  Lyrics(
+    List<LyricLine> lines,
+    this.synced, {
+    this.source = 'lrclib',
+    this.approx = false,
+    this.srcSeconds = 0,
+    this.shift = Duration.zero,
+  }) : _base = lines,
+       lines = shift == Duration.zero
+           ? lines
+           : [for (final l in lines) LyricLine(l.at + shift < Duration.zero ? Duration.zero : l.at + shift, l.text)];
 
   /// Подогнать тайминги под настоящую длительность трека: текст снят с версии другой скорости
   /// (ускоренной / замедленной / другого мастеринга) — растянуть или сжать все строки пропорционально.
+  /// Только если разница похожа на другую скорость (> 3 %): у клипа бывает просто длиннее вступление.
   Lyrics fitTo(int realSeconds) {
     if (!synced || srcSeconds <= 0 || realSeconds <= 0) return this;
     final k = realSeconds / srcSeconds;
-    if ((realSeconds - srcSeconds).abs() < 2 || k < 0.75 || k > 1.33) return this;
-    return Lyrics([for (final l in lines) LyricLine(l.at * k, l.text)], true,
-        source: source, approx: approx, srcSeconds: realSeconds);
+    if ((k - 1).abs() <= 0.03 || k < 0.75 || k > 1.33) return this;
+    return Lyrics(
+      [for (final l in _base) LyricLine(l.at * k, l.text)],
+      true,
+      source: source,
+      approx: approx,
+      srcSeconds: realSeconds,
+      shift: shift * k,
+    );
   }
 
   /// «Сейчас звучит эта строка»: сдвинуть весь текст так, чтобы строка i начиналась в момент now.
@@ -36,26 +61,24 @@ class Lyrics {
 
   /// В формате LRC — так текст сохраняется на телефоне.
   String toLrc() {
-    final b = StringBuffer('[re:ECHOES][src:$source]${approx ? '[approx:1]' : ''}\n');
-    for (final l in lines) {
+    final sh = shift == Duration.zero ? '' : '[shift:${shift.inMilliseconds}]';
+    final b = StringBuffer('[re:ECHOES][src:$source]${approx ? '[approx:1]' : ''}$sh\n');
+    for (final l in _base) {
       if (synced) {
         final ms = l.at.inMilliseconds;
-        b.write('[${(ms ~/ 60000).toString().padLeft(2, '0')}:'
-            '${((ms % 60000) / 1000).toStringAsFixed(2).padLeft(5, '0')}]');
+        b.write(
+          '[${(ms ~/ 60000).toString().padLeft(2, '0')}:'
+          '${((ms % 60000) / 1000).toStringAsFixed(2).padLeft(5, '0')}]',
+        );
       }
       b.writeln(l.text);
     }
     return b.toString();
   }
 
-  /// Сдвинуть весь текст (раньше/позже).
-  Lyrics shifted(Duration d) => Lyrics(
-        [for (final l in lines) LyricLine(l.at + d < Duration.zero ? Duration.zero : l.at + d, l.text)],
-        synced,
-        source: source,
-        approx: approx,
-        srcSeconds: srcSeconds,
-      );
+  /// Сдвинуть весь текст (раньше/позже) — копится в shift, сами тайминги не трогаются.
+  Lyrics shifted(Duration d) =>
+      Lyrics(_base, synced, source: source, approx: approx, srcSeconds: srcSeconds, shift: shift + d);
 }
 
 /// Найденный вариант текста (для выбора вручную).
@@ -71,8 +94,11 @@ class LyricsCandidate {
   Lyrics? toLyrics() {
     if (hasSynced) return Lyrics(LyricsService.parseLrc(synced!), true, source: source, srcSeconds: seconds);
     if (plain != null && plain!.trim().isNotEmpty) {
-      return Lyrics([for (final s in plain!.split('\n')) LyricLine(Duration.zero, s.trimRight())], false,
-          source: source);
+      return Lyrics(
+        [for (final s in plain!.split('\n')) LyricLine(Duration.zero, s.trimRight())],
+        false,
+        source: source,
+      );
     }
     return null;
   }
@@ -85,7 +111,9 @@ class LyricsService {
   LyricsService._();
   static final LyricsService instance = LyricsService._();
   final _cache = <String, Lyrics?>{};
-  static const _ua = {'User-Agent': 'ECHOES mobile (https://github.com/padr0chill/zhopa-mobile)'};
+  final _missAt = <String, DateTime>{}; // «не нашлось» — когда (мог быть просто сбой сети)
+  final _pending = <String, Future<Lyrics?>>{}; // уже ищется — второй запрос ждёт первый
+  static const _ua = {'User-Agent': 'ECHOES mobile (https://github.com/padr0chill/echoes-mobile)'};
 
   // ── сохранённые на телефоне ──
 
@@ -94,7 +122,11 @@ class LyricsService {
       final base = await getApplicationSupportDirectory();
       final d = Directory('${base.path}/lyrics');
       if (!d.existsSync()) d.createSync(recursive: true);
-      return File('${d.path}/${t.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.lrc');
+      final f = File('${d.path}/${Offline.safeName(t.id)}.lrc');
+      // раньше имя было без хеша (у кириллических треков могло совпасть) — перенести старый файл
+      final old = File('${d.path}/${t.id.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.lrc');
+      if (old.path != f.path && !f.existsSync() && old.existsSync()) old.renameSync(f.path);
+      return f;
     } catch (_) {
       return null; // тесты / нет доступа к папке
     }
@@ -106,8 +138,17 @@ class LyricsService {
     final raw = f.readAsStringSync();
     final src = RegExp(r'\[src:([^\]]*)\]').firstMatch(raw)?.group(1) ?? 'свой';
     final approx = raw.contains('[approx:1]');
+    final sh = int.tryParse(RegExp(r'\[shift:(-?\d+)\]').firstMatch(raw)?.group(1) ?? '') ?? 0;
     final synced = parseLrc(raw);
-    if (synced.isNotEmpty) return Lyrics(synced, true, source: src, approx: approx);
+    if (synced.isNotEmpty) {
+      return Lyrics(
+        synced,
+        true,
+        source: src,
+        approx: approx,
+        shift: Duration(milliseconds: sh),
+      );
+    }
     final plain = raw.split('\n').where((s) => !s.startsWith('[')).map((s) => LyricLine(Duration.zero, s)).toList();
     return plain.isEmpty ? null : Lyrics(plain, false, source: src);
   }
@@ -115,6 +156,7 @@ class LyricsService {
   /// Сохранить текст/тайминги для трека (выбранный вариант, свой текст, ручная синхронизация, сдвиг).
   Future<void> save(Track t, Lyrics l) async {
     _cache[t.id] = l;
+    _missAt.remove(t.id);
     final f = await _file(t);
     f?.writeAsStringSync(l.toLrc());
   }
@@ -130,8 +172,19 @@ class LyricsService {
   /// подгоняются тайминги.
   static int Function(Track t)? realSeconds;
 
-  Future<Lyrics?> get(Track t) async {
-    if (_cache.containsKey(t.id)) return _cache[t.id];
+  Future<Lyrics?> get(Track t) {
+    if (_cache.containsKey(t.id)) {
+      final miss = _missAt[t.id];
+      // «не нашлось» помним 2 минуты: это мог быть сбой сети — потом поищем снова
+      if (_cache[t.id] != null || miss == null || DateTime.now().difference(miss) < const Duration(minutes: 2)) {
+        return Future.value(_cache[t.id]);
+      }
+    }
+    // бегущая строка, экран текста и MilkDrop просят одно и то же одновременно — искать один раз
+    return _pending[t.id] ??= _get(t).whenComplete(() => _pending.remove(t.id));
+  }
+
+  Future<Lyrics?> _get(Track t) async {
     Lyrics? out = await _loadSaved(t);
     if (out == null) {
       try {
@@ -147,9 +200,16 @@ class LyricsService {
             : t;
         final list = await search(tt, quick: true);
         if (list.isNotEmpty && list.first.score >= _accept) out = list.first.toLyrics()?.fitTo(real);
-      } catch (_) {}
+      } catch (e) {
+        log.w('lyrics:150', e);
+      }
     }
     _cache[t.id] = out;
+    if (out == null) {
+      _missAt[t.id] = DateTime.now();
+    } else {
+      _missAt.remove(t.id);
+    }
     return out;
   }
 
@@ -189,25 +249,34 @@ class LyricsService {
         try {
           final r = await http
               .get(
-                  Uri.https('lrclib.net', '/api/get',
-                      {'artist_name': artist, 'track_name': title, 'duration': '${t.seconds}'}),
-                  headers: _ua)
+                Uri.https('lrclib.net', '/api/get', {
+                  'artist_name': artist,
+                  'track_name': title,
+                  'duration': '${t.seconds}',
+                }),
+                headers: _ua,
+              )
               .timeout(const Duration(seconds: 6));
           if (r.statusCode == 200) add(jsonDecode(r.body) as Map<String, dynamic>, 'lrclib');
-        } catch (_) {}
+        } catch (e) {
+          log.w('lyrics:197', e);
+        }
         if (quick && confident()) return _sorted(found);
       }
     }
     for (final q in queries) {
       try {
-        final r =
-            await http.get(Uri.https('lrclib.net', '/api/search', q), headers: _ua).timeout(const Duration(seconds: 8));
+        final r = await http
+            .get(Uri.https('lrclib.net', '/api/search', q), headers: _ua)
+            .timeout(const Duration(seconds: 8));
         if (r.statusCode == 200) {
           for (final j in (jsonDecode(r.body) as List).cast<Map<String, dynamic>>().take(20)) {
             add(j, 'lrclib');
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        log.w('lyrics:210', e);
+      }
       if (quick && confident()) break;
     }
     // запасной источник (только обычный текст)
@@ -222,7 +291,9 @@ class LyricsService {
             found['ovh'] = LyricsCandidate(title, artist, 0, null, txt.replaceAll('\r', ''), 'lyrics.ovh', _accept);
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        log.w('lyrics:225', e);
+      }
     }
     return _sorted(found);
   }
@@ -251,8 +322,9 @@ class LyricsService {
   // ── очистка и сравнение названий ──
 
   static final _junk = RegExp(
-      r'\s*[\(\[][^\)\]]*(feat|ft\.|prod|official|video|audio|lyric|remaster|clip|visualizer|клип|премьера|mood|slowed|speed)[^\)\]]*[\)\]]',
-      caseSensitive: false);
+    r'\s*[\(\[][^\)\]]*(feat|ft\.|prod|official|video|audio|lyric|remaster|clip|visualizer|клип|премьера|mood|slowed|speed)[^\)\]]*[\)\]]',
+    caseSensitive: false,
+  );
 
   /// «Исполнитель - Название (feat. X) [Official Video]» → (главный исполнитель, чистое название).
   static (String, String) cleanup(String artist, String title) {

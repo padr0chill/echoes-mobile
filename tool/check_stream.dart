@@ -18,7 +18,8 @@ Future<void> main(List<String> args) async {
   sw.reset();
   final url = await YtService.instance.streamUrl(t.id);
   print(
-      'stream url in ${sw.elapsedMilliseconds} ms: ${url.host} mime=${url.queryParameters['mime']} itag=${url.queryParameters['itag']}');
+    'stream url in ${sw.elapsedMilliseconds} ms: ${url.host} mime=${url.queryParameters['mime']} itag=${url.queryParameters['itag']}',
+  );
   final r = await http.get(url, headers: {'Range': 'bytes=0-65535'});
   print('range request: HTTP ${r.statusCode}, ${r.bodyBytes.length} bytes, type=${r.headers['content-type']}');
   final eco = await YtService.instance.streamUrl(t.id, economy: true);

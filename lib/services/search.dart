@@ -69,9 +69,9 @@ class SearchService {
     final g = {for (final t in list) t: group(t)};
     final idx = {for (var i = 0; i < list.length; i++) list[i]: i};
     return [...list]..sort((a, b) {
-        final c = g[a]!.compareTo(g[b]!);
-        return c != 0 ? c : idx[a]!.compareTo(idx[b]!);
-      });
+      final c = g[a]!.compareTo(g[b]!);
+      return c != 0 ? c : idx[a]!.compareTo(idx[b]!);
+    });
   }
 
   /// Поиск + проверка длительности по эталону (Deezer — официальные длительности, как в Spotify):
@@ -90,7 +90,7 @@ class SearchService {
     final seen = <String>{};
     return [
       for (final t in list)
-        if (seen.add('${_norm(t.artist)}|${_norm(t.title)}|${(t.seconds / 4).round()}')) t
+        if (seen.add('${_norm(t.artist)}|${_norm(t.title)}|${(t.seconds / 4).round()}')) t,
     ];
   }
 
@@ -131,12 +131,12 @@ class SearchService {
         // перезаливы («top_myzik — Miyagi & Andy Panda - Kosandra») той же песни, что уже есть, — не нужны
         String c(String s) => _norm(s).replaceAll(' ', '');
         bool reupload(Track s) => out.any((o) {
-              final all = c('${s.artist} ${s.title}');
-              return c(o.artist).isNotEmpty &&
-                  all.contains(c(o.artist)) &&
-                  all.contains(c(o.title)) &&
-                  (s.seconds - o.seconds).abs() <= 8;
-            });
+          final all = c('${s.artist} ${s.title}');
+          return c(o.artist).isNotEmpty &&
+              all.contains(c(o.artist)) &&
+              all.contains(c(o.title)) &&
+              (s.seconds - o.seconds).abs() <= 8;
+        });
         final extra = sc.where((s) => !used.contains(s) && !reupload(s)).toList();
         if (out.isEmpty) return extra;
         final res = <Track>[];

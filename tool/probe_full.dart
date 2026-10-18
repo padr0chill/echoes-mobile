@@ -25,13 +25,16 @@ Future<void> main(List<String> args) async {
         Future<int> h(int from, int to) async =>
             (await http.get(s.url, headers: {'Range': 'bytes=$from-$to'}).timeout(const Duration(seconds: 15)))
                 .statusCode;
-        Future<int> p(int from, int to) async => (await http
-                .get(s.url.replace(queryParameters: {...s.url.queryParameters, 'range': '$from-$to'}))
-                .timeout(const Duration(seconds: 15)))
-            .statusCode;
-        print('${e.key} itag ${s.tag} ${s.container.name} c=${s.url.queryParameters['c']}: '
-            'hdr start ${await h(0, 65535)} mid ${await h(mid, mid + 65535)} end ${await h(size - 1000, size - 1)} | '
-            'param mid ${await p(mid, mid + 65535)}');
+        Future<int> p(int from, int to) async =>
+            (await http
+                    .get(s.url.replace(queryParameters: {...s.url.queryParameters, 'range': '$from-$to'}))
+                    .timeout(const Duration(seconds: 15)))
+                .statusCode;
+        print(
+          '${e.key} itag ${s.tag} ${s.container.name} c=${s.url.queryParameters['c']}: '
+          'hdr start ${await h(0, 65535)} mid ${await h(mid, mid + 65535)} end ${await h(size - 1000, size - 1)} | '
+          'param mid ${await p(mid, mid + 65535)}',
+        );
       }
     } catch (err) {
       print('${e.key}: FAIL ${'$err'.split('\n').first}');

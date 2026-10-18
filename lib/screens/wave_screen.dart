@@ -27,32 +27,32 @@ class WaveScreen extends StatelessWidget {
     'Энергичное': (
       Icons.bolt_rounded,
       'Бодрый ритм',
-      [Color(0xFFFFF04D), Color(0xFFFF7A00), Color(0xFFFF1F3D), Color(0xFFC2005E)]
+      [Color(0xFFFFF04D), Color(0xFFFF7A00), Color(0xFFFF1F3D), Color(0xFFC2005E)],
     ),
     'Спокойное': (
       Icons.spa_rounded,
       'Мягко и ровно',
-      [Color(0xFFA8F4FF), Color(0xFF3EC8FF), Color(0xFF4060FF), Color(0xFF7A3CFF)]
+      [Color(0xFFA8F4FF), Color(0xFF3EC8FF), Color(0xFF4060FF), Color(0xFF7A3CFF)],
     ),
     'Грустное': (
       Icons.water_drop_rounded,
       'Под настроение',
-      [Color(0xFFC4CEFF), Color(0xFF7480FF), Color(0xFF5A3DB8), Color(0xFF2B1E66)]
+      [Color(0xFFC4CEFF), Color(0xFF7480FF), Color(0xFF5A3DB8), Color(0xFF2B1E66)],
     ),
     'Тренировка': (
       Icons.fitness_center_rounded,
       'Не сбавляй темп',
-      [Color(0xFFE2FF3D), Color(0xFF3DFF8A), Color(0xFF00C2A8), Color(0xFF0077FF)]
+      [Color(0xFFE2FF3D), Color(0xFF3DFF8A), Color(0xFF00C2A8), Color(0xFF0077FF)],
     ),
     'Для сна': (
       Icons.bedtime_rounded,
       'Тихо и медленно',
-      [Color(0xFFD6C9FF), Color(0xFF8A6CFF), Color(0xFF3D2C8F), Color(0xFF1A1446)]
+      [Color(0xFFD6C9FF), Color(0xFF8A6CFF), Color(0xFF3D2C8F), Color(0xFF1A1446)],
     ),
     'Русский рэп': (
       Icons.mic_rounded,
       'Свежее и любимое',
-      [Color(0xFFFFD43B), Color(0xFFFF4D4D), Color(0xFFB3001B), Color(0xFF5A0016)]
+      [Color(0xFFFFD43B), Color(0xFFFF4D4D), Color(0xFFB3001B), Color(0xFF5A0016)],
     ),
   };
 
@@ -83,23 +83,35 @@ class WaveScreen extends StatelessWidget {
               color: selected ? pal[1].withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.06),
               border: Border.all(color: selected ? pal[1] : Colors.white.withValues(alpha: 0.14)),
             ),
-            child: Row(children: [
-              _Orb(colors: pal, icon: icon, size: ctx.u(38)),
-              SizedBox(width: ctx.u(10)),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                  Text(label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800)),
-                  Text(sub,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 12, color: Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
-                ]),
-              ),
-            ]),
+            child: Row(
+              children: [
+                _Orb(colors: pal, icon: icon, size: ctx.u(38)),
+                SizedBox(width: ctx.u(10)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }
@@ -109,36 +121,48 @@ class WaveScreen extends StatelessWidget {
         tile(null, Icons.all_inclusive_rounded, tr('Под вас'), tr('По лайкам и истории'), _accentPalette(ctx.accent)),
         for (final e in _moods.entries) tile(e.key, e.value.$1, tr(e.key), tr(e.value.$2), e.value.$3),
       ];
-      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(tr('Настроить волну'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-        SizedBox(height: ctx.u(4)),
-        Text(tr('Выберите настроение — волна сразу перестроится'),
-            style: TextStyle(color: Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
-        SizedBox(height: ctx.u(14)),
-        if (twoCols)
-          for (var i = 0; i < tiles.length; i += 2)
-            Padding(
-              padding: EdgeInsets.only(bottom: ctx.u(8)),
-              child: Row(children: [
-                Expanded(child: tiles[i]),
-                SizedBox(width: ctx.u(8)),
-                Expanded(child: i + 1 < tiles.length ? tiles[i + 1] : const SizedBox()),
-              ]),
-            )
-        else
-          for (final t in tiles) Padding(padding: EdgeInsets.only(bottom: ctx.u(8)), child: t),
-        if (w.active)
-          Center(
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.pop(ctx);
-                w.stop();
-              },
-              icon: const Icon(Icons.stop_rounded),
-              label: Text(tr('Остановить волну')),
-            ),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(tr('Настроить волну'), style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          SizedBox(height: ctx.u(4)),
+          Text(
+            tr('Выберите настроение — волна сразу перестроится'),
+            style: TextStyle(color: Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6)),
           ),
-      ]);
+          SizedBox(height: ctx.u(14)),
+          if (twoCols)
+            for (var i = 0; i < tiles.length; i += 2)
+              Padding(
+                padding: EdgeInsets.only(bottom: ctx.u(8)),
+                child: Row(
+                  children: [
+                    Expanded(child: tiles[i]),
+                    SizedBox(width: ctx.u(8)),
+                    Expanded(child: i + 1 < tiles.length ? tiles[i + 1] : const SizedBox()),
+                  ],
+                ),
+              )
+          else
+            for (final t in tiles)
+              Padding(
+                padding: EdgeInsets.only(bottom: ctx.u(8)),
+                child: t,
+              ),
+          if (w.active)
+            Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  w.stop();
+                },
+                icon: const Icon(Icons.stop_rounded),
+                label: Text(tr('Остановить волну')),
+              ),
+            ),
+        ],
+      );
     });
   }
 
@@ -151,65 +175,87 @@ class WaveScreen extends StatelessWidget {
         final active = w.active;
         final t = active ? audio.current : null;
         final bottom = MediaQuery.paddingOf(context).bottom;
-        return Stack(children: [
-          // Эховамп — вместо пламени MilkDrop
-          Positioned.fill(
+        return Stack(
+          children: [
+            // Эховамп — вместо пламени MilkDrop
+            Positioned.fill(
               child: context.echoamp
                   ? const MilkdropView()
-                  : _Flame(colors: Nebula.forMood(active ? w.mood : null), track: t)),
-          SafeArea(
-            bottom: false,
-            child: Column(children: [
-              // верхняя строка: логотип и поиск, как в Яндекс Музыке
-              Padding(
-                padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(12), 0),
-                child: Row(children: [
-                  SizedBox(width: context.u(44)),
-                  Expanded(
-                    child: Center(
-                      child: Text('ECHOES',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 2, color: context.accent)),
-                    ),
-                  ),
-                  GlassIconButton(icon: Icons.search_rounded, tooltip: tr('Поиск'), onTap: () => openTab.value = 1),
-                ]),
-              ),
-              Expanded(
-                child: LayoutBuilder(builder: (context, box) {
-                  return SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: box.maxHeight),
-                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        _Title(active: active, loading: w.loading),
-                        SizedBox(height: context.u(14)),
-                        _TunePill(mood: active ? w.mood : null, onTap: () => _tune(context)),
-                        if (t != null) ...[
-                          SizedBox(height: context.u(22)),
-                          _NowPlaying(track: t),
-                        ],
-                        if (w.error != null)
-                          Padding(
-                            padding: EdgeInsets.all(context.u(16)),
-                            child: Glass(
-                              radius: context.u(16),
-                              padding: EdgeInsets.all(context.u(12)),
-                              child: Text(w.error!,
-                                  textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFFF8A80))),
+                  : _Flame(colors: Nebula.forMood(active ? w.mood : null), track: t),
+            ),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  // верхняя строка: логотип и поиск, как в Яндекс Музыке
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(context.u(16), context.u(8), context.u(12), 0),
+                    child: Row(
+                      children: [
+                        SizedBox(width: context.u(44)),
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              'ECHOES',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2,
+                                color: context.accent,
+                              ),
                             ),
                           ),
-                      ]),
+                        ),
+                        GlassIconButton(
+                          icon: Icons.search_rounded,
+                          tooltip: tr('Поиск'),
+                          onTap: () => openTab.value = 1,
+                        ),
+                      ],
                     ),
-                  );
-                }),
+                  ),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, box) {
+                        return SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: box.maxHeight),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                _Title(active: active, loading: w.loading),
+                                SizedBox(height: context.u(14)),
+                                _TunePill(mood: active ? w.mood : null, onTap: () => _tune(context)),
+                                if (t != null) ...[SizedBox(height: context.u(22)), _NowPlaying(track: t)],
+                                if (w.error != null)
+                                  Padding(
+                                    padding: EdgeInsets.all(context.u(16)),
+                                    child: Glass(
+                                      radius: context.u(16),
+                                      padding: EdgeInsets.all(context.u(12)),
+                                      child: Text(
+                                        w.error!,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(color: Color(0xFFFF8A80)),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  _Capsules(onTune: () => _tune(context)),
+                  // место под мини-плеер и панель вкладок
+                  SizedBox(height: context.wide ? context.u(90) : context.u(150) + bottom),
+                ],
               ),
-              _Capsules(onTune: () => _tune(context)),
-              // место под мини-плеер и панель вкладок
-              SizedBox(height: context.wide ? context.u(90) : context.u(150) + bottom),
-            ]),
-          ),
-        ]);
+            ),
+          ],
+        );
       },
     );
   }
@@ -245,29 +291,38 @@ class _Title extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: loading
-                        ? SizedBox(
-                            key: const ValueKey('l'),
-                            width: context.u(34),
-                            height: context.u(34),
-                            child: const CircularProgressIndicator(strokeWidth: 3.5, color: Colors.white),
-                          )
-                        : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            key: ValueKey(playing), size: context.u(52), color: Colors.white),
-                  ),
-                  SizedBox(width: context.u(6)),
-                  Text(tr('Моя волна'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: loading
+                          ? SizedBox(
+                              key: const ValueKey('l'),
+                              width: context.u(34),
+                              height: context.u(34),
+                              child: const CircularProgressIndicator(strokeWidth: 3.5, color: Colors.white),
+                            )
+                          : Icon(
+                              playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              key: ValueKey(playing),
+                              size: context.u(52),
+                              color: Colors.white,
+                            ),
+                    ),
+                    SizedBox(width: context.u(6)),
+                    Text(
+                      tr('Моя волна'),
                       style: TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.8,
                         color: Colors.white,
                         shadows: [Shadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 18)],
-                      )),
-                ]),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -299,12 +354,17 @@ class _TunePill extends StatelessWidget {
               borderRadius: BorderRadius.circular(context.r(99)),
               border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.tune_rounded, size: context.u(18), color: Colors.white),
-              SizedBox(width: context.u(8)),
-              Text(mood == null ? tr('Настроить') : tr('Настроить · {0}', [tr(mood!)]),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            ]),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tune_rounded, size: context.u(18), color: Colors.white),
+                SizedBox(width: context.u(8)),
+                Text(
+                  mood == null ? tr('Настроить') : tr('Настроить · {0}', [tr(mood!)]),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -337,9 +397,10 @@ class _Capsules extends StatelessWidget {
         ),
       (
         _Orb(
-            colors: const [Color(0xFF9E9E9E), Color(0xFF616161), Color(0xFF424242), Color(0xFF212121)],
-            icon: Icons.tune_rounded,
-            size: context.u(40)),
+          colors: const [Color(0xFF9E9E9E), Color(0xFF616161), Color(0xFF424242), Color(0xFF212121)],
+          icon: Icons.tune_rounded,
+          size: context.u(40),
+        ),
         tr('Ещё'),
         tr('Все настройки'),
         onTune,
@@ -353,7 +414,7 @@ class _Capsules extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: context.u(12)),
         itemCount: items.length,
-        separatorBuilder: (_, __) => SizedBox(width: context.u(8)),
+        separatorBuilder: (_, _) => SizedBox(width: context.u(8)),
         itemBuilder: (context, i) {
           final (orb, title, sub, onTap) = items[i];
           final selected = w.active && w.mood != null && tr(w.mood!) == title;
@@ -368,26 +429,37 @@ class _Capsules extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 widthFactor: 1,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  orb,
-                  SizedBox(width: context.u(10)),
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: context.u(150)),
-                    child:
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                      Text(title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                      Text(sub,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    orb,
+                    SizedBox(width: context.u(10)),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: context.u(150)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                          ),
+                          Text(
+                            sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.65))),
-                    ]),
-                  ),
-                ]),
+                              color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.65),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -448,8 +520,9 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _program ??=
-        ui.FragmentProgram.fromAsset('shaders/nebula.frag').then<ui.FragmentProgram?>((p) => p).catchError((_) => null);
+    _program ??= ui.FragmentProgram.fromAsset(
+      'shaders/nebula.frag',
+    ).then<ui.FragmentProgram?>((p) => p).catchError((_) => null);
     _program!.then((p) {
       if (mounted && p != null) setState(() => _shader = p.fragmentShader());
     });
@@ -466,8 +539,16 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
     _time += dt * (1 + 1.6 * _energy);
     _neb.advance(_energy, dt);
     if (_mixT < 1) _mixT = math.min(1, _mixT + dt / 1.4);
+    // музыка на паузе и всё успокоилось — туманность дрейфует медленно, хватит ~15 кадров в секунду
+    // (шейдер на весь экран и размытые панели поверх него — заметная нагрузка на батарею)
+    _sinceFrame += dt;
+    final calm = !playing && _energy < 0.02 && _mixT >= 1;
+    if (calm && _sinceFrame < 1 / 15) return;
+    _sinceFrame = 0;
     _frame.value++;
   }
+
+  double _sinceFrame = 0;
 
   @override
   void didUpdateWidget(_Flame old) {
@@ -514,6 +595,7 @@ class _FlameState extends State<_Flame> with SingleTickerProviderStateMixin {
     _ticker.dispose();
     _sub?.cancel();
     _frame.dispose();
+    _shader?.dispose();
     super.dispose();
   }
 
@@ -570,8 +652,9 @@ class _BlobPainter extends CustomPainter {
         o,
         rad,
         Paint()
-          ..shader = RadialGradient(colors: [color, color.withValues(alpha: 0.55), color.withValues(alpha: 0)])
-              .createShader(Rect.fromCircle(center: o, radius: rad)),
+          ..shader = RadialGradient(
+            colors: [color, color.withValues(alpha: 0.55), color.withValues(alpha: 0)],
+          ).createShader(Rect.fromCircle(center: o, radius: rad)),
       );
     }
   }
@@ -582,19 +665,19 @@ class _BlobPainter extends CustomPainter {
 
 /// Смена трека: старое расплывается и тает, новое проступает из размытия (как заголовок у Яндекса).
 Widget _blurSwitch(Widget child, Animation<double> a) => AnimatedBuilder(
-      animation: a,
-      child: child,
-      builder: (context, child) {
-        final v = Curves.easeOut.transform(a.value);
-        return Opacity(
-          opacity: v,
-          child: ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(sigmaX: (1 - v) * 10, sigmaY: (1 - v) * 10),
-            child: Transform.scale(scale: 0.94 + 0.06 * v, child: child),
-          ),
-        );
-      },
+  animation: a,
+  child: child,
+  builder: (context, child) {
+    final v = Curves.easeOut.transform(a.value);
+    return Opacity(
+      opacity: v,
+      child: ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(sigmaX: (1 - v) * 10, sigmaY: (1 - v) * 10),
+        child: Transform.scale(scale: 0.94 + 0.06 * v, child: child),
+      ),
     );
+  },
+);
 
 /// Текущий трек волны: маленькая обложка, название в стеклянной плашке, исполнитель — ссылка.
 class _NowPlaying extends StatelessWidget {
@@ -607,47 +690,55 @@ class _NowPlaying extends StatelessWidget {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 700),
       transitionBuilder: _blurSwitch,
-      child: Column(key: ValueKey(t.id), mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(context.r(12)),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 24, offset: const Offset(0, 8))
-            ],
+      child: Column(
+        key: ValueKey(t.id),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(context.r(12)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 24, offset: const Offset(0, 8)),
+              ],
+            ),
+            child: Cover(track: t, size: context.u(72), radius: context.u(12)),
           ),
-          child: Cover(track: t, size: context.u(72), radius: context.u(12)),
-        ),
-        SizedBox(height: context.u(12)),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: context.u(28)),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(context.r(99)),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: context.u(20), vertical: context.u(9)),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(context.r(99)),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
-              ),
-              child: Text(t.title,
+          SizedBox(height: context.u(12)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.u(28)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(context.r(99)),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: context.u(20), vertical: context.u(9)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(context.r(99)),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+                ),
+                child: Text(
+                  t.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+              ),
             ),
           ),
-        ),
-        GestureDetector(
-          onTap: () => openArtist(context, t),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: context.u(32), vertical: context.u(6)),
-            child: Text(t.artist,
+          GestureDetector(
+            onTap: () => openArtist(context, t),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: context.u(32), vertical: context.u(6)),
+              child: Text(
+                t.artist,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontWeight: FontWeight.w600)),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontWeight: FontWeight.w600),
+              ),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

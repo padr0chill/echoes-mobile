@@ -22,11 +22,7 @@ void main() {
   });
 
   test('поиск: ускоренные убраны, концертные ниже, но если искали — остаются', () {
-    final list = [
-      t('Linkin Park', 'Numb (Live)'),
-      t('Linkin Park', 'Numb (sped up)'),
-      t('Linkin Park', 'Numb'),
-    ];
+    final list = [t('Linkin Park', 'Numb (Live)'), t('Linkin Park', 'Numb (sped up)'), t('Linkin Park', 'Numb')];
     expect(SearchService.clean('linkin park numb', list).map((x) => x.title), ['Numb', 'Numb (Live)']);
     expect(SearchService.clean('numb sped up', list).map((x) => x.title), ['Numb (sped up)', 'Numb', 'Numb (Live)']);
     expect(SearchService.clean('numb live', list).first.title, 'Numb (Live)');

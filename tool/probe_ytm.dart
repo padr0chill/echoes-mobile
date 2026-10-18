@@ -30,9 +30,11 @@ Future<void> main(List<String> args) async {
       if (it is Map && n < 10) {
         n++;
         final cols = (it['flexColumns'] as List)
-            .map((c) => ((c['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] as List?) ?? [])
-                .map((r) => r['text'])
-                .join())
+            .map(
+              (c) => ((c['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] as List?) ?? [])
+                  .map((r) => r['text'])
+                  .join(),
+            )
             .toList();
         final vid = it['playlistItemData']?['videoId'];
         final thumbs = it['thumbnail']?['musicThumbnailRenderer']?['thumbnail']?['thumbnails'] as List?;

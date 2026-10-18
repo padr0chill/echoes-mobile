@@ -17,4 +17,15 @@ class EchoesEq {
       // нативная часть не смогла — без эквалайзера
     }
   }
+
+  /// iOS: папку не включать в резервную копию iCloud (скачанные треки — гигабайты, их можно скачать заново).
+  static Future<void> excludeFromBackup(String path) async {
+    try {
+      await _ch.invokeMethod('noBackup', {'path': path});
+    } on MissingPluginException {
+      // не iOS / тесты
+    } on PlatformException {
+      // не вышло — останется в копии
+    }
+  }
 }

@@ -92,7 +92,10 @@ class YtService {
     if (res.isEmpty) throw Exception(tr('пусто'));
     final alt = res.where((r) => r.id != exclude).toList();
     if (alt.isEmpty) throw Exception(tr('другого видео нет'));
-    return done((pick(alt).$1 ?? alt.first).id);
+    // ни одно видео не похоже на эту песню — честная ошибка, а не первая попавшаяся чужая песня
+    final best = pick(alt).$1;
+    if (best == null) throw Exception(tr('похожей песни нет'));
+    return done(best.id);
   }
 
   Future<StreamPick> stream(String id, {bool economy = false, int from = 0}) async {
@@ -167,6 +170,12 @@ class YtService {
 
   /// Забыть ссылки на видео (они «протухли» — 403 после смены сети).
   void forget(String id) => _cache.removeWhere((k, _) => k.startsWith('$id/'));
+
+  /// Забыть ссылки на видео, найденное для трека (импорт, SoundCloud): после смены сети они не работают.
+  void forgetTrack(Track t) {
+    final vid = _ytIds[t.id];
+    if (vid != null) forget(vid);
+  }
 
   /// Для заранее подготовленного следующего трека.
   Future<Uri> streamUrl(String id, {bool economy = false}) async => (await stream(id, economy: economy)).url;

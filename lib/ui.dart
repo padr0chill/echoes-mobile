@@ -65,7 +65,8 @@ ThemeData _echoampTheme() {
     backgroundColor: const WidgetStatePropertyAll(btn),
     foregroundColor: const WidgetStatePropertyAll(text),
     textStyle: const WidgetStatePropertyAll(
-        TextStyle(fontFamily: _waMono, fontFamilyFallback: _waMonoFallback, fontWeight: FontWeight.w700)),
+      TextStyle(fontFamily: _waMono, fontFamilyFallback: _waMonoFallback, fontWeight: FontWeight.w700),
+    ),
   );
   return base.copyWith(
     scaffoldBackgroundColor: Colors.black,
@@ -94,12 +95,13 @@ ThemeData _echoampTheme() {
       scrolledUnderElevation: 0,
       shape: Border(bottom: BorderSide(color: Color(0xFF0C0C12), width: 1.5)),
       titleTextStyle: TextStyle(
-          fontFamily: _waMono,
-          fontFamilyFallback: _waMonoFallback,
-          color: green,
-          fontSize: 16,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.5),
+        fontFamily: _waMono,
+        fontFamilyFallback: _waMonoFallback,
+        color: green,
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.5,
+      ),
     ),
     filledButtonTheme: FilledButtonThemeData(style: btnStyle),
     outlinedButtonTheme: OutlinedButtonThemeData(style: btnStyle),
@@ -127,10 +129,12 @@ ThemeData _echoampTheme() {
       labelStyle: TextStyle(fontFamily: _waMono, fontFamilyFallback: _waMonoFallback, color: green),
     ),
     switchTheme: SwitchThemeData(
-      thumbColor:
-          WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? green : const Color(0xFF8A8AA0)),
-      trackColor:
-          WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? const Color(0xFF0B3A0B) : btn),
+      thumbColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected) ? green : const Color(0xFF8A8AA0),
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (s) => s.contains(WidgetState.selected) ? const Color(0xFF0B3A0B) : btn,
+      ),
       trackOutlineColor: const WidgetStatePropertyAll(hi),
     ),
     sliderTheme: SliderThemeData(
@@ -143,9 +147,18 @@ ThemeData _echoampTheme() {
     inputDecorationTheme: const InputDecorationTheme(
       filled: true,
       fillColor: Colors.black,
-      border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: hi)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: hi)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: green)),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: hi),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: hi),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: green),
+      ),
     ),
     listTileTheme: const ListTileThemeData(iconColor: text, textColor: green),
     dialogTheme: const DialogThemeData(backgroundColor: body, shape: square),
@@ -159,12 +172,14 @@ ThemeData _echoampTheme() {
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(color: green),
     splashFactory: NoSplash.splashFactory,
-    pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-    }),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 }
 
@@ -179,16 +194,14 @@ ThemeData buildTheme(Color accent, bool light, {bool winamp = false}) {
   final text = light ? const Color(0xFF141416) : Colors.white;
   return base.copyWith(
     scaffoldBackgroundColor: bg,
-    colorScheme: base.colorScheme.copyWith(
-      primary: accent,
-      secondary: accent,
-      surface: card,
-      onPrimary: Colors.black,
-    ),
+    colorScheme: base.colorScheme.copyWith(primary: accent, secondary: accent, surface: card, onPrimary: Colors.black),
     cardColor: card,
     dividerColor: text.withValues(alpha: 0.08),
-    appBarTheme: const AppBarTheme(backgroundColor: Colors.transparent, elevation: 0, scrolledUnderElevation: 0)
-        .copyWith(foregroundColor: text),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+    ).copyWith(foregroundColor: text),
     bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.transparent),
     // окна и меню — непрозрачные (surface полупрозрачный ради карточек)
     dialogTheme: DialogThemeData(backgroundColor: light ? Colors.white : const Color(0xFF1E1E23)),
@@ -221,11 +234,13 @@ ThemeData buildTheme(Color accent, bool light, {bool winamp = false}) {
     iconTheme: IconThemeData(color: text),
     splashFactory: InkSparkle.splashFactory,
     // переходы между экранами — как в iOS (плавный сдвиг и «свайп назад» от края)
-    pageTransitionsTheme: const PageTransitionsTheme(builders: {
-      TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
-      TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
-    }),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.windows: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      },
+    ),
   );
 }

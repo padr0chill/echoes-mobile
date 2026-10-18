@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -39,7 +40,10 @@ class Store extends ChangeNotifier {
   String lang = 'auto'; // язык интерфейса: 'auto' (как на iPhone), 'ru', 'en'
   double crossfade = 0; // плавный переход между треками, секунды (0 — выкл)
   bool vinyl = false; // в плеере вместо обложки — крутящийся винил с текстом песни под ним
-  String? bgPath; // своё фото на фон (обычная тема)
+  /// Своё фото на фон (обычная тема) — имя файла в папке приложения: на iOS путь к папке меняется
+  /// после обновления, абсолютный путь «потерял» бы фон.
+  String? bgFile;
+  String? get bgPath => bgFile == null || supportDir == null ? null : '$supportDir/$bgFile';
   bool bgBlur = true;
   double bgBlurAmount = 1; // сила размытия фона 0…1
 
@@ -71,11 +75,7 @@ class Store extends ChangeNotifier {
   Future<void> load() async {
     _p = await SharedPreferences.getInstance();
     ready = true;
-    List<Track> tracks(String key) {
-      final s = _p.getString(key);
-      if (s == null) return [];
-      return (jsonDecode(s) as List).map((e) => Track.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-    }
+    List<Track> tracks(String key) => _list(key, Track.fromJson);
 
     liked
       ..clear()
@@ -83,53 +83,146 @@ class Store extends ChangeNotifier {
     history
       ..clear()
       ..addAll(tracks('history'));
-    final fl = _p.getString('follows');
-    follows.clear();
-    if (fl != null) {
-      follows.addAll((jsonDecode(fl) as List).map((e) => Map<String, String>.from(e as Map)));
-    }
-    final pl = _p.getString('playlists');
-    playlists.clear();
-    if (pl != null) {
-      playlists.addAll((jsonDecode(pl) as List).map((e) => Playlist.fromJson(Map<String, dynamic>.from(e as Map))));
-    }
+    follows
+      ..clear()
+      ..addAll(_list('follows', (m) => {for (final e in m.entries) e.key: '${e.value}'}));
+    playlists
+      ..clear()
+      ..addAll(_list('playlists', Playlist.fromJson));
     searches
       ..clear()
-      ..addAll(_p.getStringList('searches') ?? []);
-    accentIndex = _p.getInt('accent') ?? 0;
-    economy = _p.getBool('economy') ?? false;
-    light = _p.getBool('light') ?? false;
-    skin = _p.getString('skin') ?? 'glass';
-    lang = appLangSetting = _p.getString('lang') ?? appLangSetting;
-    vinyl = _p.getBool('vinyl') ?? false;
-    crossfade = _p.getDouble('xfade') ?? 0;
-    bgPath = _p.getString('bg');
-    bgBlur = _p.getBool('bg_blur') ?? true;
-    bgBlurAmount = _p.getDouble('bg_blur_k') ?? (bgBlur ? 1.0 : 0.0);
-    playlistSort = _p.getString('pl_sort') ?? 'order';
-    playlistGrid = _p.getBool('pl_grid') ?? false;
-    librarySort = _p.getString('lib_sort') ?? 'custom';
-    libraryGrid = _p.getBool('lib_grid') ?? false;
-    milkdropText = _p.getBool('md_text') ?? true;
-    eqEnabled = _p.getBool('eq_on') ?? false;
-    final g = _p.getStringList('eq_gains');
-    if (g != null && g.length == 10) eqGains = g.map((s) => double.tryParse(s) ?? 0).toList();
-    eqPreamp = _p.getDouble('eq_pre') ?? 0;
-    eqPreset = _p.getString('eq_preset') ?? 'Плоский';
-    name = _p.getString('name') ?? 'Слушатель';
-    plays = _p.getInt('plays') ?? 0;
-    listenSeconds = _p.getInt('listen_s') ?? 0;
+      ..addAll(_strings('searches'));
+    accentIndex = _int('accent') ?? 0;
+    economy = _bool('economy') ?? false;
+    light = _bool('light') ?? false;
+    skin = _str('skin') ?? 'glass';
+    lang = appLangSetting = _str('lang') ?? appLangSetting;
+    vinyl = _bool('vinyl') ?? false;
+    crossfade = _dbl('xfade') ?? 0;
+    bgFile = _str('bg')?.split(RegExp(r'[/\\]')).last; // раньше хранился полный путь — берём имя
+    bgBlur = _bool('bg_blur') ?? true;
+    bgBlurAmount = _dbl('bg_blur_k') ?? (bgBlur ? 1.0 : 0.0);
+    playlistSort = _str('pl_sort') ?? 'order';
+    playlistGrid = _bool('pl_grid') ?? false;
+    librarySort = _str('lib_sort') ?? 'custom';
+    libraryGrid = _bool('lib_grid') ?? false;
+    milkdropText = _bool('md_text') ?? true;
+    eqEnabled = _bool('eq_on') ?? false;
+    final g = _strings('eq_gains');
+    if (g.length == 10) eqGains = g.map((s) => double.tryParse(s) ?? 0).toList();
+    eqPreamp = _dbl('eq_pre') ?? 0;
+    eqPreset = _str('eq_preset') ?? 'Плоский';
+    name = _str('name') ?? 'Слушатель';
+    plays = _int('plays') ?? 0;
+    listenSeconds = _int('listen_s') ?? 0;
     artistSeconds.clear();
-    final as = _p.getString('artist_s');
+    final as = _str('artist_s');
     if (as != null) {
-      (jsonDecode(as) as Map).forEach((k, v) => artistSeconds['$k'] = (v as num).toInt());
+      try {
+        (jsonDecode(as) as Map).forEach((k, v) {
+          if (v is num) artistSeconds['$k'] = v.toInt();
+        });
+      } catch (_) {
+        _keepBroken('artist_s', as);
+      }
     }
     listenedIds
       ..clear()
-      ..addAll(_p.getStringList('listened') ?? []);
+      ..addAll(_strings('listened'));
   }
 
+  // ── чтение настроек без падений: одно испорченное значение не должно «окирпичить» запуск ──
+
+  /// Оригинал испорченного значения — под другим ключом, пока _save() не перезаписал (можно вытащить).
+  void _keepBroken(String key, String raw) {
+    try {
+      _p.setString('${key}_broken', raw);
+    } catch (_) {}
+  }
+
+  Object? _raw(String key) {
+    try {
+      return _p.get(key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _str(String key) {
+    final v = _raw(key);
+    return v is String ? v : null;
+  }
+
+  bool? _bool(String key) {
+    final v = _raw(key);
+    return v is bool ? v : null;
+  }
+
+  int? _int(String key) {
+    final v = _raw(key);
+    return v is num ? v.toInt() : null;
+  }
+
+  double? _dbl(String key) {
+    final v = _raw(key);
+    return v is num ? v.toDouble() : null;
+  }
+
+  List<String> _strings(String key) {
+    final v = _raw(key);
+    return v is List ? [for (final x in v) '$x'] : [];
+  }
+
+  /// Список из JSON: битый элемент пропускается (а не весь список), оригинал — в `<key>_broken`.
+  List<T> _list<T>(String key, T Function(Map<String, dynamic>) parse) {
+    final s = _str(key);
+    if (s == null) return [];
+    final out = <T>[];
+    var lost = false;
+    try {
+      final raw = jsonDecode(s);
+      if (raw is! List) throw const FormatException('not a list');
+      for (final e in raw) {
+        try {
+          out.add(parse(Map<String, dynamic>.from(e as Map)));
+        } catch (_) {
+          lost = true;
+        }
+      }
+    } catch (_) {
+      lost = true;
+    }
+    if (lost) _keepBroken(key, s);
+    return out;
+  }
+
+  /// Через сколько записать изменения на диск. Шаг ползунка, лайк, смена трека — интерфейс обновляется
+  /// сразу, а запись (лайки, история, плейлисты — сотни треков в JSON) — одна на серию изменений.
+  /// В тестах — сразу (Duration.zero), чтобы не оставлять таймеров.
+  static Duration saveDelay = const Duration(milliseconds: 400);
+  Timer? _saveTimer;
+
   void _save() {
+    notifyListeners();
+    if (saveDelay == Duration.zero) {
+      _write();
+      return;
+    }
+    _saveTimer?.cancel();
+    _saveTimer = Timer(saveDelay, _write);
+  }
+
+  /// Записать отложенное сейчас (приложение уходит в фон — потом его могут закрыть без предупреждения).
+  void flush() {
+    if (_saveTimer?.isActive ?? false) {
+      _saveTimer!.cancel();
+      _write();
+    }
+  }
+
+  void _write() {
+    _saveTimer = null;
+    if (!ready) return;
     _p.setString('liked', jsonEncode(liked.map((t) => t.toJson()).toList()));
     _p.setString('history', jsonEncode(history.map((t) => t.toJson()).toList()));
     _p.setString('playlists', jsonEncode(playlists.map((p) => p.toJson()).toList()));
@@ -142,10 +235,10 @@ class Store extends ChangeNotifier {
     _p.setString('lang', lang);
     _p.setBool('vinyl', vinyl);
     _p.setDouble('xfade', crossfade);
-    if (bgPath == null) {
+    if (bgFile == null) {
       _p.remove('bg');
     } else {
-      _p.setString('bg', bgPath!);
+      _p.setString('bg', bgFile!);
     }
     _p.setBool('bg_blur', bgBlur);
     _p.setDouble('bg_blur_k', bgBlurAmount);
@@ -163,7 +256,6 @@ class Store extends ChangeNotifier {
     _p.setInt('listen_s', listenSeconds);
     _p.setString('artist_s', jsonEncode(artistSeconds));
     _p.setStringList('listened', listenedIds.toList());
-    notifyListeners();
   }
 
   void setName(String v) {
@@ -273,8 +365,12 @@ class Store extends ChangeNotifier {
 
   /// Что играло и очередь — переживают перезапуск приложения (JSON).
   bool ready = false; // настройки загружены (в тестах может не быть)
-  String? get session => ready ? _p.getString('session') : null;
+  String? get session => ready ? _str('session') : null;
   void saveSession(String json) => _p.setString('session', json);
+
+  /// Позиция в треке — отдельным маленьким ключом (пишется каждые 5 с, очередь при этом не трогается).
+  String? get sessionPos => ready ? _str('session_pos') : null;
+  void saveSessionPos(String json) => _p.setString('session_pos', json);
 
   bool isFollowing(String name) => follows.any((f) => f['name']?.toLowerCase() == name.toLowerCase());
 
@@ -283,7 +379,7 @@ class Store extends ChangeNotifier {
     if (isFollowing(name)) {
       follows.removeWhere((f) => f['name']?.toLowerCase() == name.toLowerCase());
     } else {
-      follows.insert(0, {'name': name, if (ytm != null) 'ytm': ytm, if (image != null) 'img': image});
+      follows.insert(0, {'name': name, 'ytm': ?ytm, 'img': ?image});
     }
     _save();
   }
@@ -331,7 +427,7 @@ class Store extends ChangeNotifier {
     return added;
   }
 
-  String? get scClientId => _p.getString('sc_cid');
+  String? get scClientId => _str('sc_cid');
   void setScClientId(String v) => _p.setString('sc_cid', v);
 
   void setAccent(int i) {
@@ -386,7 +482,7 @@ class Store extends ChangeNotifier {
   }
 
   void setBackground(String? path) {
-    bgPath = path;
+    bgFile = path?.split(RegExp(r'[/\\]')).last;
     _save();
   }
 

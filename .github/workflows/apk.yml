@@ -14,6 +14,13 @@ on:
     paths-ignore: ['README.md', 'docs/**', '.github/FUNDING.yml']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -29,9 +36,24 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # та же версия, что у разработчика: тот же коммит всегда собирается одинаково
+          flutter-version: 3.47.6
           cache: true
 
-      - name: Signing key (if added to secrets)
+      - name: Dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Tests
+        # все офлайн-тесты; сетевые и снимки экранов пропускает dart_test.yaml
+        run: flutter test
+
+      # Ключ — только перед самой сборкой (зависимости и тесты его не видят) и сразу удаляется после.
+      # Без своего ключа каждый APK подписан другим временным — Android не ставит его поверх старого,
+      # и пользователю приходится удалять приложение вместе с плейлистами. Поэтому в main это ошибка.
+      - name: Signing key
         env:
           KS: ${{ secrets.ECHOES_KEYSTORE_B64 }}
           KS_PASS: ${{ secrets.ECHOES_KEYSTORE_PASSWORD }}
@@ -45,26 +67,35 @@ jobs:
               echo "keyPassword=$KS_PASS"
             } > android/key.properties
             echo "signing: own key"
+          elif [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            echo "::error::ECHOES_KEYSTORE_B64 не задан — такой APK не обновится поверх предыдущего"
+            exit 1
           else
-            echo "signing: temporary debug key (add ECHOES_KEYSTORE_B64 secret for updates without reinstall)"
+            echo "signing: temporary debug key (test build, not for users)"
           fi
-
-      - name: Dependencies
-        run: flutter pub get
-
-      - name: Tests
-        run: flutter test test/layout_test.dart
 
       - name: Build APK
         run: |
           # разовые сбои облака (скачивание Gradle/зависимостей) — вторая попытка
-          flutter build apk --release --obfuscate --split-debug-info=build/symbols || \
-            flutter build apk --release --obfuscate --split-debug-info=build/symbols
+          flutter build apk --release --build-number=${{ github.run_number }} --dart-define=APP_BUILD=${{ github.run_number }} --obfuscate --split-debug-info=build/symbols || \
+            flutter build apk --release --build-number=${{ github.run_number }} --dart-define=APP_BUILD=${{ github.run_number }} --obfuscate --split-debug-info=build/symbols
           cp build/app/outputs/flutter-apk/app-release.apk ECHOES.apk
           ls -lh ECHOES.apk
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f android/key.properties "$RUNNER_TEMP/echoes-release.jks"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ECHOES-apk
           path: ECHOES.apk
           retention-days: 30
+
+      # символы отладки: сборка обфусцирована — без них стек ошибки из журнала не расшифровать
+      # (flutter symbolize -i <стек> -d <файл .symbols>)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ECHOES-apk-symbols
+          path: build/symbols
+          retention-days: 90

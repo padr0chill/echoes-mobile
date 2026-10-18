@@ -16,8 +16,10 @@ Future<void> main(List<String> args) async {
   final name = args.isNotEmpty ? args.join(' ') : 'Linkin Park';
   final users = await get('/search/users', {'q': name, 'limit': '5'});
   for (final u in (users['collection'] as List)) {
-    print('  ${u['username']} id=${u['id']} followers=${u['followers_count']} tracks=${u['track_count']} '
-        'verified=${u['verified']} avatar=${(u['avatar_url'] ?? '').toString().isNotEmpty} banner=${u['visuals'] != null}');
+    print(
+      '  ${u['username']} id=${u['id']} followers=${u['followers_count']} tracks=${u['track_count']} '
+      'verified=${u['verified']} avatar=${(u['avatar_url'] ?? '').toString().isNotEmpty} banner=${u['visuals'] != null}',
+    );
   }
   final id = (users['collection'] as List).first['id'];
   final top = await get('/users/$id/toptracks', {'limit': '10'});

@@ -22,7 +22,8 @@ void main() {
     }
     // ignore: avoid_print
     print(
-        'альбомы ${p.albums.length} (+ещё ${p.albumsMore != null}), синглы ${p.singles.length} (+ещё ${p.singlesMore != null}), похожие ${p.similar.length}');
+      'альбомы ${p.albums.length} (+ещё ${p.albumsMore != null}), синглы ${p.singles.length} (+ещё ${p.singlesMore != null}), похожие ${p.similar.length}',
+    );
     if (p.singlesMore != null) {
       final all = await b.discography(p.singlesMore!, p.name);
       // ignore: avoid_print
@@ -33,7 +34,8 @@ void main() {
       final tr = await b.albumTracks(p.albums.first.ytm!);
       // ignore: avoid_print
       print(
-          'альбом «${p.albums.first.title}»: ${tr.length} треков, обложка ${tr.first.art != null}, ${tr.first.title} ${tr.first.seconds}s');
+        'альбом «${p.albums.first.title}»: ${tr.length} треков, обложка ${tr.first.art != null}, ${tr.first.title} ${tr.first.seconds}s',
+      );
     }
     if (p.songsPlaylist != null) {
       final all = await b.playlist(p.songsPlaylist!, artist: p.name);

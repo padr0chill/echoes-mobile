@@ -9,6 +9,7 @@ import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
 import '../i18n.dart';
+import '../services/log.dart';
 
 class _Section {
   final String title;
@@ -45,21 +46,27 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
       try {
         final r = await Wave.instance.relatedFor(s);
         if (r.length >= 4) out.add(_Section(tr('Похоже на «{0}»', [s.title]), r.take(15).toList()));
-      } catch (_) {}
+      } catch (e) {
+        log.w('for_you_screen:48', e);
+      }
     }
     final artists = st.topArtists(3);
     for (final a in artists) {
       try {
         final r = await sc.searchTracks(a, limit: 20);
         if (r.length >= 3) out.add(_Section(tr('Ещё от {0}', [a]), r.take(15).toList()));
-      } catch (_) {}
+      } catch (e) {
+        log.w('for_you_screen:55', e);
+      }
     }
     if (out.length < 3) {
       for (final q in const [('Популярное сейчас', 'top hits 2026'), ('Новый русский рэп', 'новый русский рэп 2026')]) {
         try {
           final r = await sc.searchTracks(q.$2, limit: 20);
           if (r.isNotEmpty) out.add(_Section(tr(q.$1), r.take(15).toList()));
-        } catch (_) {}
+        } catch (e) {
+          log.w('for_you_screen:62', e);
+        }
       }
     }
     if (out.isEmpty) throw Exception(tr('нет сети'));
@@ -88,21 +95,27 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
               child: ScreenTitle(tr('Для вас')),
             );
             if (snap.connectionState != ConnectionState.done) {
-              return ListView(children: [
-                head,
-                SizedBox(height: context.u(80)),
-                Center(child: CircularProgressIndicator(color: context.accent)),
-              ]);
+              return ListView(
+                children: [
+                  head,
+                  SizedBox(height: context.u(80)),
+                  Center(child: CircularProgressIndicator(color: context.accent)),
+                ],
+              );
             }
             if (snap.hasError || (snap.data ?? []).isEmpty) {
-              return ListView(children: [
-                head,
-                Padding(
-                  padding: EdgeInsets.all(context.u(24)),
-                  child: Text(tr('Не получилось собрать подборки — проверьте интернет и потяните вниз'),
-                      textAlign: TextAlign.center),
-                ),
-              ]);
+              return ListView(
+                children: [
+                  head,
+                  Padding(
+                    padding: EdgeInsets.all(context.u(24)),
+                    child: Text(
+                      tr('Не получилось собрать подборки — проверьте интернет и потяните вниз'),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              );
             }
             return ListView(
               padding: EdgeInsets.only(bottom: context.u(200)),
@@ -116,7 +129,7 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
                       scrollDirection: Axis.horizontal,
                       padding: EdgeInsets.symmetric(horizontal: context.u(16)),
                       itemCount: s.tracks.length,
-                      separatorBuilder: (_, __) => SizedBox(width: context.u(12)),
+                      separatorBuilder: (_, _) => SizedBox(width: context.u(12)),
                       itemBuilder: (context, i) => _Card(track: s.tracks[i], onTap: () => audio.playList(s.tracks, i)),
                     ),
                   ),
@@ -143,20 +156,31 @@ class _Card extends StatelessWidget {
       onLongPress: () => showTrackMenu(context, track),
       child: SizedBox(
         width: w,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Cover(track: track, size: w, radius: context.u(12)),
-          SizedBox(height: context.u(6)),
-          Text(track.title,
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-          GestureDetector(
-            onTap: () => openArtist(context, track),
-            child: Text(track.artist,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Cover(track: track, size: w, radius: context.u(12)),
+            SizedBox(height: context.u(6)),
+            Text(
+              track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            GestureDetector(
+              onTap: () => openArtist(context, track),
+              child: Text(
+                track.artist,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
-          ),
-        ]),
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

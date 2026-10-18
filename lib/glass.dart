@@ -44,9 +44,10 @@ class Glass extends StatelessWidget {
         boxShadow: shadow
             ? [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: light ? 0.10 : 0.35),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10))
+                  color: Colors.black.withValues(alpha: light ? 0.10 : 0.35),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
               ]
             : null,
       ),
@@ -71,25 +72,29 @@ class Glass extends StatelessWidget {
               ),
               border: Border.all(color: Colors.white.withValues(alpha: light ? 0.7 : 0.22), width: 1),
             ),
-            child: Stack(children: [
-              // тонкий блик по верхней кромке
-              Positioned(
-                left: radius * 0.6,
-                right: radius * 0.6,
-                top: 0,
-                height: 1.2,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [
-                      Colors.white.withValues(alpha: 0),
-                      Colors.white.withValues(alpha: light ? 0.9 : 0.55),
-                      Colors.white.withValues(alpha: 0),
-                    ]),
+            child: Stack(
+              children: [
+                // тонкий блик по верхней кромке
+                Positioned(
+                  left: radius * 0.6,
+                  right: radius * 0.6,
+                  top: 0,
+                  height: 1.2,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0),
+                          Colors.white.withValues(alpha: light ? 0.9 : 0.55),
+                          Colors.white.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              child,
-            ]),
+                child,
+              ],
+            ),
           ),
         ),
       ),
@@ -143,76 +148,88 @@ class Ambient extends StatelessWidget {
     final st = Store.instance;
     // Winamp — ровный тёмный фон, без картинок
     if (st.winamp) {
-      return Stack(fit: StackFit.expand, children: [
-        const ColoredBox(color: Colors.black), // как окно плейлиста Winamp
-        child,
-      ]);
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          const ColoredBox(color: Colors.black), // как окно плейлиста Winamp
+          child,
+        ],
+      );
     }
     final light = st.light;
     final base = light ? const Color(0xFFF2F1EE) : const Color(0xFF0B0B0E);
     // своё фото на фоне (страница исполнителя — всё равно его аватар)
     final bg = image == null ? st.bgPath : null;
     if (bg != null && File(bg).existsSync()) {
-      return Stack(fit: StackFit.expand, children: [
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(color: base),
+          RepaintBoundary(
+            child: BlurredCover(image: FileImage(File(bg)), cacheKey: 'bg:$bg', strength: st.bgBlurAmount),
+          ),
+          ColoredBox(color: base.withValues(alpha: light ? 0.30 : 0.42)),
+          child,
+        ],
+      );
+    }
+    return Stack(
+      fit: StackFit.expand,
+      children: [
         ColoredBox(color: base),
         RepaintBoundary(
-          child: BlurredCover(image: FileImage(File(bg)), cacheKey: 'bg:$bg', strength: st.bgBlurAmount),
-        ),
-        ColoredBox(color: base.withValues(alpha: light ? 0.30 : 0.42)),
-        child,
-      ]);
-    }
-    return Stack(fit: StackFit.expand, children: [
-      ColoredBox(color: base),
-      RepaintBoundary(
-        child: ValueListenableBuilder<int>(
-          valueListenable: audio.trackKey,
-          builder: (context, _, __) {
-            final src = image ?? audio.current?.thumb;
-            return Stack(fit: StackFit.expand, children: [
-              // пятна акцента — видны и без обложки
-              Positioned(
-                left: -120,
-                top: -140,
-                child: _Blob(color: context.accent.withValues(alpha: light ? 0.30 : 0.35), size: 380),
-              ),
-              Positioned(
-                right: -160,
-                bottom: 80,
-                child: _Blob(
-                  color: HSLColor.fromColor(context.accent)
-                      .withHue((HSLColor.fromColor(context.accent).hue + 300) % 360)
-                      .toColor()
-                      .withValues(alpha: light ? 0.22 : 0.28),
-                  size: 420,
-                ),
-              ),
-              // «размытая» обложка почти даром: картинка 12 px, растянутая со сглаживанием, — вместо
-              // фильтра размытия, который видеокарта пересчитывала бы каждый кадр
-              if (src != null || (Cover.debugImage != null && audio.current != null))
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 600),
-                  // растянуть на весь фон (по умолчанию AnimatedSwitcher оставил бы картинку её размера — 12 px)
-                  layoutBuilder: (cur, prev) => Stack(fit: StackFit.expand, children: [...prev, if (cur != null) cur]),
-                  child: Opacity(
-                    key: ValueKey(src),
-                    opacity: light ? 0.35 : 0.55,
-                    child: BlurredCover(
-                      image: Cover.debugImage != null && audio.current != null
-                          ? Cover.debugImage!(audio.current!)
-                          : NetworkImage(src!),
-                      cacheKey: src ?? audio.current?.id ?? '',
-                      strength: st.bgBlurAmount,
+          child: ValueListenableBuilder<int>(
+            valueListenable: audio.trackKey,
+            builder: (context, _, _) {
+              final src = image ?? audio.current?.thumb;
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  // пятна акцента — видны и без обложки
+                  Positioned(
+                    left: -120,
+                    top: -140,
+                    child: _Blob(color: context.accent.withValues(alpha: light ? 0.30 : 0.35), size: 380),
+                  ),
+                  Positioned(
+                    right: -160,
+                    bottom: 80,
+                    child: _Blob(
+                      color: HSLColor.fromColor(context.accent)
+                          .withHue((HSLColor.fromColor(context.accent).hue + 300) % 360)
+                          .toColor()
+                          .withValues(alpha: light ? 0.22 : 0.28),
+                      size: 420,
                     ),
                   ),
-                ),
-              Container(color: base.withValues(alpha: light ? 0.35 : 0.45)),
-            ]);
-          },
+                  // «размытая» обложка почти даром: картинка 12 px, растянутая со сглаживанием, — вместо
+                  // фильтра размытия, который видеокарта пересчитывала бы каждый кадр
+                  if (src != null || (Cover.debugImage != null && audio.current != null))
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 600),
+                      // растянуть на весь фон (по умолчанию AnimatedSwitcher оставил бы картинку её размера — 12 px)
+                      layoutBuilder: (cur, prev) => Stack(fit: StackFit.expand, children: [...prev, ?cur]),
+                      child: Opacity(
+                        key: ValueKey(src),
+                        opacity: light ? 0.35 : 0.55,
+                        child: BlurredCover(
+                          image: Cover.debugImage != null && audio.current != null
+                              ? Cover.debugImage!(audio.current!)
+                              : NetworkImage(src!),
+                          cacheKey: src ?? audio.current?.id ?? '',
+                          strength: st.bgBlurAmount,
+                        ),
+                      ),
+                    ),
+                  Container(color: base.withValues(alpha: light ? 0.35 : 0.45)),
+                ],
+              );
+            },
+          ),
         ),
-      ),
-      child,
-    ]);
+        child,
+      ],
+    );
   }
 }
 
@@ -244,11 +261,7 @@ Future<T?> showGlassSheet<T>(BuildContext context, Widget Function(BuildContext)
     isScrollControlled: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.fromLTRB(10, 0, 10, 10 + MediaQuery.paddingOf(ctx).bottom),
-      child: Glass(
-        radius: 30,
-        tint: 1.6,
-        child: SafeArea(top: false, bottom: false, child: builder(ctx)),
-      ),
+      child: Glass(radius: 30, tint: 1.6, child: SafeArea(top: false, bottom: false, child: builder(ctx))),
     ),
   );
 }

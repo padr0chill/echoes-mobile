@@ -6,6 +6,8 @@ import '../models.dart';
 import 'sc.dart';
 import 'text_match.dart';
 import '../i18n.dart';
+import 'log.dart';
+import 'ytm.dart';
 
 /// Похожий исполнитель (лента внизу страницы).
 class YtmArtistRef {
@@ -42,8 +44,21 @@ class YtmArtistPage {
   final (String, String?)? singlesMore;
   final String? songsPlaylist; // «Все песни»
   final List<YtmArtistRef> similar;
-  const YtmArtistPage(this.id, this.name, this.image, this.monthly, this.subscribers, this.top, this.plays, this.albums,
-      this.singles, this.albumsMore, this.singlesMore, this.songsPlaylist, this.similar);
+  const YtmArtistPage(
+    this.id,
+    this.name,
+    this.image,
+    this.monthly,
+    this.subscribers,
+    this.top,
+    this.plays,
+    this.albums,
+    this.singles,
+    this.albumsMore,
+    this.singlesMore,
+    this.songsPlaylist,
+    this.similar,
+  );
 }
 
 /// Внутренний API music.youtube.com (без ключей): исполнитель, его релизы, альбом, все песни.
@@ -51,7 +66,8 @@ class YtmBrowse {
   YtmBrowse._();
   static final YtmBrowse instance = YtmBrowse._();
 
-  static const _ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+  static const _ua =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/126.0 Safari/537.36';
   static const _artistsOnly = 'EgWKAQIgAWoKEAkQBRAKEAMQBA==';
   final _pages = <String, (YtmArtistPage, DateTime)>{};
@@ -66,9 +82,9 @@ class YtmBrowse {
             'context': {
               'client': {
                 'clientName': 'WEB_REMIX',
-                'clientVersion': '1.20241111.01.00',
+                'clientVersion': ytmClientVersion,
                 'hl': isEn ? 'en' : 'ru',
-                'gl': 'RU'
+                'gl': 'RU',
               },
             },
             ...body,
@@ -151,11 +167,12 @@ class YtmBrowse {
       secs = _secs(last);
     }
     final t = Track(
-        id: id,
-        title: cols[0],
-        artist: who.split(' • ').first.trim(),
-        seconds: secs,
-        art: _thumb(it['thumbnail']) ?? art);
+      id: id,
+      title: cols[0],
+      artist: who.split(' • ').first.trim(),
+      seconds: secs,
+      art: _thumb(it['thumbnail']) ?? art,
+    );
     return (t, plays);
   }
 
@@ -166,12 +183,20 @@ class YtmBrowse {
     final kind = low.contains('сингл') || low.contains('single')
         ? 'single'
         : low.contains('ep')
-            ? 'ep'
-            : 'album';
+        ? 'ep'
+        : 'album';
     final id = ((v['navigationEndpoint'] as Map?)?['browseEndpoint'] as Map?)?['browseId'] as String?;
-    return ScAlbum(0, text(v['title']), artist, null, _thumb(v['thumbnailRenderer']), 0,
-        year == null ? null : int.parse(year.group(0)!), kind,
-        ytm: id);
+    return ScAlbum(
+      0,
+      text(v['title']),
+      artist,
+      null,
+      _thumb(v['thumbnailRenderer']),
+      0,
+      year == null ? null : int.parse(year.group(0)!),
+      kind,
+      ytm: id,
+    );
   }
 
   /// Канал исполнителя на YouTube Music по имени (лучшее совпадение имени).
@@ -185,8 +210,9 @@ class YtmBrowse {
     _each(j, 'musicResponsiveListItemRenderer', (it) {
       final id = ((it['navigationEndpoint'] as Map?)?['browseEndpoint'] as Map?)?['browseId'] as String?;
       if (id == null || !id.startsWith('UC')) return;
-      final n =
-          text(((it['flexColumns'] as List?)?.first as Map?)?['musicResponsiveListItemFlexColumnRenderer']?['text']);
+      final n = text(
+        ((it['flexColumns'] as List?)?.first as Map?)?['musicResponsiveListItemFlexColumnRenderer']?['text'],
+      );
       final s = TextMatch.similarity(n, name) - i * 0.05;
       i++;
       if (s > bestScore) {
@@ -238,8 +264,10 @@ class YtmBrowse {
       final title = text(hdr?['title']).toLowerCase();
       final moreBe = _find(hdr?['moreContentButton'], 'browseEndpoint') as Map?;
       final more = moreBe == null ? null : ('${moreBe['browseId']}', moreBe['params'] as String?);
-      final items =
-          (car['contents'] as List? ?? []).cast<Map>().map((e) => e['musicTwoRowItemRenderer']).whereType<Map>();
+      final items = (car['contents'] as List? ?? [])
+          .cast<Map>()
+          .map((e) => e['musicTwoRowItemRenderer'])
+          .whereType<Map>();
       if (title.contains('альбом') || title.contains('album')) {
         albums.addAll(items.map((v) => _card(v, name)));
         albumsMore = more;
@@ -250,13 +278,27 @@ class YtmBrowse {
         for (final v in items) {
           final aid = ((v['navigationEndpoint'] as Map?)?['browseEndpoint'] as Map?)?['browseId'] as String?;
           if (aid == null) continue;
-          similar
-              .add(YtmArtistRef(aid, text(v['title']), _thumb(v['thumbnailRenderer'], size: 300), text(v['subtitle'])));
+          similar.add(
+            YtmArtistRef(aid, text(v['title']), _thumb(v['thumbnailRenderer'], size: 300), text(v['subtitle'])),
+          );
         }
       }
     }
-    final page = YtmArtistPage(id, name, image, monthly.isEmpty ? null : monthly, subs.isEmpty ? null : subs, top,
-        plays, albums, singles, albumsMore, singlesMore, songs, similar);
+    final page = YtmArtistPage(
+      id,
+      name,
+      image,
+      monthly.isEmpty ? null : monthly,
+      subs.isEmpty ? null : subs,
+      top,
+      plays,
+      albums,
+      singles,
+      albumsMore,
+      singlesMore,
+      songs,
+      similar,
+    );
     _pages[id] = (page, DateTime.now());
     return page;
   }
@@ -300,8 +342,9 @@ class YtmBrowse {
       out.add(YtmArtistRef(id, cols[0], _thumb(it['thumbnail'], size: 300), sub));
     });
     // только похожие на запрос; точное совпадение имени — первым
-    final rel =
-        out.where((a) => TextMatch.similarity(a.name, q) >= 0.5 || TextMatch.similarity(q, a.name) >= 0.5).toList();
+    final rel = out
+        .where((a) => TextMatch.similarity(a.name, q) >= 0.5 || TextMatch.similarity(q, a.name) >= 0.5)
+        .toList();
     rel.sort((a, b) => TextMatch.similarity(b.name, q).compareTo(TextMatch.similarity(a.name, q)));
     return rel.take(limit).toList();
   }
@@ -321,7 +364,9 @@ class YtmBrowse {
           if (all.isNotEmpty) return all..sort((a, b) => rank(a).compareTo(rank(b)));
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      log.w('ytm_artist:324', e);
+    }
     final j = await _post('search', {'query': q, 'params': _albumsOnly});
     final out = <ScAlbum>[];
     _each(j['contents'], 'musicResponsiveListItemRenderer', (it) {
@@ -335,7 +380,8 @@ class YtmBrowse {
       final kindTxt = parts.isNotEmpty ? parts.first.toLowerCase() : '';
       final who = parts.length > 1 ? parts[1] : '';
       final year = RegExp(r'(19|20)\d{2}').firstMatch(cols.length > 1 ? cols[1] : '');
-      out.add(ScAlbum(
+      out.add(
+        ScAlbum(
           0,
           cols[0],
           who,
@@ -344,7 +390,9 @@ class YtmBrowse {
           0,
           year == null ? null : int.parse(year.group(0)!),
           kindTxt.contains('сингл') || kindTxt.contains('single') ? 'single' : (kindTxt == 'ep' ? 'ep' : 'album'),
-          ytm: id));
+          ytm: id,
+        ),
+      );
     });
     final words = q.toLowerCase().split(RegExp(r'\s+')).where((w) => w.length > 1).toList();
     final rel = out.where((a) {
@@ -392,8 +440,16 @@ class YtmBrowse {
       if (vid != null) {
         final parts = sub.split(' • ');
         final who = parts.length > 1 ? parts[1] : parts.first;
-        items.add(YtmSuggestion('song', vid, cols[0], sub, img,
-            track: Track(id: vid, title: cols[0], artist: who, art: img?.replaceFirst('=w226-h226', '=w544-h544'))));
+        items.add(
+          YtmSuggestion(
+            'song',
+            vid,
+            cols[0],
+            sub,
+            img,
+            track: Track(id: vid, title: cols[0], artist: who, art: img?.replaceFirst('=w226-h226', '=w544-h544')),
+          ),
+        );
       } else if (bid != null && bid.startsWith('UC')) {
         items.add(YtmSuggestion('artist', bid, cols[0], sub, img));
       } else if (bid != null && bid.startsWith('MPRE')) {

@@ -25,7 +25,11 @@ void main() {
     await Store.instance.load();
     audio = EchoesAudio();
     final t = const Track(
-        id: 'abc', title: 'Очень длинное название трека, которое не влезает', artist: 'Исполнитель', seconds: 215);
+      id: 'abc',
+      title: 'Очень длинное название трека, которое не влезает',
+      artist: 'Исполнитель',
+      seconds: 215,
+    );
     Store.instance.toggleLike(t);
     Store.instance.createPlaylist('Тестовый плейлист');
     audio.tracks.value = [t, const Track(id: 'def', title: 'Второй', artist: 'Кто-то', seconds: 180)];

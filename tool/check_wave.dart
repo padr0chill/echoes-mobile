@@ -20,7 +20,8 @@ Future<void> main() async {
     final m = await sc.match(c[0] as String, c[1] as String, c[2] as int);
     if (m != null) found++;
     print(
-        'match "${c[0]} - ${c[1]}": ${m == null ? 'НЕТ' : '${m.artist} — ${m.title} (${m.seconds}s)'} ${sw.elapsedMilliseconds}ms');
+      'match "${c[0]} - ${c[1]}": ${m == null ? 'НЕТ' : '${m.artist} — ${m.title} (${m.seconds}s)'} ${sw.elapsedMilliseconds}ms',
+    );
   }
   print('найдено $found из ${cases.length}');
   final seed = await sc.match('Linkin Park', 'Numb', 186);

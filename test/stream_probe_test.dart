@@ -47,7 +47,8 @@ void main() {
       } catch (e) {
         // ignore: avoid_print
         print(
-            'SC ${t.artist} — ${t.title}: ОШИБКА $e  форматы: ${t.transcodings.map((x) => '${(x['format'] as Map?)?['protocol']}/${(x['format'] as Map?)?['mime_type']}').join(', ')}');
+          'SC ${t.artist} — ${t.title}: ОШИБКА $e  форматы: ${t.transcodings.map((x) => '${(x['format'] as Map?)?['protocol']}/${(x['format'] as Map?)?['mime_type']}').join(', ')}',
+        );
       }
     }
   }, timeout: const Timeout(Duration(minutes: 5)));

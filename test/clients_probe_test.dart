@@ -52,8 +52,10 @@ void main() {
         c.close();
         final ip = s.url.queryParameters['ip'];
         // ignore: avoid_print
-        print('${e.key}: ${got == size ? 'ЦЕЛИКОМ' : 'ОБРЫВ на $got из $size (HTTP $status)'} '
-            '${sw.elapsedMilliseconds} мс, ip=$ip, c=${s.url.queryParameters['c']}');
+        print(
+          '${e.key}: ${got == size ? 'ЦЕЛИКОМ' : 'ОБРЫВ на $got из $size (HTTP $status)'} '
+          '${sw.elapsedMilliseconds} мс, ip=$ip, c=${s.url.queryParameters['c']}',
+        );
       } catch (err) {
         // ignore: avoid_print
         print('${e.key}: ОШИБКА ${'$err'.split('\n').first}');

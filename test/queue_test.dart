@@ -114,4 +114,14 @@ void main() {
     audio.tracks.value = [tr('новый'), tr('другой')];
     expect(audio.trackKey.value, k);
   });
+
+  test('T23б: выключили «вперемешку» — удалённый за это время трек не возвращается', () {
+    audio.toggleShuffle(); // вкл
+    final victim = audio.tracks.value.indexWhere((t) => t.id == 't7');
+    audio.removeAt(victim);
+    audio.toggleShuffle(); // выкл
+    expect(ids(), isNot(contains('t7')));
+    expect(ids().length, 9);
+    expect(audio.current?.id, 't2');
+  });
 }

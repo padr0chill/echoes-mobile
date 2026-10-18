@@ -15,21 +15,24 @@ import 'sc.dart';
 import 'stream_source.dart';
 import 'yt.dart';
 import '../i18n.dart';
+import 'log.dart';
 
 enum RepeatState { off, all, one }
 
 /// Трек → карточка для экрана блокировки / пункта управления.
 extension TrackMedia on Track {
   MediaItem toMediaItem() => MediaItem(
-        id: id,
-        title: title,
-        artist: artist,
-        duration: seconds > 0 ? duration : null,
-        // у видео YouTube — уже обрезанная квадратная (без полос), если готова; иначе сеть
-        artUri: SquareCover.instance.ready(this) != null
-            ? Uri.file(SquareCover.instance.ready(this)!.path)
-            : Uri.parse(art ?? cover),
-      );
+    id: id,
+    title: title,
+    artist: artist,
+    duration: seconds > 0 ? duration : null,
+    // у видео YouTube — уже обрезанная квадратная (без полос), если готова; иначе сеть
+    artUri: SquareCover.instance.ready(this) != null
+        ? Uri.file(SquareCover.instance.ready(this)!.path)
+        : (art ?? cover) == null
+        ? null
+        : Uri.parse((art ?? cover)!),
+  );
 }
 
 /// Плеер: очередь, фон и экран блокировки (audio_service), звук — потоком (just_audio, без файлов на диске).
@@ -64,17 +67,19 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
     // позиция — раз в 5 с, пока играет, и сразу при паузе
     Timer.periodic(const Duration(seconds: 5), (_) {
-      if (player.playing) _saveSession();
+      if (player.playing) _savePos();
     });
     player.playingStream.listen((p) {
-      if (!p) _saveSession();
+      if (!p) _savePos();
     });
     index.addListener(_bumpTrackKey);
     tracks.addListener(_bumpTrackKey);
-    player.playbackEventStream.listen((_) => _broadcast(), onError: (Object e, StackTrace st) {
-      error.value = tr('Поток оборвался — попробуйте ещё раз');
-      _broadcast();
-    });
+    player.playbackEventStream.listen(
+      (_) => _broadcast(),
+      onError: (Object e, StackTrace st) {
+        _recover();
+      },
+    );
     player.playingStream.listen((_) => _broadcast());
     player.processingStateStream.listen((s) {
       if (s == ProcessingState.completed) _onCompleted();
@@ -112,7 +117,15 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   Future<void> Function()? nearEnd;
 
   /// Играть список с позиции start (поиск, плейлист, «Мне нравится»). wave — очередь «Моей волны».
+  /// Номер очереди: растёт при каждом новом списке. Кто долго что-то подгружает (волна), сверяет его —
+  /// не дописать свои треки в очередь, которую пользователь уже сменил.
+  int queueGen = 0;
+
   Future<void> playList(List<Track> list, int start, {Future<void> Function()? wave}) async {
+    queueGen++;
+    // сколько слушали прошлый трек — засчитать ЕМУ (после замены очереди current — уже новый трек)
+    final count = player.playing || player.processingState == ProcessingState.completed;
+    if (count) _countListened();
     nearEnd = wave;
     upNext.value = 0;
     _unshuffled = null;
@@ -123,7 +136,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       start = 0;
     }
     queue.add(tracks.value.map((t) => t.toMediaItem()).toList());
-    await _playIndex(start);
+    await _playIndex(start, counted: count);
   }
 
   /// Дописать треки в конец очереди (без повторов).
@@ -194,11 +207,22 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     queue.add(l.map((x) => x.toMediaItem()).toList());
   }
 
-  Future<void> _playIndex(int i, {bool handoff = false, Duration? startAt}) async {
+  /// auto — переход сам (конец трека, волна): не открылся — через 3 с следующий (не больше 3 подряд).
+  Future<void> _playIndex(
+    int i, {
+    bool handoff = false,
+    Duration? startAt,
+    bool auto = false,
+    bool counted = false,
+  }) async {
     final l = tracks.value;
     if (i < 0 || i >= l.length) return;
-    if (!handoff) _stopBridge(); // переключили сами — переход отменяется
-    if (player.playing || player.processingState == ProcessingState.completed) _countListened();
+    _restoredAt = null; // секунда после перезапуска — не для другого трека (play() передаёт её в startAt)
+    if (!handoff) {
+      _stopBridge(); // переключили сами — переход отменяется
+      _wantPlay = true;
+    }
+    if (!counted && (player.playing || player.processingState == ProcessingState.completed)) _countListened();
     // следующий из «Далее в очереди» — счётчик уменьшается; переход в другое место — очередь «растворяется»
     if (upNext.value > 0 && i != index.value) upNext.value = i == index.value + 1 ? upNext.value - 1 : 0;
     index.value = i;
@@ -219,19 +243,39 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       if (my != _token || !ok) return;
       if (startAt != null && startAt > Duration.zero) await player.seek(startAt);
       final b = _bridge;
-      if (handoff && b != null && b.playing) {
+      if (handoff && b != null && !_wantPlay) {
+        // во время перехода нажали паузу — встаём туда, где остановился «мост», и ждём «играть»
+        await player.seek(b.position);
+        _stopBridge();
+        await player.setVolume(1);
+      } else if (handoff && b != null && b.playing) {
         await _takeOver(b, my);
       } else {
         _stopBridge();
         await player.setVolume(1);
-        player.play(); // без await: завершается только в конце трека
+        if (_wantPlay) player.play(); // без await: завершается только в конце трека
       }
+      _autoSkips = 0;
       Store.instance.addHistory(t);
       _prefetchNext();
       final ne = nearEnd;
       if (ne != null && tracks.value.length - index.value <= 4) ne().ignore(); // волна: подгрузить ещё
     } catch (e) {
-      if (my == _token) error.value = tr('Не удалось открыть трек: {0}', [_short(e, 320)]);
+      if (my == _token) {
+        _stopBridge(); // следующий не открылся — «мост» не должен доигрывать сам по себе
+        if (auto && _autoSkips < 3) {
+          // сам переход (никто не смотрит на экран) — один «мёртвый» трек не останавливает очередь
+          _autoSkips++;
+          error.value = tr('Пропущено: {0} — {1}', [t.title, _short(e, 160)]);
+          Future<void>.delayed(const Duration(seconds: 3), () {
+            if (my != _token || !_wantPlay) return;
+            final j = _nextIndex();
+            if (j != null) _playIndex(j, auto: true);
+          });
+        } else {
+          error.value = tr('Не удалось открыть трек: {0}', [_short(e, 320)]);
+        }
+      }
     } finally {
       if (my == _token) {
         loading.value = false;
@@ -273,7 +317,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
           await player.setAudioSource(AudioSource.uri(u)).timeout(const Duration(seconds: 8));
         } catch (e) {
           // плеер iOS не открыл ссылку — играем из быстро скачанного временного файла
-          final f = await Offline.instance.playbackFile(t, url: u);
+          final f = await Offline.instance.playbackFile(t, url: u).timeout(const Duration(seconds: 60));
           if (cancelled()) return false;
           await player.setAudioSource(AudioSource.file(f.path)).timeout(const Duration(seconds: 8));
         }
@@ -291,25 +335,33 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         vid = await YtService.instance.findSame(t);
       } catch (e) {
         if (t.isSc) throw Exception(tr('{0} · на YouTube не нашлась: {1}', [errs.join(' · '), _short(e)]));
-        throw Exception(t.isPreview
-            ? tr('на SoundCloud только отрывок, а на YouTube песня не нашлась: {0}', [_short(e)])
-            : tr('песня не нашлась на YouTube: {0}', [_short(e)]));
+        throw Exception(
+          t.isPreview
+              ? tr('на SoundCloud только отрывок, а на YouTube песня не нашлась: {0}', [_short(e)])
+              : tr('песня не нашлась на YouTube: {0}', [_short(e)]),
+        );
       }
       if (cancelled()) return false;
     }
 
     // обе площадки — сразу и параллельно
-    final ytF = _resolveYt(vid, eco).then<StreamPick?>((p) => p, onError: (Object e) {
-      errs.add('YouTube: ${_short(e)}');
-      return null;
-    });
-    final scF = (t.isPreview || t.isSc ? Future<Uri?>.value(null) : _resolveSc(t)).then<Uri?>((u) {
-      if (u == null && !t.isPreview && !t.isSc) errs.add(tr('SoundCloud: такой песни нет'));
-      return u;
-    }, onError: (Object e) {
-      errs.add('SoundCloud: ${_short(e)}');
-      return null;
-    });
+    final ytF = _resolveYt(vid, eco).then<StreamPick?>(
+      (p) => p,
+      onError: (Object e) {
+        errs.add('YouTube: ${_short(e)}');
+        return null;
+      },
+    );
+    final scF = (t.isPreview || t.isSc ? Future<Uri?>.value(null) : _resolveSc(t)).then<Uri?>(
+      (u) {
+        if (u == null && !t.isPreview && !t.isSc) errs.add(tr('SoundCloud: такой песни нет'));
+        return u;
+      },
+      onError: (Object e) {
+        errs.add('SoundCloud: ${_short(e)}');
+        return null;
+      },
+    );
 
     Future<bool> playYt(StreamPick pick) async {
       for (final proxy in [_useProxy, !_useProxy]) {
@@ -387,7 +439,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final alt = <String>{vid};
     try {
       alt.add(await YtService.instance.findSame(t, exclude: vid).timeout(const Duration(seconds: 8)));
-    } catch (_) {}
+    } catch (e) {
+      log.w('audio:418', e);
+    }
     for (final v in alt) {
       if (cancelled()) return false;
       try {
@@ -410,7 +464,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
         YtService.instance.streamWith(vid, i, economy: eco, fresh: fresh).timeout(const Duration(seconds: 7));
     try {
       return await _firstOk([one(0), one(1)]);
-    } catch (_) {}
+    } catch (e) {
+      log.w('audio:441', e);
+    }
     Object? last;
     for (var i = 2; i < YtService.clients.length; i++) {
       try {
@@ -427,11 +483,14 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final c = Completer<T>();
     var left = fs.length;
     for (final f in fs) {
-      f.then((v) {
-        if (!c.isCompleted) c.complete(v);
-      }, onError: (Object e) {
-        if (--left == 0 && !c.isCompleted) c.completeError(e);
-      });
+      f.then(
+        (v) {
+          if (!c.isCompleted) c.complete(v);
+        },
+        onError: (Object e) {
+          if (--left == 0 && !c.isCompleted) c.completeError(e);
+        },
+      );
     }
     return c.future;
   }
@@ -542,11 +601,47 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     }
     final j = _nextIndex();
     if (j != null) {
-      _playIndex(j, handoff: _bridge != null && _bridgeOn && _bridgeIndex == j);
+      _playIndex(j, handoff: _bridge != null && _bridgeOn && _bridgeId == tracks.value[j].id, auto: true);
     } else {
       player.pause();
       player.seek(Duration.zero);
     }
+  }
+
+  // ── обрыв потока: смена сети (ссылка YouTube привязана к IP), провал связи, зависшее соединение ──
+  int _autoSkips = 0;
+  String? _recoverId;
+  final _recoveries = <DateTime>[];
+
+  /// Поток оборвался во время игры: тот же трек со свежей ссылкой с той же секунды. Не больше 2 раз
+  /// за минуту на трек — дальше честная ошибка.
+  Future<void> _recover() async {
+    final t = current;
+    if (t == null || loading.value) {
+      // трек ещё открывается — с ошибкой разберётся сам _openStream (там свои запасные пути)
+      _broadcast();
+      return;
+    }
+    final now = DateTime.now();
+    if (_recoverId != t.id) {
+      _recoverId = t.id;
+      _recoveries.clear();
+    }
+    _recoveries.removeWhere((d) => now.difference(d) > const Duration(minutes: 1));
+    if (!_wantPlay || _recoveries.length >= 2) {
+      error.value = tr('Поток оборвался — попробуйте ещё раз');
+      _broadcast();
+      return;
+    }
+    _recoveries.add(now);
+    final pos = player.position;
+    // старые ссылки больше не годятся — забыть, чтобы взять свежие
+    YtService.instance.forget(t.id);
+    YtService.instance.forgetTrack(t);
+    _scLinks.remove(t.id);
+    await _playIndex(index.value, startAt: pos);
+    if (error.value == null) return;
+    error.value = tr('Поток оборвался — попробуйте ещё раз');
   }
 
   // ── переходы между треками: плавные (как «Плавный переход» в Spotify) и без паузы ──
@@ -555,7 +650,15 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   // 0,2 с: просто без паузы между треками). Основной плеер потом открывает тот же трек, встаёт чуть впереди
   // «моста», ждёт, пока загрузится, и подхватывает звук ровно в ту же секунду — без провалов.
   AudioPlayer? _bridge;
-  int? _bridgeIndex;
+  String? _bridgeId; // какой трек готовит «мост» (по id: очередь могли поменять)
+  String? _xfFor; // для какого следующего трека уже готовили
+
+  /// Чего хочет пользователь (играть / пауза) — независимо от того, какой плеер сейчас звучит: во время
+  /// перехода звук идёт с «моста», а основной плеер ещё открывает трек.
+  bool _wantPlay = true;
+
+  /// Играет ли музыка (основной плеер или «мост» во время перехода) — для кнопки «пауза/играть».
+  final playingNow = ValueNotifier<bool>(false);
   int _xfToken = -1;
   bool _bridgeReady = false, _bridgeOn = false;
   Timer? _rampTimer;
@@ -571,15 +674,19 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     if (left > secs + 10) return;
     final j = _nextIndex();
     if (j == null) return;
-    if (_xfToken != _token) {
+    final nextId = tracks.value[j].id;
+    // готовим заново и если за эти секунды поменяли очередь («играть следующим», удаление, перемешать)
+    if (!_bridgeOn && (_xfToken != _token || _xfFor != nextId)) {
       _xfToken = _token;
+      _xfFor = nextId;
       _prepareBridge(j);
     }
     final b = _bridge;
-    if (b != null && _bridgeReady && !_bridgeOn && _bridgeIndex == j && left <= secs) {
+    if (b != null && _bridgeReady && !_bridgeOn && _bridgeId == nextId && left <= secs) {
       _bridgeOn = true;
       b.play();
       _ramp(player, b, left.clamp(0.15, secs));
+      _broadcast();
     }
   }
 
@@ -592,7 +699,7 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       ),
     );
     _bridge = b;
-    _bridgeIndex = j;
+    _bridgeId = tracks.value[j].id;
     try {
       final src = await snippetSource(tracks.value[j]).timeout(const Duration(seconds: 8));
       if (my != _token || _bridge != b) return;
@@ -620,15 +727,25 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       }
       if (my != _token) return;
       if (!b.playing) await player.seek(b.position);
-      player.play();
-      _ramp(b, player, 0.25, done: _stopBridge);
+      _handOver(b);
     } catch (_) {
       // не успели — просто с той секунды, где «мост»
       if (my != _token) return;
       await player.seek(b.position);
-      player.play();
-      _ramp(b, player, 0.25, done: _stopBridge);
+      _handOver(b);
     }
+  }
+
+  void _handOver(AudioPlayer b) {
+    if (!_wantPlay) {
+      // пока подхватывали, нажали паузу — основной плеер стоит на нужной секунде и ждёт «играть»
+      _stopBridge();
+      player.setVolume(1);
+      _broadcast();
+      return;
+    }
+    player.play();
+    _ramp(b, player, 0.25, done: _stopBridge);
   }
 
   /// Громкость перетекает с `out` на `into` за seconds (равная мощность — без провала посередине).
@@ -650,12 +767,13 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     _rampTimer?.cancel();
     final b = _bridge;
     _bridge = null;
-    _bridgeIndex = null;
+    _bridgeId = null;
     _bridgeReady = false;
     _bridgeOn = false;
     if (b != null) {
       b.stop().whenComplete(b.dispose).ignore();
       if (player.volume < 1) player.setVolume(1);
+      _broadcast();
     }
   }
 
@@ -674,21 +792,33 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     });
   }
 
+  /// Только трек и секунда — маленькая запись (очередь бывает в сотни треков, её пишем лишь при изменении).
+  void _savePos() {
+    if (_restoring || !Store.instance.ready) return;
+    final t = current;
+    if (t == null) return;
+    final pos = player.processingState == ProcessingState.idle ? (_restoredAt ?? Duration.zero) : player.position;
+    Store.instance.saveSessionPos(jsonEncode({'id': t.id, 'index': index.value, 'pos': pos.inMilliseconds}));
+  }
+
   void _saveSession() {
     if (_restoring || !Store.instance.ready) return;
+    _savePos();
     final l = tracks.value;
     if (l.isEmpty) return;
     final pos = player.processingState == ProcessingState.idle ? (_restoredAt ?? Duration.zero) : player.position;
-    Store.instance.saveSession(jsonEncode({
-      'v': 1,
-      'tracks': [for (final t in l) t.toJson()],
-      'index': index.value,
-      'pos': pos.inMilliseconds,
-      'shuffle': shuffle.value,
-      'repeat': repeat.value.name,
-      'upNext': upNext.value,
-      if (_unshuffled != null) 'orig': [for (final t in _unshuffled!) t.toJson()],
-    }));
+    Store.instance.saveSession(
+      jsonEncode({
+        'v': 1,
+        'tracks': [for (final t in l) t.toJson()],
+        'index': index.value,
+        'pos': pos.inMilliseconds,
+        'shuffle': shuffle.value,
+        'repeat': repeat.value.name,
+        'upNext': upNext.value,
+        if (_unshuffled != null) 'orig': [for (final t in _unshuffled!) t.toJson()],
+      }),
+    );
   }
 
   /// После запуска приложения: вернуть очередь и трек (без автозапуска — «играть» продолжит с той секунды).
@@ -697,8 +827,9 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     if (raw == null || tracks.value.isNotEmpty) return;
     try {
       final j = jsonDecode(raw) as Map;
-      List<Track> list(Object? x) =>
-          [for (final e in (x as List? ?? const [])) Track.fromJson(Map<String, dynamic>.from(e as Map))];
+      List<Track> list(Object? x) => [
+        for (final e in (x as List? ?? const [])) Track.fromJson(Map<String, dynamic>.from(e as Map)),
+      ];
       final l = list(j['tracks']);
       if (l.isEmpty) return;
       _restoring = true;
@@ -709,6 +840,20 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
       upNext.value = ((j['upNext'] ?? 0) as num).toInt();
       if (j['orig'] != null) _unshuffled = list(j['orig']);
       _restoredAt = Duration(milliseconds: ((j['pos'] ?? 0) as num).toInt());
+      // свежая секунда — из маленькой записи, если она про этот же трек
+      try {
+        final ps = Store.instance.sessionPos;
+        if (ps != null) {
+          final p = jsonDecode(ps) as Map;
+          final pi = (p['index'] as num?)?.toInt() ?? -1;
+          if (pi >= 0 && pi < l.length && l[pi].id == p['id']) {
+            index.value = pi;
+            _restoredAt = Duration(milliseconds: ((p['pos'] ?? 0) as num).toInt());
+          }
+        }
+      } catch (e) {
+        log.w('session_pos', e);
+      }
       final t = l[index.value];
       mediaItem.add(t.toMediaItem());
       queue.add([for (final x in l) x.toMediaItem()]);
@@ -757,8 +902,8 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
     final up = upNext.value.clamp(0, l.length - index.value - 1);
     final queued = index.value >= 0 ? l.sublist(index.value + 1, index.value + 1 + up) : <Track>[];
     // исходный порядок + треки, добавленные уже во время перемешивания (в конец)
-    final have = orig.toSet();
-    final restored = [...orig, ...l.where((x) => !have.contains(x))]..removeWhere(queued.contains);
+    final have = orig.toSet(), now = l.toSet();
+    final restored = [...orig.where(now.contains), ...l.where((x) => !have.contains(x))]..removeWhere(queued.contains);
     var ci = cur == null ? -1 : restored.indexOf(cur);
     if (ci >= 0) restored.insertAll(ci + 1, queued);
     tracks.value = restored;
@@ -775,6 +920,22 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   // ── управление (и с экрана блокировки) ──
   @override
   Future<void> play() async {
+    _wantPlay = true;
+    final b = _bridge;
+    if (b != null && _bridgeOn) {
+      // пауза была посреди перехода: «мост» продолжает, основной подхватит сам (или доиграет конец трека)
+      b.play();
+      if (!loading.value && player.processingState == ProcessingState.ready) {
+        player.play();
+        final d = player.duration;
+        final left = d == null ? 0.0 : (d - player.position).inMilliseconds / 1000.0;
+        _ramp(player, b, left.clamp(0.15, _xfSecs));
+      } else {
+        b.setVolume(1);
+      }
+      _broadcast();
+      return;
+    }
     if (player.processingState == ProcessingState.idle && current != null) {
       final at = _restoredAt;
       _restoredAt = null;
@@ -785,7 +946,13 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
   }
 
   @override
-  Future<void> pause() => player.pause();
+  Future<void> pause() async {
+    _wantPlay = false;
+    _rampTimer?.cancel();
+    _bridge?.pause();
+    await player.pause();
+    _broadcast();
+  }
 
   @override
   Future<void> seek(Duration position) => player.seek(position);
@@ -810,12 +977,16 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> stop() async {
+    _wantPlay = false;
+    _stopBridge();
     await player.stop();
     await super.stop();
   }
 
   void _broadcast() {
-    final playing = player.playing;
+    // звук идёт с основного плеера или (во время перехода) с «моста»
+    final playing = player.playing || (_wantPlay && (_bridge?.playing ?? false));
+    playingNow.value = playing;
     final ps = loading.value
         ? AudioProcessingState.loading
         : const {
@@ -825,21 +996,23 @@ class EchoesAudio extends BaseAudioHandler with SeekHandler {
             ProcessingState.ready: AudioProcessingState.ready,
             ProcessingState.completed: AudioProcessingState.completed,
           }[player.processingState]!;
-    playbackState.add(playbackState.value.copyWith(
-      controls: [
-        MediaControl.skipToPrevious,
-        if (playing) MediaControl.pause else MediaControl.play,
-        MediaControl.skipToNext,
-      ],
-      systemActions: const {MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
-      androidCompactActionIndices: const [0, 1, 2],
-      processingState: ps,
-      playing: playing,
-      updatePosition: player.position,
-      bufferedPosition: player.bufferedPosition,
-      speed: player.speed,
-      queueIndex: index.value < 0 ? null : index.value,
-    ));
+    playbackState.add(
+      playbackState.value.copyWith(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (playing) MediaControl.pause else MediaControl.play,
+          MediaControl.skipToNext,
+        ],
+        systemActions: const {MediaAction.seek, MediaAction.seekForward, MediaAction.seekBackward},
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: ps,
+        playing: playing,
+        updatePosition: player.position,
+        bufferedPosition: player.bufferedPosition,
+        speed: player.speed,
+        queueIndex: index.value < 0 ? null : index.value,
+      ),
+    );
   }
 }
 

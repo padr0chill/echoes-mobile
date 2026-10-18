@@ -32,19 +32,28 @@ class ProfileScreen extends StatelessWidget {
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(8), 0),
-                child: Row(children: [
-                  Expanded(child: Text(tr('Профиль'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900))),
-                  IconButton(
-                    tooltip: tr('Настройки'),
-                    icon: const Icon(Icons.settings_rounded),
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => Ambient(
-                        child: Scaffold(
-                            backgroundColor: Colors.transparent, appBar: AppBar(), body: const SettingsScreen()),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(tr('Профиль'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+                    ),
+                    IconButton(
+                      tooltip: tr('Настройки'),
+                      icon: const Icon(Icons.settings_rounded),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => Ambient(
+                            child: Scaffold(
+                              backgroundColor: Colors.transparent,
+                              appBar: AppBar(),
+                              body: const SettingsScreen(),
+                            ),
+                          ),
+                        ),
                       ),
-                    )),
-                  ),
-                ]),
+                    ),
+                  ],
+                ),
               ),
               SizedBox(height: context.u(12)),
               Center(
@@ -67,11 +76,14 @@ class ProfileScreen extends StatelessWidget {
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(tr(st.name), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                      const SizedBox(width: 6),
-                      Icon(Icons.edit_rounded, size: 18, color: context.accent),
-                    ]),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(tr(st.name), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                        const SizedBox(width: 6),
+                        Icon(Icons.edit_rounded, size: 18, color: context.accent),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -105,34 +117,48 @@ class ProfileScreen extends StatelessWidget {
               for (var i = 0; i < top.length; i++)
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(6)),
-                  child: Row(children: [
-                    SizedBox(
-                      width: context.u(26),
-                      child: Text('${i + 1}', style: TextStyle(fontWeight: FontWeight.w900, color: context.accent)),
-                    ),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(top[i],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700)),
-                        SizedBox(height: context.u(4)),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(3),
-                          child: LinearProgressIndicator(
-                            value: (st.artistSeconds[top[i]] ?? 0) / maxS,
-                            minHeight: 5,
-                            color: context.accent,
-                            backgroundColor: context.accent.withValues(alpha: 0.12),
-                          ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: context.u(26),
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(fontWeight: FontWeight.w900, color: context.accent),
                         ),
-                      ]),
-                    ),
-                    SizedBox(width: context.u(10)),
-                    Text(_time(st.artistSeconds[top[i]] ?? 0),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              top[i],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            SizedBox(height: context.u(4)),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(3),
+                              child: LinearProgressIndicator(
+                                value: (st.artistSeconds[top[i]] ?? 0) / maxS,
+                                minHeight: 5,
+                                color: context.accent,
+                                backgroundColor: context.accent.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: context.u(10)),
+                      Text(
+                        _time(st.artistSeconds[top[i]] ?? 0),
                         style: TextStyle(
-                            fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6))),
-                  ]),
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               SizedBox(height: context.u(12)),
               ListTile(
@@ -175,26 +201,35 @@ class _Stat extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(context.u(12)),
       decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(context.r(20))),
-      child:
-          Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-        Row(children: [
-          Icon(icon, size: 18, color: context.accent),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: context.accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ]),
-        const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-        ),
-      ]),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
     );
   }
 }

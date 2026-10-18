@@ -49,17 +49,22 @@ class _BlurredCoverState extends State<BlurredCover> {
     final full = widget.strength >= 0.98;
     // слабое размытие — картинка покрупнее (иначе всё равно «мыло»), сильное — маленькая (дёшево)
     final side = full ? 96 : (widget.strength < 0.05 ? 1080 : 540);
-    _stream = ResizeImage(widget.image, width: side, height: side, policy: ResizeImagePolicy.fit)
-        .resolve(ImageConfiguration.empty);
+    _stream = ResizeImage(
+      widget.image,
+      width: side,
+      height: side,
+      policy: ResizeImagePolicy.fit,
+    ).resolve(ImageConfiguration.empty);
     _l = ImageStreamListener((info, _) {
       final key = widget._key;
       (full ? _blur(info.image) : _soft(info.image, widget.strength)).then((b) {
+        info.dispose();
         BlurredCover._cache[key] = b;
         if (BlurredCover._cache.length > 12) BlurredCover._cache.remove(BlurredCover._cache.keys.first);
-        if (mounted && widget.cacheKey == key) setState(() => _img = b);
+        if (mounted && widget._key == key) setState(() => _img = b);
       });
       _stop();
-    }, onError: (_, __) => _stop());
+    }, onError: (_, _) => _stop());
     _stream!.addListener(_l!);
   }
 
@@ -78,7 +83,9 @@ class _BlurredCoverState extends State<BlurredCover> {
     final r = Rect.fromLTWH(0, 0, w, h);
     if (sigma > 0.3) {
       canvas.saveLayer(
-          r, Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp));
+        r,
+        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: TileMode.clamp),
+      );
     }
     canvas.drawImageRect(src, r, r, Paint()..filterQuality = FilterQuality.medium);
     if (sigma > 0.3) canvas.restore();
@@ -96,10 +103,16 @@ class _BlurredCoverState extends State<BlurredCover> {
     final w = src.width.toDouble(), h = src.height.toDouble();
     final side = w < h ? w : h;
     final srcRect = Rect.fromCenter(center: Offset(w / 2, h / 2), width: side, height: side);
-    canvas.saveLayer(const Rect.fromLTWH(0, 0, out, out),
-        Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6, tileMode: TileMode.clamp));
+    canvas.saveLayer(
+      const Rect.fromLTWH(0, 0, out, out),
+      Paint()..imageFilter = ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6, tileMode: TileMode.clamp),
+    );
     canvas.drawImageRect(
-        src, srcRect, const Rect.fromLTWH(-8, -8, out + 16, out + 16), Paint()..filterQuality = FilterQuality.medium);
+      src,
+      srcRect,
+      const Rect.fromLTWH(-8, -8, out + 16, out + 16),
+      Paint()..filterQuality = FilterQuality.medium,
+    );
     canvas.restore();
     final pic = rec.endRecording();
     final img = pic.toImageSync(out.toInt(), out.toInt());

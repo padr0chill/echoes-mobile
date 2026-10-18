@@ -21,15 +21,16 @@ import 'library_screen.dart';
 /// Исполнители трека по отдельности: «A, B и C», «A & B», «A feat. B», «A x B» → [A, B, C].
 List<String> splitArtists(String artist) {
   final parts = artist
-      .split(RegExp(r'\s*(?:,|&|\+|/| и | and | x | х | feat\.? | ft\.? | featuring | при уч\.? )\s*',
-          caseSensitive: false))
+      .split(
+        RegExp(r'\s*(?:,|&|\+|/| и | and | x | х | feat\.? | ft\.? | featuring | при уч\.? )\s*', caseSensitive: false),
+      )
       .map((s) => s.trim())
       .where((s) => s.isNotEmpty)
       .toList();
   final seen = <String>{};
   return [
     for (final p in parts)
-      if (seen.add(p.toLowerCase())) p
+      if (seen.add(p.toLowerCase())) p,
   ];
 }
 
@@ -43,23 +44,28 @@ Future<void> openArtist(BuildContext context, Track t) async {
     final picked = await showGlassSheet<String>(
       context,
       (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Padding(
-            padding: EdgeInsets.all(ctx.u(14)),
-            child: Text(tr('Исполнители'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          ),
-          for (final n in names)
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: ctx.accent.withValues(alpha: 0.22),
-                child: Text(n.characters.first.toUpperCase(),
-                    style: TextStyle(color: ctx.accent, fontWeight: FontWeight.w800)),
-              ),
-              title: Text(n, style: const TextStyle(fontWeight: FontWeight.w700)),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () => Navigator.pop(ctx, n),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: EdgeInsets.all(ctx.u(14)),
+              child: Text(tr('Исполнители'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             ),
-        ]),
+            for (final n in names)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: ctx.accent.withValues(alpha: 0.22),
+                  child: Text(
+                    n.characters.first.toUpperCase(),
+                    style: TextStyle(color: ctx.accent, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                title: Text(n, style: const TextStyle(fontWeight: FontWeight.w700)),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.pop(ctx, n),
+              ),
+          ],
+        ),
       ),
     );
     if (picked == null || !context.mounted) return;
@@ -85,9 +91,21 @@ class _Page {
   final List<YtmArtistRef> similar;
   final String? about;
   final String? ytm;
-  const _Page(this.name, this.image, this.monthly, this.subscribers, this.verified, this.top, this.plays, this.albums,
-      this.singles, this.all, this.similar, this.about,
-      {this.ytm});
+  const _Page(
+    this.name,
+    this.image,
+    this.monthly,
+    this.subscribers,
+    this.verified,
+    this.top,
+    this.plays,
+    this.albums,
+    this.singles,
+    this.all,
+    this.similar,
+    this.about, {
+    this.ytm,
+  });
 }
 
 /// Страница исполнителя как в Spotify: большое фото с именем, слушатели за месяц, «Слушать» / «Вперемешку» /
@@ -139,7 +157,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
       final secs = {for (final t in all) t.id: t.seconds};
       final top = [
         for (final t in p.top)
-          Track(id: t.id, title: t.title, artist: t.artist, seconds: secs[t.id] ?? t.seconds, art: t.art)
+          Track(id: t.id, title: t.title, artist: t.artist, seconds: secs[t.id] ?? t.seconds, art: t.art),
       ];
       String? monthly = p.monthly;
       String? image = p.image;
@@ -148,9 +166,21 @@ class _ArtistScreenState extends State<ArtistScreen> {
         if (sp?.monthlyListeners != null) monthly ??= _count(sp!.monthlyListeners!);
         image ??= sp?.image;
       }
-      return _Page(p.name, image, monthly, p.subscribers, true, top, p.plays, albums,
-          singles.where((s) => !albums.any((a) => a.ytm == s.ytm)).toList(), all, p.similar, null,
-          ytm: p.id);
+      return _Page(
+        p.name,
+        image,
+        monthly,
+        p.subscribers,
+        true,
+        top,
+        p.plays,
+        albums,
+        singles.where((s) => !albums.any((a) => a.ytm == s.ytm)).toList(),
+        all,
+        p.similar,
+        null,
+        ytm: p.id,
+      );
     }
     // запасной путь — SoundCloud
     final sc = ScService.instance;
@@ -202,26 +232,35 @@ class _ArtistScreenState extends State<ArtistScreen> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             body: snap.connectionState != ConnectionState.done
-                ? Stack(children: [
-                    Center(child: CircularProgressIndicator(color: context.accent)),
-                    _back(context),
-                  ])
+                ? Stack(
+                    children: [
+                      Center(child: CircularProgressIndicator(color: context.accent)),
+                      _back(context),
+                    ],
+                  )
                 : d == null
-                    ? Stack(children: [
-                        Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(context.u(24)),
-                            child: Column(mainAxisSize: MainAxisSize.min, children: [
-                              Text('${snap.error ?? tr('Не удалось загрузить')}'.replaceFirst('Exception: ', ''),
-                                  textAlign: TextAlign.center),
+                ? Stack(
+                    children: [
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(context.u(24)),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${snap.error ?? tr('Не удалось загрузить')}'.replaceFirst('Exception: ', ''),
+                                textAlign: TextAlign.center,
+                              ),
                               SizedBox(height: context.u(12)),
                               FilledButton(onPressed: () => setState(() => _f = _load()), child: Text(tr('Повторить'))),
-                            ]),
+                            ],
                           ),
                         ),
-                        _back(context),
-                      ])
-                    : _body(context, d),
+                      ),
+                      _back(context),
+                    ],
+                  )
+                : _body(context, d),
           ),
         );
       },
@@ -229,11 +268,11 @@ class _ArtistScreenState extends State<ArtistScreen> {
   }
 
   Widget _back(BuildContext context) => SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(context.u(8)),
-          child: GlassIconButton(icon: Icons.arrow_back_ios_new_rounded, size: 40, onTap: () => Navigator.pop(context)),
-        ),
-      );
+    child: Padding(
+      padding: EdgeInsets.all(context.u(8)),
+      child: GlassIconButton(icon: Icons.arrow_back_ios_new_rounded, size: 40, onTap: () => Navigator.pop(context)),
+    ),
+  );
 
   Widget _body(BuildContext context, _Page d) {
     final w = MediaQuery.sizeOf(context).width;
@@ -244,341 +283,405 @@ class _ArtistScreenState extends State<ArtistScreen> {
     final liked = _liked(d.name);
     final topN = _topMore ? 10 : 5;
     final topList = [...d.top, ...d.all.where((t) => !d.top.contains(t))].take(10).toList();
-    return Stack(children: [
-      CustomScrollView(
-        controller: _scroll,
-        slivers: [
-          // шапка: фото во всю ширину, снизу — имя крупно (как в Spotify)
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: headH,
-              child: Stack(fit: StackFit.expand, children: [
-                if (d.image != null)
-                  Image.network(d.image!,
-                      fit: BoxFit.cover,
-                      alignment: const Alignment(0, -0.3),
-                      errorBuilder: (_, __, ___) => const SizedBox())
-                else
-                  Container(color: context.accent.withValues(alpha: 0.25)),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0, 0.45, 1],
-                      colors: [
-                        Colors.black.withValues(alpha: 0.25),
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.75),
-                      ],
+    return Stack(
+      children: [
+        CustomScrollView(
+          controller: _scroll,
+          slivers: [
+            // шапка: фото во всю ширину, снизу — имя крупно (как в Spotify)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: headH,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (d.image != null)
+                      Image.network(
+                        d.image!,
+                        fit: BoxFit.cover,
+                        alignment: const Alignment(0, -0.3),
+                        errorBuilder: (_, _, _) => const SizedBox(),
+                      )
+                    else
+                      Container(color: context.accent.withValues(alpha: 0.25)),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0, 0.45, 1],
+                          colors: [
+                            Colors.black.withValues(alpha: 0.25),
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.75),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  left: context.u(18),
-                  right: context.u(18),
-                  bottom: context.u(14),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(d.name,
-                          maxLines: 1,
-                          style: const TextStyle(
-                              fontSize: 54,
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                              color: Colors.white,
-                              letterSpacing: -1.5,
-                              shadows: [Shadow(color: Colors.black54, blurRadius: 18)])),
+                    Positioned(
+                      left: context.u(18),
+                      right: context.u(18),
+                      bottom: context.u(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              d.name,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                fontSize: 54,
+                                fontWeight: FontWeight.w900,
+                                height: 1.0,
+                                color: Colors.white,
+                                letterSpacing: -1.5,
+                                shadows: [Shadow(color: Colors.black54, blurRadius: 18)],
+                              ),
+                            ),
+                          ),
+                          if (d.verified) ...[
+                            SizedBox(height: context.u(6)),
+                            Row(
+                              children: [
+                                Icon(Icons.verified_rounded, color: context.accent, size: context.u(18)),
+                                SizedBox(width: context.u(6)),
+                                Text(
+                                  tr('Официальный исполнитель'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    if (d.verified) ...[
-                      SizedBox(height: context.u(6)),
-                      Row(children: [
-                        Icon(Icons.verified_rounded, color: context.accent, size: context.u(18)),
-                        SizedBox(width: context.u(6)),
-                        Text(tr('Официальный исполнитель'),
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                      ]),
-                    ],
-                  ]),
+                  ],
                 ),
-              ]),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(context.u(18), context.u(12), context.u(18), 0),
-              child: Text(
-                d.monthly != null
-                    ? tr('Слушателей за месяц: {0}', [d.monthly])
-                    : d.subscribers != null
-                        ? tr('Подписчиков: {0}', [d.subscribers])
-                        : '',
-                style: TextStyle(color: dim, fontSize: 14),
               ),
             ),
-          ),
-          // кнопки: «Волна» (как «Подписки»), «Вперемешку», большая «Слушать»
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(context.u(18), context.u(10), context.u(18), context.u(4)),
-              child: Row(children: [
-                // «Подписаться» — как в Spotify
-                ListenableBuilder(
-                  listenable: Store.instance,
-                  builder: (context, _) {
-                    final on = Store.instance.isFollowing(d.name);
-                    return OutlinedButton(
-                      onPressed: () {
-                        Store.instance.toggleFollow(d.name, ytm: d.ytm, image: d.image);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(on
-                                ? tr('Вы отписались от {0}', [d.name])
-                                : tr('Вы подписались на {0} — он в «Моей музыке»', [d.name]))));
-                      },
-                      style: OutlinedButton.styleFrom(
-                        shape: context.pill,
-                        foregroundColor: Colors.white,
-                        backgroundColor: on ? Colors.white.withValues(alpha: 0.12) : null,
-                        side: BorderSide(color: Colors.white.withValues(alpha: on ? 0.25 : 0.6)),
-                      ),
-                      child: Text(on ? tr('Вы подписаны') : tr('Подписаться'),
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                    );
-                  },
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(context.u(18), context.u(12), context.u(18), 0),
+                child: Text(
+                  d.monthly != null
+                      ? tr('Слушателей за месяц: {0}', [d.monthly])
+                      : d.subscribers != null
+                      ? tr('Подписчиков: {0}', [d.subscribers])
+                      : '',
+                  style: TextStyle(color: dim, fontSize: 14),
                 ),
-                SizedBox(width: context.u(8)),
-                IconButton(
-                  tooltip: tr('Волна'),
-                  onPressed: playable.isEmpty ? null : () => Wave.instance.startWith(playable, d.name),
-                  icon: const Icon(Icons.waves_rounded),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: tr('Вперемешку'),
-                  iconSize: context.u(30),
-                  color: context.accent,
-                  onPressed: playable.isEmpty
-                      ? null
-                      : () {
-                          final l = [...(d.all.isNotEmpty ? d.all : playable)]..shuffle();
-                          audio.playList(l, 0);
-                        },
-                  icon: const Icon(Icons.shuffle_rounded),
-                ),
-                SizedBox(width: context.u(6)),
-                ValueListenableBuilder<int>(
-                  valueListenable: audio.trackKey,
-                  builder: (context, _, __) {
-                    final mine = audio.current != null && [...d.top, ...d.all].contains(audio.current);
-                    return StreamBuilder<bool>(
-                      stream: audio.player.playingStream,
-                      builder: (context, s) {
-                        final playing = mine && (s.data ?? false);
-                        return SizedBox(
-                          width: context.u(58),
-                          height: context.u(58),
-                          child: FilledButton(
-                            style: FilledButton.styleFrom(shape: const CircleBorder(), padding: EdgeInsets.zero),
-                            onPressed: playable.isEmpty
-                                ? null
-                                : () {
-                                    if (mine) {
-                                      playing ? audio.pause() : audio.play();
-                                    } else {
-                                      audio.playList(playable, 0);
-                                    }
-                                  },
-                            child: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                color: Colors.black, size: context.u(34)),
+              ),
+            ),
+            // кнопки: «Волна» (как «Подписки»), «Вперемешку», большая «Слушать»
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(context.u(18), context.u(10), context.u(18), context.u(4)),
+                child: Row(
+                  children: [
+                    // «Подписаться» — как в Spotify
+                    ListenableBuilder(
+                      listenable: Store.instance,
+                      builder: (context, _) {
+                        final on = Store.instance.isFollowing(d.name);
+                        return OutlinedButton(
+                          onPressed: () {
+                            Store.instance.toggleFollow(d.name, ytm: d.ytm, image: d.image);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  on
+                                      ? tr('Вы отписались от {0}', [d.name])
+                                      : tr('Вы подписались на {0} — он в «Моей музыке»', [d.name]),
+                                ),
+                              ),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            shape: context.pill,
+                            foregroundColor: Colors.white,
+                            backgroundColor: on ? Colors.white.withValues(alpha: 0.12) : null,
+                            side: BorderSide(color: Colors.white.withValues(alpha: on ? 0.25 : 0.6)),
+                          ),
+                          child: Text(
+                            on ? tr('Вы подписаны') : tr('Подписаться'),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                         );
                       },
-                    );
-                  },
+                    ),
+                    SizedBox(width: context.u(8)),
+                    IconButton(
+                      tooltip: tr('Волна'),
+                      onPressed: playable.isEmpty ? null : () => Wave.instance.startWith(playable, d.name),
+                      icon: const Icon(Icons.waves_rounded),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: tr('Вперемешку'),
+                      iconSize: context.u(30),
+                      color: context.accent,
+                      onPressed: playable.isEmpty
+                          ? null
+                          : () {
+                              final l = [...(d.all.isNotEmpty ? d.all : playable)]..shuffle();
+                              audio.playList(l, 0);
+                            },
+                      icon: const Icon(Icons.shuffle_rounded),
+                    ),
+                    SizedBox(width: context.u(6)),
+                    ValueListenableBuilder<int>(
+                      valueListenable: audio.trackKey,
+                      builder: (context, _, _) {
+                        final mine = audio.current != null && [...d.top, ...d.all].contains(audio.current);
+                        return StreamBuilder<bool>(
+                          stream: audio.player.playingStream,
+                          builder: (context, s) {
+                            final playing = mine && (s.data ?? false);
+                            return SizedBox(
+                              width: context.u(58),
+                              height: context.u(58),
+                              child: FilledButton(
+                                style: FilledButton.styleFrom(shape: const CircleBorder(), padding: EdgeInsets.zero),
+                                onPressed: playable.isEmpty
+                                    ? null
+                                    : () {
+                                        if (mine) {
+                                          playing ? audio.pause() : audio.play();
+                                        } else {
+                                          audio.playList(playable, 0);
+                                        }
+                                      },
+                                child: Icon(
+                                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                                  color: Colors.black,
+                                  size: context.u(34),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ]),
+              ),
             ),
-          ),
-          if (liked.isNotEmpty)
-            SliverToBoxAdapter(
-              child: ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: context.u(18)),
-                leading: Stack(clipBehavior: Clip.none, children: [
-                  CircleAvatar(
-                    radius: context.u(26),
-                    backgroundImage: d.image != null ? NetworkImage(d.image!) : null,
-                    backgroundColor: context.accent.withValues(alpha: 0.3),
+            if (liked.isNotEmpty)
+              SliverToBoxAdapter(
+                child: ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: context.u(18)),
+                  leading: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      CircleAvatar(
+                        radius: context.u(26),
+                        backgroundImage: d.image != null ? NetworkImage(d.image!) : null,
+                        backgroundColor: context.accent.withValues(alpha: 0.3),
+                      ),
+                      Positioned(
+                        right: -4,
+                        bottom: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                          child: Icon(Icons.favorite_rounded, color: context.accent, size: context.u(16)),
+                        ),
+                      ),
+                    ],
                   ),
-                  Positioned(
-                    right: -4,
-                    bottom: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-                      child: Icon(Icons.favorite_rounded, color: context.accent, size: context.u(16)),
+                  title: Text(tr('Тебе понравилось'), style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(tr('{0} тр. · {1}', [liked.length, d.name])),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TrackListScreen(title: tr('Тебе понравилось'), tracks: () => _liked(d.name)),
                     ),
                   ),
-                ]),
-                title: Text(tr('Тебе понравилось'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(tr('{0} тр. · {1}', [liked.length, d.name])),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => TrackListScreen(title: tr('Тебе понравилось'), tracks: () => _liked(d.name)))),
+                ),
               ),
-            ),
-          if (topList.isNotEmpty) ...[
-            SliverToBoxAdapter(child: SectionTitle(tr('Популярное'))),
-            SliverList.builder(
-              itemCount: topList.length < topN ? topList.length : topN,
-              itemBuilder: (context, i) => _TopRow(
-                index: i,
-                track: topList[i],
-                plays: d.plays[topList[i].id],
-                onTap: () => audio.playList(topList, i),
+            if (topList.isNotEmpty) ...[
+              SliverToBoxAdapter(child: SectionTitle(tr('Популярное'))),
+              SliverList.builder(
+                itemCount: topList.length < topN ? topList.length : topN,
+                itemBuilder: (context, i) => _TopRow(
+                  index: i,
+                  track: topList[i],
+                  plays: d.plays[topList[i].id],
+                  onTap: () => audio.playList(topList, i),
+                ),
               ),
-            ),
-            if (topList.length > 5)
+              if (topList.length > 5)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: context.u(10)),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: () => setState(() => _topMore = !_topMore),
+                        child: Text(
+                          _topMore ? tr('Свернуть') : tr('Показать ещё'),
+                          style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+            if (d.albums.isNotEmpty) ...[
+              SliverToBoxAdapter(child: SectionTitle(tr('Альбомы · {0}', [d.albums.length]))),
+              SliverToBoxAdapter(child: AlbumRow(albums: d.albums)),
+            ],
+            if (d.singles.isNotEmpty) ...[
+              SliverToBoxAdapter(child: SectionTitle(tr('Синглы и EP · {0}', [d.singles.length]))),
+              SliverToBoxAdapter(child: AlbumRow(albums: d.singles)),
+            ],
+            if (d.all.isNotEmpty)
+              SliverToBoxAdapter(
+                child: ListTile(
+                  contentPadding: EdgeInsets.symmetric(horizontal: context.u(18), vertical: context.u(4)),
+                  leading: Container(
+                    width: context.u(52),
+                    height: context.u(52),
+                    decoration: BoxDecoration(
+                      color: context.accent.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(context.r(8)),
+                    ),
+                    child: Icon(Icons.queue_music_rounded, color: context.accent),
+                  ),
+                  title: Text(
+                    tr('Все треки · {0}', [d.all.length]),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(d.name),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => TrackListScreen(title: d.name, tracks: () => d.all),
+                    ),
+                  ),
+                ),
+              ),
+            if (d.about != null && d.about!.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.only(left: context.u(10)),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton(
-                      onPressed: () => setState(() => _topMore = !_topMore),
-                      child: Text(_topMore ? tr('Свернуть') : tr('Показать ещё'),
-                          style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-          if (d.albums.isNotEmpty) ...[
-            SliverToBoxAdapter(child: SectionTitle(tr('Альбомы · {0}', [d.albums.length]))),
-            SliverToBoxAdapter(child: AlbumRow(albums: d.albums)),
-          ],
-          if (d.singles.isNotEmpty) ...[
-            SliverToBoxAdapter(child: SectionTitle(tr('Синглы и EP · {0}', [d.singles.length]))),
-            SliverToBoxAdapter(child: AlbumRow(albums: d.singles)),
-          ],
-          if (d.all.isNotEmpty)
-            SliverToBoxAdapter(
-              child: ListTile(
-                contentPadding: EdgeInsets.symmetric(horizontal: context.u(18), vertical: context.u(4)),
-                leading: Container(
-                  width: context.u(52),
-                  height: context.u(52),
-                  decoration: BoxDecoration(
-                    color: context.accent.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(context.r(8)),
-                  ),
-                  child: Icon(Icons.queue_music_rounded, color: context.accent),
-                ),
-                title: Text(tr('Все треки · {0}', [d.all.length]), style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text(d.name),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (_) => TrackListScreen(title: d.name, tracks: () => d.all))),
-              ),
-            ),
-          if (d.about != null && d.about!.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(context.u(18), context.u(8), context.u(18), 0),
-                child: GestureDetector(
-                  onTap: () => setState(() => _aboutOpen = !_aboutOpen),
-                  child: Text(d.about!,
-                      maxLines: _aboutOpen ? 30 : 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim)),
-                ),
-              ),
-            ),
-          if (d.similar.isNotEmpty) ...[
-            SliverToBoxAdapter(child: SectionTitle(tr('Похожие исполнители'))),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: context.u(150),
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-                  itemCount: d.similar.length,
-                  separatorBuilder: (_, __) => SizedBox(width: context.u(14)),
-                  itemBuilder: (context, i) {
-                    final s = d.similar[i];
-                    return GestureDetector(
-                      onTap: () => Navigator.of(context)
-                          .push(MaterialPageRoute(builder: (_) => ArtistScreen(name: s.name, ytm: s.id))),
-                      child: SizedBox(
-                        width: context.u(104),
-                        child: Column(children: [
-                          CircleAvatar(
-                            radius: context.u(52),
-                            backgroundColor: context.accent.withValues(alpha: 0.2),
-                            backgroundImage: s.image != null ? NetworkImage(s.image!) : null,
-                          ),
-                          SizedBox(height: context.u(6)),
-                          Text(s.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w700)),
-                        ]),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-          if (playable.isEmpty && d.albums.isEmpty && d.singles.isEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(context.u(24)),
-                child:
-                    Text(tr('У этого аккаунта нет треков, которые можно слушать целиком'), textAlign: TextAlign.center),
-              ),
-            ),
-          SliverToBoxAdapter(child: SizedBox(height: context.u(200))), // место под мини-плеер и вкладки
-        ],
-      ),
-      // сверху: кнопка «назад»; при прокрутке — полоса с именем (стекло)
-      AnimatedBuilder(
-        animation: _scroll,
-        builder: (context, _) {
-          final off = _scroll.hasClients ? _scroll.offset : 0.0;
-          final k = ((off - headH * 0.55) / (headH * 0.3)).clamp(0.0, 1.0);
-          return SizedBox(
-            height: top + context.u(56),
-            child: Stack(children: [
-              if (k > 0)
-                Positioned.fill(
-                  child: Opacity(
-                    opacity: k,
-                    child: ClipRect(
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-                        child: Container(color: Colors.black.withValues(alpha: 0.45)),
-                      ),
-                    ),
-                  ),
-                ),
-              Positioned(
-                left: context.u(56),
-                right: context.u(56),
-                bottom: context.u(14),
-                child: Opacity(
-                  opacity: k,
-                  child: Text(d.name,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
+                  padding: EdgeInsets.fromLTRB(context.u(18), context.u(8), context.u(18), 0),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _aboutOpen = !_aboutOpen),
+                    child: Text(
+                      d.about!,
+                      maxLines: _aboutOpen ? 30 : 3,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+                      style: TextStyle(color: dim),
+                    ),
+                  ),
                 ),
               ),
-              Positioned(left: 0, top: 0, child: _back(context)),
-            ]),
-          );
-        },
-      ),
-    ]);
+            if (d.similar.isNotEmpty) ...[
+              SliverToBoxAdapter(child: SectionTitle(tr('Похожие исполнители'))),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: context.u(150),
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+                    itemCount: d.similar.length,
+                    separatorBuilder: (_, _) => SizedBox(width: context.u(14)),
+                    itemBuilder: (context, i) {
+                      final s = d.similar[i];
+                      return GestureDetector(
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ArtistScreen(name: s.name, ytm: s.id),
+                          ),
+                        ),
+                        child: SizedBox(
+                          width: context.u(104),
+                          child: Column(
+                            children: [
+                              CircleAvatar(
+                                radius: context.u(52),
+                                backgroundColor: context.accent.withValues(alpha: 0.2),
+                                backgroundImage: s.image != null ? NetworkImage(s.image!) : null,
+                              ),
+                              SizedBox(height: context.u(6)),
+                              Text(
+                                s.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+            if (playable.isEmpty && d.albums.isEmpty && d.singles.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(context.u(24)),
+                  child: Text(
+                    tr('У этого аккаунта нет треков, которые можно слушать целиком'),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            SliverToBoxAdapter(child: SizedBox(height: context.u(200))), // место под мини-плеер и вкладки
+          ],
+        ),
+        // сверху: кнопка «назад»; при прокрутке — полоса с именем (стекло)
+        AnimatedBuilder(
+          animation: _scroll,
+          builder: (context, _) {
+            final off = _scroll.hasClients ? _scroll.offset : 0.0;
+            final k = ((off - headH * 0.55) / (headH * 0.3)).clamp(0.0, 1.0);
+            return SizedBox(
+              height: top + context.u(56),
+              child: Stack(
+                children: [
+                  if (k > 0)
+                    Positioned.fill(
+                      child: Opacity(
+                        opacity: k,
+                        child: ClipRect(
+                          child: BackdropFilter(
+                            filter: ui.ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                            child: Container(color: Colors.black.withValues(alpha: 0.45)),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Positioned(
+                    left: context.u(56),
+                    right: context.u(56),
+                    bottom: context.u(14),
+                    child: Opacity(
+                      opacity: k,
+                      child: Text(
+                        d.name,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
+                      ),
+                    ),
+                  ),
+                  Positioned(left: 0, top: 0, child: _back(context)),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
   }
 }
 
@@ -595,34 +698,41 @@ class _TopRow extends StatelessWidget {
     final dim = Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
     return ValueListenableBuilder<int>(
       valueListenable: audio.trackKey,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final cur = audio.current == track;
         return InkWell(
           onTap: onTap,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: context.u(18), vertical: context.u(6)),
-            child: Row(children: [
-              SizedBox(
-                width: context.u(26),
-                child: Text('${index + 1}', style: TextStyle(color: cur ? context.accent : dim, fontSize: 15)),
-              ),
-              Cover(track: track, size: context.u(50), radius: context.u(4)),
-              SizedBox(width: context.u(12)),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: cur ? context.accent : null)),
-                  if (plays != null || track.seconds > 0)
-                    Text(plays ?? fmtDuration(track.duration), style: TextStyle(color: dim, fontSize: 13)),
-                ]),
-              ),
-              IconButton(
-                icon: Icon(Icons.more_horiz_rounded, color: dim),
-                onPressed: () => showTrackMenu(context, track),
-              ),
-            ]),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: context.u(26),
+                  child: Text('${index + 1}', style: TextStyle(color: cur ? context.accent : dim, fontSize: 15)),
+                ),
+                Cover(track: track, size: context.u(50), radius: context.u(4)),
+                SizedBox(width: context.u(12)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: cur ? context.accent : null),
+                      ),
+                      if (plays != null || track.seconds > 0)
+                        Text(plays ?? fmtDuration(track.duration), style: TextStyle(color: dim, fontSize: 13)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(Icons.more_horiz_rounded, color: dim),
+                  onPressed: () => showTrackMenu(context, track),
+                ),
+              ],
+            ),
           ),
         );
       },

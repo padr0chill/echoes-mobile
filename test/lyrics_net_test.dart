@@ -22,9 +22,11 @@ void main() {
       final best = list.isEmpty ? null : list.first;
       final ly = best?.toLyrics();
       // ignore: avoid_print
-      print('${t.artist} — ${t.title}\n   → ${best == null ? 'не найдено' : '${best.artist} — ${best.title} '
-          '(${best.seconds} с, оценка ${best.score.toStringAsFixed(1)}, ${best.hasSynced ? 'синхронный' : 'обычный'}, '
-          '${ly?.lines.length ?? 0} строк, ${best.score >= 4.2 ? 'покажется сам' : 'только в «Найти вручную»'})'}');
+      print(
+        '${t.artist} — ${t.title}\n   → ${best == null ? 'не найдено' : '${best.artist} — ${best.title} '
+                  '(${best.seconds} с, оценка ${best.score.toStringAsFixed(1)}, ${best.hasSynced ? 'синхронный' : 'обычный'}, '
+                  '${ly?.lines.length ?? 0} строк, ${best.score >= 4.2 ? 'покажется сам' : 'только в «Найти вручную»'})'}',
+      );
     }, timeout: const Timeout(Duration(seconds: 60)));
   }
 }

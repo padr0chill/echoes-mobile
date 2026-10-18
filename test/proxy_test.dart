@@ -13,8 +13,10 @@ void main() {
     final pick = await YtService.instance.stream('x1ZtIVuHph0');
     expect(pick.size, greaterThan(100000));
     final probe = await http.get(pick.url, headers: {'Range': 'bytes=0-65535'});
-    print('pick c=${pick.url.queryParameters['c']} itag=${pick.url.queryParameters['itag']} client#${pick.client} '
-        'size=${pick.size} mime=${pick.mime} plain-range=${probe.statusCode}');
+    print(
+      'pick c=${pick.url.queryParameters['c']} itag=${pick.url.queryParameters['itag']} client#${pick.client} '
+      'size=${pick.size} mime=${pick.mime} plain-range=${probe.statusCode}',
+    );
     final src = YtProxySource(pick);
 
     Future<int> read(int? s, int? e) async {

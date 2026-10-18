@@ -4,6 +4,16 @@ import 'dart:ui' show PlatformDispatcher;
 /// 'auto' — как в настройках iPhone (русский для ru/uk/be/kk, иначе английский).
 String appLangSetting = 'auto';
 
+/// Слово для числа n по правилам языка: по-русски 1 плейлист / 2 плейлиста / 5 плейлистов,
+/// по-английски 1 playlist / 2 playlists.
+String plural(int n, String one, String few, String many, String enOne, String enMany) {
+  if (isEn) return n == 1 ? enOne : enMany;
+  final d = n % 10, h = n % 100;
+  if (d == 1 && h != 11) return one;
+  if (d >= 2 && d <= 4 && (h < 12 || h > 14)) return few;
+  return many;
+}
+
 bool get isEn {
   if (appLangSetting == 'en') return true;
   if (appLangSetting == 'ru') return false;
@@ -136,7 +146,7 @@ const _en = <String, String>{
   'Действует на обычные потоки и скачанные треки. Часть треков SoundCloud приходит потоком HLS — '
           'iOS не даёт его обрабатывать, они играют без эквалайзера.':
       'Works on regular streams and downloaded tracks. Some SoundCloud tracks come as HLS streams — '
-          'iOS doesn\'t allow processing them, so they play without the equalizer.',
+      'iOS doesn\'t allow processing them, so they play without the equalizer.',
   'Плоский': 'Flat',
   'Бас+': 'Bass+',
   'Бас и верх': 'Bass & treble',
@@ -269,6 +279,19 @@ const _en = <String, String>{
   'Мне нравится': 'Liked',
   'Скачанное': 'Downloaded',
   'Мои файлы': 'My files',
+  'ECHOES mobile — сборка {0}': 'ECHOES mobile — build {0}',
+  'Поиск сломался — похоже, YouTube что-то поменял. Нужна новая версия приложения':
+      'Search is broken — looks like YouTube changed something. A new app version is needed',
+  'Журнал ошибок': 'Error log',
+  'Если что-то не работает — скопируйте и пришлите разработчику':
+      'If something does not work — copy it and send it to the developer',
+  'Ошибок не было': 'No errors',
+  'Журнал скопирован': 'Log copied',
+  'Скопировать': 'Copy',
+  'Закрыть': 'Close',
+  'Пропущено: {0} — {1}': 'Skipped: {0} — {1}',
+  'похожей песни нет': 'no matching song',
+  'Свои файлы: {0} — «Очистить» их не трогает': 'Your own files: {0} — “Clear” keeps them',
   'Не получилось: {0}': 'Failed: {0}',
   'отменено': 'cancelled',
   'файл удалён с телефона': 'the file was removed from the phone',
@@ -380,8 +403,8 @@ const _en = <String, String>{
       'Delete {0} tracks ({1}) from the phone? Playlists and likes stay.',
   'О приложении': 'About',
   'ECHOES mobile — тестовая версия': 'ECHOES mobile — test version',
-  'Музыка играет потоком и не сохраняется на телефон. В памяти хранятся только списки: «Мне нравится», плейлисты и история.':
-      'Music is streamed and not saved to the phone. Only lists are stored: Liked, playlists and history.',
+  'Музыка играет потоком. На телефоне хранятся только скачанные вами треки, свои файлы и списки: «Мне нравится», плейлисты, история.':
+      'Music is streamed. Only your downloads, your own files and lists are stored on the phone: Liked, playlists, history.',
   'Из галереи': 'From gallery',
   'Фото и картинки с телефона': 'Photos and pictures on the phone',
   'Из «Файлов»': 'From Files',

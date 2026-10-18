@@ -69,42 +69,54 @@ class _VinylDiscState extends State<VinylDisc> with SingleTickerProviderStateMix
       child: SizedBox(
         width: s,
         height: s,
-        child: Stack(alignment: Alignment.center, children: [
-          const Positioned.fill(child: CustomPaint(painter: _GroovesPainter())),
-          ClipOval(child: Cover(track: widget.track, size: s * 0.36, radius: 0, big: true)),
-          // отверстие
-          Container(
-            width: s * 0.03,
-            height: s * 0.03,
-            decoration: const BoxDecoration(color: Color(0xFF0A0A0A), shape: BoxShape.circle),
-          ),
-        ]),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const Positioned.fill(child: CustomPaint(painter: _GroovesPainter())),
+            ClipOval(
+              child: Cover(track: widget.track, size: s * 0.36, radius: 0, big: true),
+            ),
+            // отверстие
+            Container(
+              width: s * 0.03,
+              height: s * 0.03,
+              decoration: const BoxDecoration(color: Color(0xFF0A0A0A), shape: BoxShape.circle),
+            ),
+          ],
+        ),
       ),
     );
     return SizedBox(
       width: s,
       height: s,
-      child: Stack(children: [
-        // тень под пластинкой
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.55), blurRadius: s * 0.08, offset: Offset(0, s * 0.03))
-              ],
+      child: Stack(
+        children: [
+          // тень под пластинкой
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    blurRadius: s * 0.08,
+                    offset: Offset(0, s * 0.03),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        ValueListenableBuilder<double>(
-          valueListenable: _angle,
-          builder: (context, a, child) => Transform.rotate(angle: a, child: child),
-          child: disc,
-        ),
-        // блик — неподвижный (свет падает с одной стороны, пластинка крутится под ним)
-        const Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _SheenPainter()))),
-      ]),
+          ValueListenableBuilder<double>(
+            valueListenable: _angle,
+            builder: (context, a, child) => Transform.rotate(angle: a, child: child),
+            child: disc,
+          ),
+          // блик — неподвижный (свет падает с одной стороны, пластинка крутится под ним)
+          const Positioned.fill(
+            child: IgnorePointer(child: CustomPaint(painter: _SheenPainter())),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -121,8 +133,9 @@ class _GroovesPainter extends CustomPainter {
       r,
       Paint()
         ..shader = const RadialGradient(
-            colors: [Color(0xFF1C1C1E), Color(0xFF0B0B0C), Color(0xFF151517)],
-            stops: [0.3, 0.8, 1]).createShader(Rect.fromCircle(center: c, radius: r)),
+          colors: [Color(0xFF1C1C1E), Color(0xFF0B0B0C), Color(0xFF151517)],
+          stops: [0.3, 0.8, 1],
+        ).createShader(Rect.fromCircle(center: c, radius: r)),
     );
     // бороздки: тонкие кольца разной яркости; «дорожки» между треками — чуть шире
     final p = Paint()..style = PaintingStyle.stroke;
@@ -160,10 +173,12 @@ class _SheenPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: c, radius: r);
     canvas.save();
     // блик — только на виниле: кольцо без «яблока» в центре (обрезка чётно-нечётным контуром)
-    canvas.clipPath(Path()
-      ..fillType = PathFillType.evenOdd
-      ..addOval(rect)
-      ..addOval(Rect.fromCircle(center: c, radius: r * 0.19)));
+    canvas.clipPath(
+      Path()
+        ..fillType = PathFillType.evenOdd
+        ..addOval(rect)
+        ..addOval(Rect.fromCircle(center: c, radius: r * 0.19)),
+    );
     canvas.drawCircle(
       c,
       r,
@@ -257,19 +272,25 @@ class _LyricsTickerState extends State<LyricsTicker> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // строка целиком: переносится до 3 строк (а не обрезается «…»)
-                Text(line(cur),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style:
-                        const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2)),
+                Text(
+                  line(cur),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2),
+                ),
                 const SizedBox(height: 4),
-                Text(line(cur + 1),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45), fontSize: 15, fontWeight: FontWeight.w700)),
+                Text(
+                  line(cur + 1),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.45),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           );

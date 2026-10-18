@@ -19,92 +19,107 @@ Future<Lyrics?> pickLyrics(BuildContext context, Track t) {
   var future = run();
   return showGlassSheet<Lyrics>(
     context,
-    (ctx) => StatefulBuilder(builder: (ctx, setS) {
-      final dim = Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
-      return SizedBox(
-        height: MediaQuery.sizeOf(ctx).height * 0.75,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(ctx.u(16), ctx.u(16), ctx.u(16), ctx.u(8)),
-            child: Text(tr('Найти текст'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: ctx.u(16)),
-            child: TextField(
-              controller: ctl,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (q) => setS(() => future = run(q)),
-              decoration: InputDecoration(
-                hintText: tr('Исполнитель и название'),
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.arrow_forward_rounded),
-                  onPressed: () => setS(() => future = run(ctl.text)),
-                ),
-                filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(ctx.r(28)), borderSide: BorderSide.none),
+    (ctx) => StatefulBuilder(
+      builder: (ctx, setS) {
+        final dim = Theme.of(ctx).textTheme.bodySmall?.color?.withValues(alpha: 0.6);
+        return SizedBox(
+          height: MediaQuery.sizeOf(ctx).height * 0.75,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(ctx.u(16), ctx.u(16), ctx.u(16), ctx.u(8)),
+                child: Text(tr('Найти текст'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
               ),
-            ),
-          ),
-          Expanded(
-            child: FutureBuilder<List<LyricsCandidate>>(
-              future: future,
-              builder: (ctx, snap) {
-                if (snap.connectionState != ConnectionState.done) {
-                  return Center(child: CircularProgressIndicator(color: ctx.accent));
-                }
-                final list = snap.data ?? const <LyricsCandidate>[];
-                if (list.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(ctx.u(24)),
-                      child: Text(tr('Ничего не нашлось — попробуйте другой запрос или «Свой текст»'),
-                          textAlign: TextAlign.center, style: TextStyle(color: dim)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: ctx.u(16)),
+                child: TextField(
+                  controller: ctl,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (q) => setS(() => future = run(q)),
+                  decoration: InputDecoration(
+                    hintText: tr('Исполнитель и название'),
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.arrow_forward_rounded),
+                      onPressed: () => setS(() => future = run(ctl.text)),
                     ),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: list.length,
-                  itemBuilder: (ctx, i) {
-                    final c = list[i];
-                    final ly = c.toLyrics();
-                    final first = ly?.lines
-                        .firstWhere((l) => l.text.trim().isNotEmpty, orElse: () => const LyricLine(Duration.zero, ''));
-                    return ListTile(
-                      title: Text('${c.artist} — ${c.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                        [
-                          if (c.seconds > 0) fmtDuration(Duration(seconds: c.seconds)),
-                          c.source,
-                          if (first != null && first.text.isNotEmpty) '«${first.text}…»',
-                        ].join(' · '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: c.hasSynced ? ctx.accent.withValues(alpha: 0.2) : Colors.white10,
-                          borderRadius: BorderRadius.circular(ctx.r(99)),
+                    filled: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(ctx.r(28)),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: FutureBuilder<List<LyricsCandidate>>(
+                  future: future,
+                  builder: (ctx, snap) {
+                    if (snap.connectionState != ConnectionState.done) {
+                      return Center(child: CircularProgressIndicator(color: ctx.accent));
+                    }
+                    final list = snap.data ?? const <LyricsCandidate>[];
+                    if (list.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(ctx.u(24)),
+                          child: Text(
+                            tr('Ничего не нашлось — попробуйте другой запрос или «Свой текст»'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: dim),
+                          ),
                         ),
-                        child: Text(c.hasSynced ? tr('синхр.') : tr('текст'),
-                            style: TextStyle(fontSize: 12, color: c.hasSynced ? ctx.accent : dim)),
-                      ),
-                      onTap: ly == null
-                          ? null
-                          : () async {
-                              await LyricsService.instance.save(t, ly);
-                              if (ctx.mounted) Navigator.pop(ctx, ly);
-                            },
+                      );
+                    }
+                    return ListView.builder(
+                      itemCount: list.length,
+                      itemBuilder: (ctx, i) {
+                        final c = list[i];
+                        final ly = c.toLyrics();
+                        final first = ly?.lines.firstWhere(
+                          (l) => l.text.trim().isNotEmpty,
+                          orElse: () => const LyricLine(Duration.zero, ''),
+                        );
+                        return ListTile(
+                          title: Text('${c.artist} — ${c.title}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(
+                            [
+                              if (c.seconds > 0) fmtDuration(Duration(seconds: c.seconds)),
+                              c.source,
+                              if (first != null && first.text.isNotEmpty) '«${first.text}…»',
+                            ].join(' · '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: c.hasSynced ? ctx.accent.withValues(alpha: 0.2) : Colors.white10,
+                              borderRadius: BorderRadius.circular(ctx.r(99)),
+                            ),
+                            child: Text(
+                              c.hasSynced ? tr('синхр.') : tr('текст'),
+                              style: TextStyle(fontSize: 12, color: c.hasSynced ? ctx.accent : dim),
+                            ),
+                          ),
+                          onTap: ly == null
+                              ? null
+                              : () async {
+                                  await LyricsService.instance.save(t, ly);
+                                  if (ctx.mounted) Navigator.pop(ctx, ly);
+                                },
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ]),
-      );
-    }),
+        );
+      },
+    ),
   );
 }
 
@@ -135,8 +150,10 @@ Future<Lyrics?> ownLyrics(BuildContext context, Track t) async {
   );
   if (txt == null || txt.trim().isEmpty) return null;
   final ly = Lyrics(
-      [for (final s in txt.replaceAll('\r', '').split('\n')) LyricLine(Duration.zero, s.trimRight())], false,
-      source: 'свой');
+    [for (final s in txt.replaceAll('\r', '').split('\n')) LyricLine(Duration.zero, s.trimRight())],
+    false,
+    source: 'свой',
+  );
   await LyricsService.instance.save(t, ly);
   return ly;
 }
@@ -185,8 +202,11 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
 
   void _follow() {
     if (!_sc.hasClients) return;
-    _sc.animateTo((_cur * 52.0 - 120).clamp(0, _sc.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
+    _sc.animateTo(
+      (_cur * 52.0 - 120).clamp(0, _sc.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   Future<void> _finish({bool autoRest = false}) async {
@@ -201,7 +221,13 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
       final rest = LyricsService.autoSync(_lines.sublist(_cur), total - from);
       lines.addAll(rest.lines.map((l) => LyricLine(l.at + from, l.text)));
     }
-    final ly = Lyrics(lines, true, source: 'синхронизировано вручную', approx: autoRest && _cur < _lines.length);
+    // ни одной отметки — все тайминги автоматические, значит примерные
+    final ly = Lyrics(
+      lines,
+      true,
+      source: 'синхронизировано вручную',
+      approx: _times.isEmpty || (autoRest && _cur < _lines.length),
+    );
     await LyricsService.instance.save(widget.track, ly);
     if (mounted) Navigator.pop(context, ly);
   }
@@ -217,79 +243,101 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
         title: Text(tr('Синхронизация текста')),
         actions: [TextButton(onPressed: _finish, child: Text(tr('Готово')))],
       ),
-      body: Column(children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-          child: Text(tr('Нажимайте «Строка», когда начинается выделенная строка'),
-              textAlign: TextAlign.center, style: TextStyle(color: dim)),
-        ),
-        StreamBuilder<Duration>(
-          stream: audio.player.positionStream,
-          builder: (context, s) => Padding(
-            padding: EdgeInsets.all(context.u(6)),
-            child: Text(fmtDuration(s.data ?? Duration.zero),
-                style: TextStyle(color: context.accent, fontSize: 18, fontWeight: FontWeight.w800)),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+            child: Text(
+              tr('Нажимайте «Строка», когда начинается выделенная строка'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: dim),
+            ),
           ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            controller: _sc,
-            itemExtent: 52,
-            padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(40)),
-            itemCount: _lines.length,
-            itemBuilder: (context, i) {
-              final done = i < _cur, now = i == _cur;
-              return Row(children: [
-                SizedBox(
-                  width: context.u(52),
-                  child: Text(done ? fmtDuration(_times[i]) : '',
-                      style: TextStyle(color: dim, fontSize: 12, fontFeatures: const [FontFeature.tabularFigures()])),
-                ),
-                Expanded(
-                  child: Text(_lines[i],
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: now ? 20 : 16,
-                        fontWeight: now ? FontWeight.w900 : FontWeight.w600,
-                        color: now ? Colors.white : (done ? dim : Colors.white70),
-                      )),
-                ),
-              ]);
-            },
+          StreamBuilder<Duration>(
+            stream: audio.player.positionStream,
+            builder: (context, s) => Padding(
+              padding: EdgeInsets.all(context.u(6)),
+              child: Text(
+                fmtDuration(s.data ?? Duration.zero),
+                style: TextStyle(color: context.accent, fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+            ),
           ),
-        ),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.all(context.u(16)),
-            child: Row(children: [
-              IconButton.filledTonal(
-                  tooltip: tr('Отменить последнюю'), onPressed: _undo, icon: const Icon(Icons.undo_rounded)),
-              SizedBox(width: context.u(10)),
-              Expanded(
-                child: SizedBox(
-                  height: context.u(64),
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(shape: context.pill),
-                    onPressed: _cur < _lines.length ? _mark : _finish,
-                    icon:
-                        Icon(_cur < _lines.length ? Icons.touch_app_rounded : Icons.check_rounded, color: Colors.black),
-                    label: Text(_cur < _lines.length ? tr('Строка {0}/{1}', [_cur + 1, _lines.length]) : tr('Готово'),
-                        style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w800)),
+          Expanded(
+            child: ListView.builder(
+              controller: _sc,
+              itemExtent: 52,
+              padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(40)),
+              itemCount: _lines.length,
+              itemBuilder: (context, i) {
+                final done = i < _cur, now = i == _cur;
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: context.u(52),
+                      child: Text(
+                        done ? fmtDuration(_times[i]) : '',
+                        style: TextStyle(color: dim, fontSize: 12, fontFeatures: const [FontFeature.tabularFigures()]),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        _lines[i],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: now ? 20 : 16,
+                          fontWeight: now ? FontWeight.w900 : FontWeight.w600,
+                          color: now ? Colors.white : (done ? dim : Colors.white70),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.all(context.u(16)),
+              child: Row(
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: tr('Отменить последнюю'),
+                    onPressed: _undo,
+                    icon: const Icon(Icons.undo_rounded),
                   ),
-                ),
+                  SizedBox(width: context.u(10)),
+                  Expanded(
+                    child: SizedBox(
+                      height: context.u(64),
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(shape: context.pill),
+                        onPressed: _cur < _lines.length ? _mark : _finish,
+                        icon: Icon(
+                          _cur < _lines.length ? Icons.touch_app_rounded : Icons.check_rounded,
+                          color: Colors.black,
+                        ),
+                        label: Text(
+                          _cur < _lines.length ? tr('Строка {0}/{1}', [_cur + 1, _lines.length]) : tr('Готово'),
+                          style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: context.u(10)),
+                  IconButton.filledTonal(
+                    tooltip: tr('Остальное — автоматически'),
+                    onPressed: () => _finish(autoRest: true),
+                    icon: const Icon(Icons.auto_fix_high_rounded),
+                  ),
+                ],
               ),
-              SizedBox(width: context.u(10)),
-              IconButton.filledTonal(
-                tooltip: tr('Остальное — автоматически'),
-                onPressed: () => _finish(autoRest: true),
-                icon: const Icon(Icons.auto_fix_high_rounded),
-              ),
-            ]),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }

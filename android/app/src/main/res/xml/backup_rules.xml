@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 и старше: скачанные треки — не в резервную копию (их можно скачать заново; гигабайты
+     превышают лимит 25 МБ, и тогда в копию не попадают даже лайки и плейлисты) -->
+<full-backup-content>
+    <exclude domain="file" path="offline/" />
+</full-backup-content>

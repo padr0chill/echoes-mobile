@@ -36,38 +36,44 @@ class _PlayerScreenState extends State<PlayerScreen> {
     if (Store.instance.winamp) return const WinampPlayer();
     return ValueListenableBuilder<int>(
       valueListenable: audio.trackKey,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         final t = audio.current;
         return Scaffold(
           backgroundColor: Colors.black,
-          body: Stack(fit: StackFit.expand, children: [
-            if (t != null) _Backdrop(track: t),
-            SafeArea(
-              child: LayoutBuilder(builder: (context, box) {
-                final wide = box.maxWidth > box.maxHeight * 1.05;
-                final header = _Header(
-                  lyrics: _lyrics,
-                  onLyrics: () => setState(() => _lyrics = !_lyrics),
-                );
-                final coverSize =
-                    (wide ? box.maxHeight * 0.62 : box.maxWidth - context.u(56)).clamp(120.0, 520.0).toDouble();
-                final main = _lyrics && t != null
-                    ? _LyricsView(track: t)
-                    : Store.instance.vinyl
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (t != null) _Backdrop(track: t),
+              SafeArea(
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final wide = box.maxWidth > box.maxHeight * 1.05;
+                    final header = _Header(lyrics: _lyrics, onLyrics: () => setState(() => _lyrics = !_lyrics));
+                    final coverSize = (wide ? box.maxHeight * 0.62 : box.maxWidth - context.u(56))
+                        .clamp(120.0, 520.0)
+                        .toDouble();
+                    final main = _lyrics && t != null
+                        ? _LyricsView(track: t)
+                        : Store.instance.vinyl
                         // винил: пластинка крутится, под ней — текущая строка текста песни
-                        ? LayoutBuilder(builder: (context, b) {
-                            final ticker = LyricsTicker.heightFor(context);
-                            final s = math.min(coverSize, b.maxHeight - ticker - context.u(24)).clamp(100.0, 520.0);
-                            return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                              VinylDisc(track: t, size: s),
-                              SizedBox(height: context.u(14)),
-                              if (t != null)
-                                Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: context.u(24)),
-                                  child: LyricsTicker(track: t),
-                                ),
-                            ]);
-                          })
+                        ? LayoutBuilder(
+                            builder: (context, b) {
+                              final ticker = LyricsTicker.heightFor(context);
+                              final s = math.min(coverSize, b.maxHeight - ticker - context.u(24)).clamp(100.0, 520.0);
+                              return Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  VinylDisc(track: t, size: s),
+                                  SizedBox(height: context.u(14)),
+                                  if (t != null)
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: context.u(24)),
+                                      child: LyricsTicker(track: t),
+                                    ),
+                                ],
+                              );
+                            },
+                          )
                         : Center(
                             child: Padding(
                               padding: EdgeInsets.all(context.u(12)),
@@ -77,22 +83,37 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               ),
                             ),
                           );
-                final controls = _Controls(track: t);
-                if (wide) {
-                  return Column(children: [
-                    header,
-                    Expanded(
-                      child: Row(children: [
+                    final controls = _Controls(track: t);
+                    if (wide) {
+                      return Column(
+                        children: [
+                          header,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(child: main),
+                                Expanded(
+                                  child: Center(child: SingleChildScrollView(child: controls)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        header,
                         Expanded(child: main),
-                        Expanded(child: Center(child: SingleChildScrollView(child: controls))),
-                      ]),
-                    ),
-                  ]);
-                }
-                return Column(children: [header, Expanded(child: main), controls, SizedBox(height: context.u(12))]);
-              }),
-            ),
-          ]),
+                        controls,
+                        SizedBox(height: context.u(12)),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -105,14 +126,16 @@ class _Backdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(fit: StackFit.expand, children: [
-      // размытый фон — размыт один раз на трек (гладко, без «пикселей» и без нагрузки каждый кадр)
-      BlurredCover(
-        image: Cover.debugImage?.call(track) ?? NetworkImage(track.art ?? track.thumb),
-        cacheKey: track.id,
-      ),
-      Container(color: Colors.black.withValues(alpha: 0.55)),
-    ]);
+    final url = track.art ?? track.thumb;
+    final img = Cover.debugImage?.call(track) ?? (url == null ? null : NetworkImage(url));
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // размытый фон — размыт один раз на трек (гладко, без «пикселей» и без нагрузки каждый кадр)
+        if (img != null) BlurredCover(image: img, cacheKey: track.id),
+        Container(color: Colors.black.withValues(alpha: 0.55)),
+      ],
+    );
   }
 }
 
@@ -125,31 +148,34 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: context.u(8)),
-      child: Row(children: [
-        IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 32),
-          onPressed: () => Navigator.pop(context),
-        ),
-        const Spacer(),
-        IconButton(
-          tooltip: tr('Текст песни'),
-          icon: Icon(Icons.lyrics_rounded, color: lyrics ? context.accent : Colors.white),
-          onPressed: onLyrics,
-        ),
-        ListenableBuilder(
-          listenable: Store.instance,
-          builder: (context, _) => IconButton(
-            tooltip: tr('Эквалайзер'),
-            icon: Icon(Icons.equalizer_rounded, color: Store.instance.eqEnabled ? context.accent : Colors.white),
-            onPressed: () => openEqualizer(context),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 32),
+            onPressed: () => Navigator.pop(context),
           ),
-        ),
-        IconButton(
-          tooltip: tr('Очередь'),
-          icon: const Icon(Icons.queue_music_rounded, color: Colors.white),
-          onPressed: () => _showQueue(context),
-        ),
-      ]),
+          const Spacer(),
+          IconButton(
+            tooltip: tr('Текст песни'),
+            icon: Icon(Icons.lyrics_rounded, color: lyrics ? context.accent : Colors.white),
+            onPressed: onLyrics,
+          ),
+          if (eqAvailable)
+            ListenableBuilder(
+              listenable: Store.instance,
+              builder: (context, _) => IconButton(
+                tooltip: tr('Эквалайзер'),
+                icon: Icon(Icons.equalizer_rounded, color: Store.instance.eqEnabled ? context.accent : Colors.white),
+                onPressed: () => openEqualizer(context),
+              ),
+            ),
+          IconButton(
+            tooltip: tr('Очередь'),
+            icon: const Icon(Icons.queue_music_rounded, color: Colors.white),
+            onPressed: () => _showQueue(context),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -165,79 +191,100 @@ class _Controls extends StatelessWidget {
     final dim = Colors.white.withValues(alpha: 0.6);
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: context.u(24)),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(children: [
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(t?.title ?? '—',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: white, fontSize: 22, fontWeight: FontWeight.w800)),
-              SizedBox(height: context.u(2)),
-              GestureDetector(
-                onTap: t == null ? null : () => openArtist(context, t),
-                child: Text(t?.artist ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: dim,
-                        fontSize: 16,
-                        decoration: TextDecoration.underline,
-                        decorationColor: dim.withValues(alpha: 0.4))),
-              ),
-            ]),
-          ),
-          if (t != null)
-            ListenableBuilder(
-              listenable: Store.instance,
-              builder: (context, _) => IconButton(
-                icon: Icon(Store.instance.isLiked(t) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                    color: Store.instance.isLiked(t) ? context.accent : white, size: 28),
-                onPressed: () => Store.instance.toggleLike(t),
-              ),
-            ),
-        ]),
-        SizedBox(height: context.u(10)),
-        const _Seek(),
-        ValueListenableBuilder<String?>(
-          valueListenable: audio.error,
-          builder: (context, e, _) => e == null
-              ? const SizedBox(height: 4)
-              : Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(e, style: const TextStyle(color: Color(0xFFFF8A80))),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      t?.title ?? '—',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: white, fontSize: 22, fontWeight: FontWeight.w800),
+                    ),
+                    SizedBox(height: context.u(2)),
+                    GestureDetector(
+                      onTap: t == null ? null : () => openArtist(context, t),
+                      child: Text(
+                        t?.artist ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: dim,
+                          fontSize: 16,
+                          decoration: TextDecoration.underline,
+                          decorationColor: dim.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-        ),
-        SizedBox(height: context.u(6)),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          ValueListenableBuilder<bool>(
-            valueListenable: audio.shuffle,
-            builder: (context, on, _) => IconButton(
-              icon: Icon(Icons.shuffle_rounded, color: on ? context.accent : dim),
-              onPressed: audio.toggleShuffle,
-            ),
+              ),
+              if (t != null)
+                ListenableBuilder(
+                  listenable: Store.instance,
+                  builder: (context, _) => IconButton(
+                    icon: Icon(
+                      Store.instance.isLiked(t) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      color: Store.instance.isLiked(t) ? context.accent : white,
+                      size: 28,
+                    ),
+                    onPressed: () => Store.instance.toggleLike(t),
+                  ),
+                ),
+            ],
           ),
-          IconButton(
-            iconSize: context.u(40),
-            icon: const Icon(Icons.skip_previous_rounded, color: white),
-            onPressed: audio.skipToPrevious,
+          SizedBox(height: context.u(10)),
+          const _Seek(),
+          ValueListenableBuilder<String?>(
+            valueListenable: audio.error,
+            builder: (context, e, _) => e == null
+                ? const SizedBox(height: 4)
+                : Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(e, style: const TextStyle(color: Color(0xFFFF8A80))),
+                  ),
           ),
-          const PlayPauseButton(size: 72, filled: true),
-          IconButton(
-            iconSize: context.u(40),
-            icon: const Icon(Icons.skip_next_rounded, color: white),
-            onPressed: audio.skipToNext,
+          SizedBox(height: context.u(6)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: audio.shuffle,
+                builder: (context, on, _) => IconButton(
+                  icon: Icon(Icons.shuffle_rounded, color: on ? context.accent : dim),
+                  onPressed: audio.toggleShuffle,
+                ),
+              ),
+              IconButton(
+                iconSize: context.u(40),
+                icon: const Icon(Icons.skip_previous_rounded, color: white),
+                onPressed: audio.skipToPrevious,
+              ),
+              const PlayPauseButton(size: 72, filled: true),
+              IconButton(
+                iconSize: context.u(40),
+                icon: const Icon(Icons.skip_next_rounded, color: white),
+                onPressed: audio.skipToNext,
+              ),
+              ValueListenableBuilder<RepeatState>(
+                valueListenable: audio.repeat,
+                builder: (context, r, _) => IconButton(
+                  icon: Icon(
+                    r == RepeatState.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
+                    color: r == RepeatState.off ? dim : context.accent,
+                  ),
+                  onPressed: audio.cycleRepeat,
+                ),
+              ),
+            ],
           ),
-          ValueListenableBuilder<RepeatState>(
-            valueListenable: audio.repeat,
-            builder: (context, r, _) => IconButton(
-              icon: Icon(r == RepeatState.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
-                  color: r == RepeatState.off ? dim : context.accent),
-              onPressed: audio.cycleRepeat,
-            ),
-          ),
-        ]),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -262,22 +309,30 @@ class _SeekState extends State<_Seek> {
         final pos = snap.data ?? Duration.zero;
         final max = total.inMilliseconds.toDouble().clamp(1.0, double.infinity);
         final v = (_drag ?? pos.inMilliseconds.toDouble()).clamp(0.0, max);
-        return Column(children: [
-          Slider(
-            value: v,
-            max: max,
-            onChanged: (x) => setState(() => _drag = x),
-            onChangeEnd: (x) {
-              audio.seek(Duration(milliseconds: x.round()));
-              setState(() => _drag = null);
-            },
-          ),
-          SizedBox(height: context.u(6)),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(fmtDuration(Duration(milliseconds: v.round())), style: TextStyle(color: dim, fontSize: 12)),
-            Text(fmtDuration(total), style: TextStyle(color: dim, fontSize: 12)),
-          ]),
-        ]);
+        return Column(
+          children: [
+            Slider(
+              value: v,
+              max: max,
+              onChanged: (x) => setState(() => _drag = x),
+              onChangeEnd: (x) {
+                audio.seek(Duration(milliseconds: x.round()));
+                setState(() => _drag = null);
+              },
+            ),
+            SizedBox(height: context.u(6)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  fmtDuration(Duration(milliseconds: v.round())),
+                  style: TextStyle(color: dim, fontSize: 12),
+                ),
+                Text(fmtDuration(total), style: TextStyle(color: dim, fontSize: 12)),
+              ],
+            ),
+          ],
+        );
       },
     );
   }
@@ -299,6 +354,12 @@ class _LyricsViewState extends State<_LyricsView> {
   int _active = -1;
 
   @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
     _f = LyricsService.instance.get(widget.track);
@@ -315,45 +376,48 @@ class _LyricsViewState extends State<_LyricsView> {
   }
 
   void _reload() => setState(() {
-        _f = LyricsService.instance.get(widget.track);
-        _active = -1;
-        _keys.clear();
-      });
+    _f = LyricsService.instance.get(widget.track);
+    _active = -1;
+    _keys.clear();
+  });
 
   Future<void> _search() async {
     final ly = await pickLyrics(context, widget.track);
-    if (ly != null) _reload();
+    if (ly != null && mounted) _reload();
   }
 
   Future<void> _own() async {
     final ly = await ownLyrics(context, widget.track);
-    if (ly != null) _reload();
+    if (ly != null && mounted) _reload();
   }
 
   Future<void> _sync(Lyrics ly) async {
     final how = await showGlassSheet<String>(
       context,
       (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(
-            leading: const Icon(Icons.touch_app_rounded),
-            title: Text(tr('Вручную — нажимать на каждую строку')),
-            subtitle: Text(tr('Точно: песня играет с начала, вы отмечаете строки')),
-            onTap: () => Navigator.pop(ctx, 'tap'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.auto_fix_high_rounded),
-            title: Text(tr('Автоматически (примерно)')),
-            subtitle: Text(tr('По длине строк; потом можно подправить сдвигом')),
-            onTap: () => Navigator.pop(ctx, 'auto'),
-          ),
-          if (ly.source != 'lrclib' && ly.source != 'lyrics.ovh')
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             ListTile(
-              leading: const Icon(Icons.restart_alt_rounded),
-              title: Text(tr('Сбросить — искать заново')),
-              onTap: () => Navigator.pop(ctx, 'reset'),
+              leading: const Icon(Icons.touch_app_rounded),
+              title: Text(tr('Вручную — нажимать на каждую строку')),
+              subtitle: Text(tr('Точно: песня играет с начала, вы отмечаете строки')),
+              onTap: () => Navigator.pop(ctx, 'tap'),
             ),
-        ]),
+            ListTile(
+              leading: const Icon(Icons.auto_fix_high_rounded),
+              title: Text(tr('Автоматически (примерно)')),
+              subtitle: Text(tr('По длине строк; потом можно подправить сдвигом')),
+              onTap: () => Navigator.pop(ctx, 'auto'),
+            ),
+            if (ly.source != 'lrclib' && ly.source != 'lyrics.ovh')
+              ListTile(
+                leading: const Icon(Icons.restart_alt_rounded),
+                title: Text(tr('Сбросить — искать заново')),
+                onTap: () => Navigator.pop(ctx, 'reset'),
+              ),
+          ],
+        ),
       ),
     );
     if (how == null || !mounted) return;
@@ -364,8 +428,11 @@ class _LyricsViewState extends State<_LyricsView> {
     } else if (how == 'reset') {
       await LyricsService.instance.reset(widget.track);
     } else {
-      await Navigator.of(context, rootNavigator: true)
-          .push(MaterialPageRoute(builder: (_) => LyricsSyncScreen(track: widget.track, lines: texts)));
+      await Navigator.of(context, rootNavigator: true).push(
+        MaterialPageRoute(
+          builder: (_) => LyricsSyncScreen(track: widget.track, lines: texts),
+        ),
+      );
     }
     if (mounted) _reload();
   }
@@ -375,9 +442,15 @@ class _LyricsViewState extends State<_LyricsView> {
     await LyricsService.instance.save(widget.track, ly.anchored(i, audio.player.position));
     _reload();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr('Текст подстроен: «{0}» звучит сейчас', [ly.lines[i].text]),
-              maxLines: 2, overflow: TextOverflow.ellipsis)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Текст подстроен: «{0}» звучит сейчас', [ly.lines[i].text]),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
     }
   }
 
@@ -390,39 +463,58 @@ class _LyricsViewState extends State<_LyricsView> {
   Widget _toolbar(BuildContext context, Lyrics ly) {
     final dim = Colors.white.withValues(alpha: 0.6);
     Widget btn(IconData i, String tip, VoidCallback on) => IconButton(
-        tooltip: tip, visualDensity: VisualDensity.compact, icon: Icon(i, color: Colors.white), onPressed: on);
+      tooltip: tip,
+      visualDensity: VisualDensity.compact,
+      icon: Icon(i, color: Colors.white),
+      onPressed: on,
+    );
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: context.u(12)),
-      child: Row(children: [
-        Expanded(
-          child: Text(
-            ly.approx
-                ? tr('Удержите строку, которая звучит сейчас, — текст подстроится')
-                : (ly.synced ? tr(ly.source) : tr('{0} · без таймингов', [tr(ly.source)])),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: ly.approx ? context.accent : dim, fontSize: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              ly.approx
+                  ? tr('Удержите строку, которая звучит сейчас, — текст подстроится')
+                  : (ly.synced ? tr(ly.source) : tr('{0} · без таймингов', [tr(ly.source)])),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: ly.approx ? context.accent : dim, fontSize: 12),
+            ),
           ),
-        ),
-        if (ly.synced) ...[
-          btn(Icons.fast_rewind_rounded, tr('Текст раньше на 0,5 с'), () => _shift(ly, -500)),
-          btn(Icons.fast_forward_rounded, tr('Текст позже на 0,5 с'), () => _shift(ly, 500)),
+          if (ly.synced) ...[
+            btn(Icons.fast_rewind_rounded, tr('Текст раньше на 0,5 с'), () => _shift(ly, -500)),
+            btn(Icons.fast_forward_rounded, tr('Текст позже на 0,5 с'), () => _shift(ly, 500)),
+          ],
+          btn(Icons.sync_rounded, tr('Синхронизировать'), () => _sync(ly)),
+          btn(Icons.search_rounded, tr('Найти другой текст'), _search),
+          btn(Icons.edit_note_rounded, tr('Свой текст'), _own),
         ],
-        btn(Icons.sync_rounded, tr('Синхронизировать'), () => _sync(ly)),
-        btn(Icons.search_rounded, tr('Найти другой текст'), _search),
-        btn(Icons.edit_note_rounded, tr('Свой текст'), _own),
-      ]),
+      ),
     );
   }
 
-  void _follow(int i) {
-    if (i == _active) return;
-    _active = i;
+  /// Прокрутить к звучащей строке. Список строится лениво: далёкой строки ещё нет — сначала прыжок
+  /// примерно туда (по средней высоте строки), а точно докрутит следующий тик позиции. Строка считается
+  /// показанной (_active) только после настоящей прокрутки — иначе текст «застревал».
+  void _follow(int i, int count) {
+    if (i == _active || i < 0) return;
     final ctx = _keys[i]?.currentContext;
-    if (ctx != null) {
-      Scrollable.ensureVisible(ctx,
-          alignment: 0.4, duration: const Duration(milliseconds: 350), curve: Curves.easeOutCubic);
+    if (ctx == null) {
+      if (_sc.hasClients && count > 0) {
+        final p = _sc.position;
+        final avg = (p.maxScrollExtent + p.viewportDimension) / count;
+        _sc.jumpTo((i * avg - p.viewportDimension * 0.4).clamp(0.0, p.maxScrollExtent));
+      }
+      return;
     }
+    _active = i;
+    Scrollable.ensureVisible(
+      ctx,
+      alignment: 0.4,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -438,22 +530,30 @@ class _LyricsViewState extends State<_LyricsView> {
           return Center(
             child: Padding(
               padding: EdgeInsets.all(context.u(24)),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(tr('Текст не найден автоматически'), style: TextStyle(color: Colors.white70)),
-                SizedBox(height: context.u(14)),
-                Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
-                  FilledButton.icon(
-                    onPressed: () => _search(),
-                    icon: const Icon(Icons.search_rounded, color: Colors.black),
-                    label: Text(tr('Найти вручную'), style: TextStyle(color: Colors.black)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(tr('Текст не найден автоматически'), style: TextStyle(color: Colors.white70)),
+                  SizedBox(height: context.u(14)),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () => _search(),
+                        icon: const Icon(Icons.search_rounded, color: Colors.black),
+                        label: Text(tr('Найти вручную'), style: TextStyle(color: Colors.black)),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _own(),
+                        icon: const Icon(Icons.edit_note_rounded),
+                        label: Text(tr('Свой текст')),
+                      ),
+                    ],
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => _own(),
-                    icon: const Icon(Icons.edit_note_rounded),
-                    label: Text(tr('Свой текст')),
-                  ),
-                ]),
-              ]),
+                ],
+              ),
             ),
           );
         }
@@ -466,52 +566,56 @@ class _LyricsViewState extends State<_LyricsView> {
               for (var i = 0; i < ly.lines.length; i++) {
                 if (ly.lines[i].at <= pos + const Duration(milliseconds: 250)) cur = i;
               }
-              WidgetsBinding.instance.addPostFrameCallback((_) => _follow(cur));
+              WidgetsBinding.instance.addPostFrameCallback((_) => _follow(cur, ly.lines.length));
             }
-            return Column(children: [
-              _toolbar(context, ly),
-              Expanded(
+            return Column(
+              children: [
+                _toolbar(context, ly),
+                Expanded(
                   child: ShaderMask(
-                      shaderCallback: (r) => const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
-                            stops: [0, 0.12, 0.88, 1],
-                          ).createShader(r),
-                      blendMode: BlendMode.dstIn,
-                      child: ListView.builder(
-                        controller: _sc,
-                        padding: EdgeInsets.symmetric(horizontal: context.u(24), vertical: context.u(80)),
-                        itemCount: ly.lines.length,
-                        itemBuilder: (context, i) {
-                          final l = ly.lines[i];
-                          final on = i == cur;
-                          return GestureDetector(
-                            key: _keys.putIfAbsent(i, () => GlobalKey()),
-                            onTap: ly.synced ? () => audio.seek(l.at) : null,
-                            // удержать строку, которая сейчас звучит, — весь текст подстроится под неё
-                            onLongPress: ly.synced ? () => _anchor(ly, i) : null,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: context.u(7)),
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 250),
-                                style: TextStyle(
-                                  fontSize: on ? 26 : 22,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.25,
-                                  color: !ly.synced
-                                      ? Colors.white.withValues(alpha: 0.85)
-                                      : on
-                                          ? Colors.white
-                                          : Colors.white.withValues(alpha: i < cur ? 0.35 : 0.5),
-                                ),
-                                child: Text(l.text.isEmpty ? '♪' : l.text),
+                    shaderCallback: (r) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.white, Colors.white, Colors.transparent],
+                      stops: [0, 0.12, 0.88, 1],
+                    ).createShader(r),
+                    blendMode: BlendMode.dstIn,
+                    child: ListView.builder(
+                      controller: _sc,
+                      padding: EdgeInsets.symmetric(horizontal: context.u(24), vertical: context.u(80)),
+                      itemCount: ly.lines.length,
+                      itemBuilder: (context, i) {
+                        final l = ly.lines[i];
+                        final on = i == cur;
+                        return GestureDetector(
+                          key: _keys.putIfAbsent(i, () => GlobalKey()),
+                          onTap: ly.synced ? () => audio.seek(l.at) : null,
+                          // удержать строку, которая сейчас звучит, — весь текст подстроится под неё
+                          onLongPress: ly.synced ? () => _anchor(ly, i) : null,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: context.u(7)),
+                            child: AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 250),
+                              style: TextStyle(
+                                fontSize: on ? 26 : 22,
+                                fontWeight: FontWeight.w800,
+                                height: 1.25,
+                                color: !ly.synced
+                                    ? Colors.white.withValues(alpha: 0.85)
+                                    : on
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: i < cur ? 0.35 : 0.5),
                               ),
+                              child: Text(l.text.isEmpty ? '♪' : l.text),
                             ),
-                          );
-                        },
-                      ))),
-            ]);
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            );
           },
         );
       },
@@ -563,68 +667,74 @@ class _QueueList extends StatelessWidget {
         final count = (list.length - first).clamp(0, 300);
         final dim = Colors.white.withValues(alpha: 0.55);
         Widget label(String s) => Padding(
-              padding: EdgeInsets.fromLTRB(context.u(18), context.u(16), context.u(18), context.u(6)),
-              child: Text(s, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-            );
-        return CustomScrollView(controller: controller, slivers: [
-          SliverToBoxAdapter(
-            child: Center(
-              child: Container(
-                margin: EdgeInsets.only(top: context.u(10)),
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.circular(3)),
-              ),
-            ),
+          padding: EdgeInsets.fromLTRB(context.u(18), context.u(16), context.u(18), context.u(6)),
+          child: Text(
+            s,
+            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
           ),
-          if (cur >= 0 && cur < list.length) ...[
-            SliverToBoxAdapter(child: label(tr('Сейчас играет'))),
-            SliverToBoxAdapter(child: _QueueRow(track: list[cur], playing: true)),
-          ],
-          if (count == 0)
+        );
+        return CustomScrollView(
+          controller: controller,
+          slivers: [
             SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(context.u(24)),
-                child: Text(tr('Дальше ничего нет — добавьте треки свайпом вправо'), style: TextStyle(color: dim)),
+              child: Center(
+                child: Container(
+                  margin: EdgeInsets.only(top: context.u(10)),
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.circular(3)),
+                ),
               ),
             ),
-          if (count > 0)
-            SliverReorderableList(
-              itemCount: count,
-              onReorderItem: (a, b) {
-                // перенос внутри/в «Далее в очереди» — пересчитать, сколько там треков
-                final inUpA = a < up, inUpB = b < up || (b == up && !inUpA);
-                audio.move(first + a, first + b);
-                if (!inUpA && inUpB) audio.upNext.value = up + 1;
-                if (inUpA && !inUpB) audio.upNext.value = up - 1;
-              },
-              itemBuilder: (context, i) {
-                final j = first + i;
-                return Column(
-                  key: ValueKey('q${list[j].id}'),
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (i == 0 && up > 0) label(tr('Далее в очереди')),
-                    if (i == up) label(audio.shuffle.value ? tr('Далее (вперемешку)') : tr('Далее')),
-                    _QueueRow(
-                      track: list[j],
-                      queued: i < up,
-                      onTap: () => audio.jumpTo(j),
-                      onRemove: () => audio.removeAt(j),
-                      handle: ReorderableDragStartListener(
-                        index: i,
-                        child: Padding(
-                          padding: EdgeInsets.all(context.u(10)),
-                          child: Icon(Icons.drag_handle_rounded, color: dim),
+            if (cur >= 0 && cur < list.length) ...[
+              SliverToBoxAdapter(child: label(tr('Сейчас играет'))),
+              SliverToBoxAdapter(child: _QueueRow(track: list[cur], playing: true)),
+            ],
+            if (count == 0)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(context.u(24)),
+                  child: Text(tr('Дальше ничего нет — добавьте треки свайпом вправо'), style: TextStyle(color: dim)),
+                ),
+              ),
+            if (count > 0)
+              SliverReorderableList(
+                itemCount: count,
+                onReorderItem: (a, b) {
+                  // перенос внутри/в «Далее в очереди» — пересчитать, сколько там треков
+                  final inUpA = a < up, inUpB = b < up || (b == up && !inUpA);
+                  audio.move(first + a, first + b);
+                  if (!inUpA && inUpB) audio.upNext.value = up + 1;
+                  if (inUpA && !inUpB) audio.upNext.value = up - 1;
+                },
+                itemBuilder: (context, i) {
+                  final j = first + i;
+                  return Column(
+                    key: ValueKey('q${list[j].id}'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (i == 0 && up > 0) label(tr('Далее в очереди')),
+                      if (i == up) label(audio.shuffle.value ? tr('Далее (вперемешку)') : tr('Далее')),
+                      _QueueRow(
+                        track: list[j],
+                        queued: i < up,
+                        onTap: () => audio.jumpTo(j),
+                        onRemove: () => audio.removeAt(j),
+                        handle: ReorderableDragStartListener(
+                          index: i,
+                          child: Padding(
+                            padding: EdgeInsets.all(context.u(10)),
+                            child: Icon(Icons.drag_handle_rounded, color: dim),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          SliverToBoxAdapter(child: SizedBox(height: context.u(40) + MediaQuery.paddingOf(context).bottom)),
-        ]);
+                    ],
+                  );
+                },
+              ),
+            SliverToBoxAdapter(child: SizedBox(height: context.u(40) + MediaQuery.paddingOf(context).bottom)),
+          ],
+        );
       },
     );
   }
@@ -637,32 +747,51 @@ class _QueueRow extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final Widget? handle;
-  const _QueueRow(
-      {required this.track, this.playing = false, this.queued = false, this.onTap, this.onRemove, this.handle});
+  const _QueueRow({
+    required this.track,
+    this.playing = false,
+    this.queued = false,
+    this.onTap,
+    this.onRemove,
+    this.handle,
+  });
 
   @override
   Widget build(BuildContext context) {
     final dim = Colors.white.withValues(alpha: 0.55);
     return Padding(
-        padding: EdgeInsets.symmetric(horizontal: context.u(6)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(context.r(14)),
-          onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(context.u(10), context.u(5), context.u(0), context.u(5)),
-            child: Row(children: [
+      padding: EdgeInsets.symmetric(horizontal: context.u(6)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(context.r(14)),
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(context.u(10), context.u(5), context.u(0), context.u(5)),
+          child: Row(
+            children: [
               Cover(track: track, size: context.u(46), radius: context.u(8)),
               SizedBox(width: context.u(12)),
               Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(track.title,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: playing ? context.accent : Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-                  Text(track.artist,
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: dim, fontSize: 13)),
-                ]),
+                        color: playing ? context.accent : Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    Text(
+                      track.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: dim, fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
               if (queued) Icon(Icons.playlist_add_check_rounded, size: context.u(18), color: context.accent),
               if (onRemove != null)
@@ -671,13 +800,16 @@ class _QueueRow extends StatelessWidget {
                   icon: Icon(Icons.close_rounded, color: dim, size: context.u(20)),
                   onPressed: onRemove,
                 ),
-              if (handle != null) handle!,
+              ?handle,
               if (playing)
                 Padding(
-                    padding: EdgeInsets.all(context.u(12)),
-                    child: Icon(Icons.graphic_eq_rounded, color: context.accent)),
-            ]),
+                  padding: EdgeInsets.all(context.u(12)),
+                  child: Icon(Icons.graphic_eq_rounded, color: context.accent),
+                ),
+            ],
           ),
-        ));
+        ),
+      ),
+    );
   }
 }

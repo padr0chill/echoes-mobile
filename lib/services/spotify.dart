@@ -23,7 +23,7 @@ class SpotifyService {
   SpotifyService._();
   static final SpotifyService instance = SpotifyService._();
 
-  static const _mbUa = {'User-Agent': 'ECHOES-mobile/1.0 (https://github.com/padr0chill/zhopa-mobile)'};
+  static const _mbUa = {'User-Agent': 'ECHOES-mobile/1.0 (https://github.com/padr0chill/echoes-mobile)'};
   // «превью ссылки» — так страница отдаёт описание со слушателями и фото без JavaScript
   static const _previewUa = {'User-Agent': 'facebookexternalhit/1.1', 'Accept-Language': 'en'};
   final _cache = <String, Future<SpotifyArtist?>>{};
@@ -37,7 +37,8 @@ class SpotifyService {
   Future<SpotifyArtist?> _lookup(String name) async {
     // «Miyagi & Andy Panda» — дуэт одной строкой: не нашёлся целиком — ищем первого
     final first = name.split(RegExp(r'\s*(,|&|\bx\b|×|\bfeat\.?|\bft\.?|\bи\b)\s*', caseSensitive: false)).first.trim();
-    final id = await _idFromMusicBrainz(name) ??
+    final id =
+        await _idFromMusicBrainz(name) ??
         (first.isNotEmpty && first != name ? await _idFromMusicBrainz(first) : null) ??
         await _idFromWeb(name);
     if (id == null) return null;
@@ -58,7 +59,8 @@ class SpotifyService {
 
     try {
       final s = await get(
-          Uri.https('musicbrainz.org', '/ws/2/artist/', {'query': 'artist:"$name"', 'fmt': 'json', 'limit': '5'}));
+        Uri.https('musicbrainz.org', '/ws/2/artist/', {'query': 'artist:"$name"', 'fmt': 'json', 'limit': '5'}),
+      );
       if (s.statusCode != 200) return null;
       final list = ((jsonDecode(s.body) as Map)['artists'] as List? ?? []).cast<Map>();
       // точное (с транслитерацией) совпадение имени, иначе — лучший по оценке поиска, если похож
@@ -73,8 +75,9 @@ class SpotifyService {
       }
       if (best == null) return null;
       await Future<void>.delayed(const Duration(milliseconds: 1000));
-      final r =
-          await get(Uri.https('musicbrainz.org', '/ws/2/artist/${best['id']}', {'inc': 'url-rels', 'fmt': 'json'}));
+      final r = await get(
+        Uri.https('musicbrainz.org', '/ws/2/artist/${best['id']}', {'inc': 'url-rels', 'fmt': 'json'}),
+      );
       if (r.statusCode != 200) return null;
       for (final rel in ((jsonDecode(r.body) as Map)['relations'] as List? ?? []).cast<Map>()) {
         final url = '${(rel['url'] as Map?)?['resource'] ?? ''}';
@@ -88,9 +91,12 @@ class SpotifyService {
   /// Запасной путь: веб-поиск «имя spotify artist» → первая ссылка на страницу исполнителя.
   Future<String?> _idFromWeb(String name) async {
     try {
-      final r = await http.get(Uri.https('html.duckduckgo.com', '/html/', {'q': '$name spotify artist'}), headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15'
-      }).timeout(const Duration(seconds: 10));
+      final r = await http
+          .get(
+            Uri.https('html.duckduckgo.com', '/html/', {'q': '$name spotify artist'}),
+            headers: {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15'},
+          )
+          .timeout(const Duration(seconds: 10));
       final m = RegExp(r'open\.spotify\.com(?:/intl-\w+)?/artist/([A-Za-z0-9]{22})').firstMatch(r.body);
       return m?.group(1);
     } catch (_) {
@@ -109,12 +115,21 @@ class SpotifyService {
     final desc = meta('og:description') ?? meta('description') ?? '';
     final m = RegExp(r'([\d.,]+)\s*([KMB]?)\s+monthly listener', caseSensitive: false).firstMatch(desc);
     return SpotifyArtist(
-        id, _unescape(meta('og:title')), m == null ? null : parseCount(m.group(1)!, m.group(2)!), meta('og:image'));
+      id,
+      _unescape(meta('og:title')),
+      m == null ? null : parseCount(m.group(1)!, m.group(2)!),
+      meta('og:image'),
+    );
   }
 
   /// «57.8» + «M» → 57 800 000; «1,234» → 1234.
   static int parseCount(String num, String suffix) {
-    final mul = switch (suffix.toUpperCase()) { 'K' => 1e3, 'M' => 1e6, 'B' => 1e9, _ => 1.0 };
+    final mul = switch (suffix.toUpperCase()) {
+      'K' => 1e3,
+      'M' => 1e6,
+      'B' => 1e9,
+      _ => 1.0,
+    };
     final n = double.tryParse(suffix.isEmpty ? num.replaceAll(',', '') : num.replaceAll(',', '.')) ?? 0;
     return (n * mul).round();
   }
