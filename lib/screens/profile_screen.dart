@@ -4,6 +4,7 @@ import '../glass.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../widgets.dart';
+import 'net_screen.dart';
 import 'settings_screen.dart';
 import '../i18n.dart';
 
@@ -84,6 +85,19 @@ class ProfileScreen extends StatelessWidget {
                         Icon(Icons.edit_rounded, size: 18, color: context.accent),
                       ],
                     ),
+                  ),
+                ),
+              ),
+              SizedBox(height: context.u(16)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+                child: Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.public),
+                    title: const Text('ECHOES.NET'),
+                    subtitle: Text(tr('Публичная лента и профиль с ПК')),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NetScreen())),
                   ),
                 ),
               ),
