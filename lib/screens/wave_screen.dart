@@ -286,7 +286,12 @@ class _PhantomWave extends StatelessWidget {
                 const Expanded(
                   child: Row(
                     children: [
-                      Icon(Icons.graphic_eq_rounded, color: Phantom.paper, size: 21),
+                      Image(
+                        image: AssetImage('assets/phantom/icon.png'),
+                        width: 24,
+                        height: 24,
+                        excludeFromSemantics: true,
+                      ),
                       SizedBox(width: 7),
                       Flexible(
                         child: Text(

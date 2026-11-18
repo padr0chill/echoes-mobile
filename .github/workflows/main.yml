@@ -44,6 +44,9 @@ jobs:
       - name: iOS settings — background audio, name, iOS 13+
         run: |
           P=ios/Runner/Info.plist
+          # Keep the launch screen and the Flutter host view dark until Phantom renders its first frame.
+          sed -i '' '/key="backgroundColor"/s/red="1" green="1" blue="1"/red="0.02" green="0.02" blue="0.02"/' ios/Runner/Base.lproj/LaunchScreen.storyboard
+          sed -i '' '/key="backgroundColor"/s/white="1"/white="0.02"/' ios/Runner/Base.lproj/Main.storyboard
           /usr/libexec/PlistBuddy -c "Delete :UIBackgroundModes" "$P" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$P"
           /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" "$P"

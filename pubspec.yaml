@@ -39,6 +39,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/phantom/background.jpg
+    - assets/phantom/icon.png
     - assets/phantom/Inter-OFL.txt
   fonts:
     - family: Inter
@@ -58,4 +59,6 @@ flutter_launcher_icons:
   ios: true
   android: true
   image_path: assets/icon.png
+  image_path_ios: assets/phantom/icon.png
   remove_alpha_ios: true
+  background_color_ios: "#0D0D0D"
