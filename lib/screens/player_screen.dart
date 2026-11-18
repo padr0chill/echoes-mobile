@@ -10,6 +10,7 @@ import '../services/audio.dart';
 import '../services/lyrics.dart';
 import '../services/store.dart';
 import '../ui.dart';
+import '../skins/phantom.dart';
 import '../skins/winamp.dart';
 import '../vinyl.dart';
 import '../blurred_cover.dart';
@@ -38,6 +39,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       valueListenable: audio.trackKey,
       builder: (context, _, _) {
         final t = audio.current;
+        if (context.phantom) {
+          return _PhantomPlayer(track: t, lyrics: _lyrics, onMode: (value) => setState(() => _lyrics = value));
+        }
         return Scaffold(
           backgroundColor: Colors.black,
           body: Stack(
@@ -120,6 +124,197 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 }
 
+class _PhantomPlayer extends StatelessWidget {
+  const _PhantomPlayer({required this.track, required this.lyrics, required this.onMode});
+  final Track? track;
+  final bool lyrics;
+  final ValueChanged<bool> onMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = track;
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          PhantomBackdrop(track: t),
+          SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(context.u(14), 4, context.u(14), 8),
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final wide = box.maxWidth >= 760 || (box.maxWidth >= 520 && box.maxWidth > box.maxHeight * 1.03);
+                  final headline = lyrics && t != null
+                      ? _LyricsView(key: ValueKey(t.id), track: t)
+                      : _PhantomLive(track: t, showNext: wide);
+                  final controls = PhantomPanel(
+                    solid: true,
+                    radius: 17,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: _Controls(track: t),
+                  );
+                  return Column(
+                    children: [
+                      _PhantomPlayerBar(lyrics: lyrics, onMode: onMode),
+                      const SizedBox(height: 8),
+                      if (wide)
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                flex: 43,
+                                child: Column(
+                                  children: [
+                                    Expanded(
+                                      child: PhantomPanel(
+                                        radius: 18,
+                                        child: LayoutBuilder(
+                                          builder: (context, card) => Center(
+                                            child: Cover(
+                                              track: t,
+                                              size: (math.min(card.maxWidth, card.maxHeight) - 10).clamp(1.0, 330),
+                                              radius: 10,
+                                              big: true,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    controls,
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(flex: 57, child: PhantomPanel(radius: 20, child: headline)),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        Expanded(child: PhantomPanel(radius: 22, child: headline)),
+                        const SizedBox(height: 8),
+                        controls,
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhantomPlayerBar extends StatelessWidget {
+  const _PhantomPlayerBar({required this.lyrics, required this.onMode});
+  final bool lyrics;
+  final ValueChanged<bool> onMode;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      IconButton(
+        tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded),
+        onPressed: () => Navigator.pop(context),
+      ),
+      Expanded(
+        child: Center(
+          child: SegmentedButton<bool>(
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 9)),
+            ),
+            segments: [
+              const ButtonSegment(value: false, label: Text('LIVE', maxLines: 1)),
+              ButtonSegment(
+                value: true,
+                label: Tooltip(
+                  message: tr('Текст песни'),
+                  child: Text(tr('Текст'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+            selected: {lyrics},
+            onSelectionChanged: (modes) => onMode(modes.first),
+          ),
+        ),
+      ),
+      if (eqAvailable)
+        IconButton(
+          tooltip: tr('Эквалайзер'),
+          icon: const Icon(Icons.equalizer_rounded),
+          onPressed: () => openEqualizer(context),
+        ),
+      IconButton(
+        tooltip: tr('Очередь'),
+        icon: const Icon(Icons.queue_music_rounded),
+        onPressed: () => _showQueue(context),
+      ),
+    ],
+  );
+}
+
+class _PhantomLive extends StatelessWidget {
+  const _PhantomLive({required this.track, required this.showNext});
+  final Track? track;
+  final bool showNext;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final t = track;
+      final vinyl = Store.instance.vinyl;
+      final showLabel = box.maxHeight > 125;
+      final nextLabel = showNext && box.maxHeight > 245;
+      final inset = showLabel ? 42.0 : 10.0;
+      final size = (math.min(box.maxWidth, box.maxHeight - inset - (nextLabel ? 38 : 0)) * .66).clamp(1.0, 360.0);
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          const PhantomRings(emphasis: .8),
+          if (showLabel) Positioned(top: 12, left: 14, child: Text(tr('Сейчас играет'), style: Phantom.label)),
+          Center(
+            child: Hero(
+              tag: 'cover',
+              child: vinyl ? VinylDisc(track: t, size: size) : Cover(track: t, size: size, radius: 14, big: true),
+            ),
+          ),
+          if (vinyl && t != null && box.maxHeight > 195)
+            Positioned(left: 14, right: 14, bottom: 8, child: LyricsTicker(track: t)),
+          if (!vinyl && nextLabel)
+            Positioned(
+              left: 14,
+              right: 14,
+              bottom: 12,
+              child: ListenableBuilder(
+                listenable: Listenable.merge([audio.tracks, audio.index]),
+                builder: (context, _) {
+                  final list = audio.tracks.value;
+                  final index = audio.index.value + 1;
+                  return index < 0 || index >= list.length
+                      ? const SizedBox.shrink()
+                      : Text(
+                          '${tr('Далее')} · ${list[index].title}',
+                          textAlign: TextAlign.center,
+                          style: Phantom.data,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                },
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
+
 class _Backdrop extends StatelessWidget {
   final Track track;
   const _Backdrop({required this.track});
@@ -187,10 +382,12 @@ class _Controls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = track;
+    final phantom = context.phantom;
     const white = Colors.white;
     final dim = Colors.white.withValues(alpha: 0.6);
+    Widget slot(Widget child) => phantom ? Expanded(child: Center(child: child)) : child;
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: context.u(24)),
+      padding: EdgeInsets.symmetric(horizontal: context.u(phantom ? 12 : 24)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -204,7 +401,11 @@ class _Controls extends StatelessWidget {
                       t?.title ?? '—',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: white, fontSize: 22, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        color: white,
+                        fontSize: phantom ? 17 : 22,
+                        fontWeight: phantom ? FontWeight.w700 : FontWeight.w800,
+                      ),
                     ),
                     SizedBox(height: context.u(2)),
                     GestureDetector(
@@ -215,7 +416,7 @@ class _Controls extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: dim,
-                          fontSize: 16,
+                          fontSize: phantom ? 12 : 16,
                           decoration: TextDecoration.underline,
                           decorationColor: dim.withValues(alpha: 0.4),
                         ),
@@ -238,7 +439,7 @@ class _Controls extends StatelessWidget {
                 ),
             ],
           ),
-          SizedBox(height: context.u(10)),
+          SizedBox(height: context.u(phantom ? 2 : 10)),
           const _Seek(),
           ValueListenableBuilder<String?>(
             valueListenable: audio.error,
@@ -253,32 +454,40 @@ class _Controls extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: audio.shuffle,
-                builder: (context, on, _) => IconButton(
-                  icon: Icon(Icons.shuffle_rounded, color: on ? context.accent : dim),
-                  onPressed: audio.toggleShuffle,
+              slot(
+                ValueListenableBuilder<bool>(
+                  valueListenable: audio.shuffle,
+                  builder: (context, on, _) => IconButton(
+                    icon: Icon(Icons.shuffle_rounded, color: on ? context.accent : dim),
+                    onPressed: audio.toggleShuffle,
+                  ),
                 ),
               ),
-              IconButton(
-                iconSize: context.u(40),
-                icon: const Icon(Icons.skip_previous_rounded, color: white),
-                onPressed: audio.skipToPrevious,
+              slot(
+                IconButton(
+                  iconSize: context.u(phantom ? 27 : 40),
+                  icon: const Icon(Icons.skip_previous_rounded, color: white),
+                  onPressed: audio.skipToPrevious,
+                ),
               ),
-              const PlayPauseButton(size: 72, filled: true),
-              IconButton(
-                iconSize: context.u(40),
-                icon: const Icon(Icons.skip_next_rounded, color: white),
-                onPressed: audio.skipToNext,
+              PlayPauseButton(size: phantom ? 50 : 72, filled: true),
+              slot(
+                IconButton(
+                  iconSize: context.u(phantom ? 27 : 40),
+                  icon: const Icon(Icons.skip_next_rounded, color: white),
+                  onPressed: audio.skipToNext,
+                ),
               ),
-              ValueListenableBuilder<RepeatState>(
-                valueListenable: audio.repeat,
-                builder: (context, r, _) => IconButton(
-                  icon: Icon(
-                    r == RepeatState.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
-                    color: r == RepeatState.off ? dim : context.accent,
+              slot(
+                ValueListenableBuilder<RepeatState>(
+                  valueListenable: audio.repeat,
+                  builder: (context, r, _) => IconButton(
+                    icon: Icon(
+                      r == RepeatState.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
+                      color: r == RepeatState.off ? dim : context.accent,
+                    ),
+                    onPressed: audio.cycleRepeat,
                   ),
-                  onPressed: audio.cycleRepeat,
                 ),
               ),
             ],
@@ -302,6 +511,7 @@ class _SeekState extends State<_Seek> {
   @override
   Widget build(BuildContext context) {
     final dim = Colors.white.withValues(alpha: 0.6);
+    final timeStyle = context.phantom ? Phantom.data : TextStyle(color: dim, fontSize: 12);
     return StreamBuilder<Duration>(
       stream: audio.player.positionStream,
       builder: (context, snap) {
@@ -324,11 +534,8 @@ class _SeekState extends State<_Seek> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  fmtDuration(Duration(milliseconds: v.round())),
-                  style: TextStyle(color: dim, fontSize: 12),
-                ),
-                Text(fmtDuration(total), style: TextStyle(color: dim, fontSize: 12)),
+                Text(fmtDuration(Duration(milliseconds: v.round())), style: timeStyle),
+                Text(fmtDuration(total), style: timeStyle),
               ],
             ),
           ],
@@ -341,7 +548,7 @@ class _SeekState extends State<_Seek> {
 /// Текст песни: синхронный — текущая строка крупно и по центру, щелчок по строке — перемотка.
 class _LyricsView extends StatefulWidget {
   final Track track;
-  const _LyricsView({required this.track});
+  const _LyricsView({super.key, required this.track});
 
   @override
   State<_LyricsView> createState() => _LyricsViewState();
@@ -595,11 +802,16 @@ class _LyricsViewState extends State<_LyricsView> {
                           child: Padding(
                             padding: EdgeInsets.symmetric(vertical: context.u(7)),
                             child: AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 250),
+                              duration: MediaQuery.disableAnimationsOf(context)
+                                  ? Duration.zero
+                                  : const Duration(milliseconds: 250),
                               style: TextStyle(
-                                fontSize: on ? 26 : 22,
-                                fontWeight: FontWeight.w800,
-                                height: 1.25,
+                                fontFamily: context.phantom ? Phantom.font : null,
+                                fontFamilyFallback: context.phantom ? Phantom.fallback : null,
+                                fontSize: context.phantom ? 27 : (on ? 26 : 22),
+                                fontWeight: context.phantom ? FontWeight.w700 : FontWeight.w800,
+                                letterSpacing: context.phantom ? -.85 : null,
+                                height: context.phantom ? 1.17 : 1.25,
                                 color: !ly.synced
                                     ? Colors.white.withValues(alpha: 0.85)
                                     : on
@@ -636,16 +848,18 @@ void _showQueue(BuildContext context) {
       initialChildSize: 0.86,
       minChildSize: 0.4,
       maxChildSize: 0.96,
-      builder: (ctx, sc) => ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-          child: ColoredBox(
-            color: const Color(0xFF111114).withValues(alpha: 0.82),
-            child: _QueueList(controller: sc),
-          ),
-        ),
-      ),
+      builder: (ctx, sc) => ctx.phantom
+          ? PhantomPanel(radius: 24, solid: true, child: _QueueList(controller: sc))
+          : ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                child: ColoredBox(
+                  color: const Color(0xFF111114).withValues(alpha: 0.82),
+                  child: _QueueList(controller: sc),
+                ),
+              ),
+            ),
     ),
   );
 }
@@ -670,7 +884,9 @@ class _QueueList extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(context.u(18), context.u(16), context.u(18), context.u(6)),
           child: Text(
             s,
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
+            style: context.phantom
+                ? Phantom.label
+                : const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800),
           ),
         );
         return CustomScrollView(
@@ -686,6 +902,22 @@ class _QueueList extends StatelessWidget {
                 ),
               ),
             ),
+            if (context.phantom)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 8, 2),
+                  child: Row(
+                    children: [
+                      Expanded(child: ScreenTitle(tr('Очередь'))),
+                      IconButton(
+                        tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (cur >= 0 && cur < list.length) ...[
               SliverToBoxAdapter(child: label(tr('Сейчас играет'))),
               SliverToBoxAdapter(child: _QueueRow(track: list[cur], playing: true)),
@@ -764,7 +996,14 @@ class _QueueRow extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(context.r(14)),
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: context.phantom && playing
+              ? BoxDecoration(
+                  borderRadius: BorderRadius.circular(context.r(12)),
+                  border: Border.all(color: Phantom.line),
+                  color: const Color(0x16FFFFFF),
+                )
+              : null,
           padding: EdgeInsets.fromLTRB(context.u(10), context.u(5), context.u(0), context.u(5)),
           child: Row(
             children: [

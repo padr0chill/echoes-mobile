@@ -27,7 +27,7 @@ class SettingsScreen extends StatelessWidget {
       child: ListenableBuilder(
         listenable: st,
         builder: (context, _) => ListView(
-          padding: EdgeInsets.only(bottom: context.u(200)),
+          padding: EdgeInsets.only(bottom: context.pageEnd(200)),
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(16), 0),
@@ -52,8 +52,9 @@ class SettingsScreen extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: context.u(16)),
               child: SegmentedButton<String>(
                 segments: [
-                  ButtonSegment(value: 'glass', icon: Icon(Icons.blur_on_rounded), label: Text(tr('Обычная'))),
-                  ButtonSegment(value: 'winamp', icon: Icon(Icons.graphic_eq_rounded), label: Text(tr('Эховамп'))),
+                  const ButtonSegment(value: 'phantom', label: Text('Phantom')),
+                  ButtonSegment(value: 'glass', label: Text(tr('Стекло'))),
+                  ButtonSegment(value: 'winamp', label: Text(tr('Эховамп'))),
                 ],
                 selected: {st.skin},
                 onSelectionChanged: (s) => st.setSkin(s.first),
@@ -106,35 +107,37 @@ class SettingsScreen extends StatelessWidget {
                 child: Slider(value: st.bgBlurAmount.clamp(0, 1), divisions: 20, onChanged: st.setBgBlurAmount),
               ),
             ],
-            SectionTitle(tr('Цвет')),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: context.u(16)),
-              child: Wrap(
-                spacing: context.u(12),
-                runSpacing: context.u(12),
-                children: [
-                  for (var i = 0; i < Store.accents.length; i++)
-                    GestureDetector(
-                      onTap: () => st.setAccent(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        width: context.u(44),
-                        height: context.u(44),
-                        decoration: BoxDecoration(
-                          color: Store.accents[i],
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: i == st.accentIndex ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
-                            width: 3,
+            if (st.skin == 'glass') ...[
+              SectionTitle(tr('Цвет')),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+                child: Wrap(
+                  spacing: context.u(12),
+                  runSpacing: context.u(12),
+                  children: [
+                    for (var i = 0; i < Store.accents.length; i++)
+                      GestureDetector(
+                        onTap: () => st.setAccent(i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          width: context.u(44),
+                          height: context.u(44),
+                          decoration: BoxDecoration(
+                            color: Store.accents[i],
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: i == st.accentIndex ? Theme.of(context).colorScheme.onSurface : Colors.transparent,
+                              width: 3,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            SizedBox(height: context.u(8)),
-            SwitchListTile(title: Text(tr('Светлая тема')), value: st.light, onChanged: st.setLight),
+              SizedBox(height: context.u(8)),
+              SwitchListTile(title: Text(tr('Светлая тема')), value: st.light, onChanged: st.setLight),
+            ],
             SectionTitle(tr('Звук')),
             ListTile(
               leading: const Icon(Icons.swap_horiz_rounded),

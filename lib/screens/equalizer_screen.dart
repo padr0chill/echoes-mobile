@@ -63,7 +63,7 @@ class EqualizerScreen extends StatelessWidget {
           builder: (context, _) {
             final on = st.eqEnabled;
             return ListView(
-              padding: EdgeInsets.only(bottom: context.u(120)),
+              padding: EdgeInsets.only(bottom: context.pageEnd(120)),
               children: [
                 SwitchListTile(
                   title: Text(tr('Эквалайзер'), style: TextStyle(fontWeight: FontWeight.w800)),

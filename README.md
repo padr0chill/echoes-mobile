@@ -67,7 +67,9 @@
 - **Профиль**: время с музыкой, число прослушанных треков, любимые исполнители.
 
 **Оформление**
-- **Обычная тема** в стиле Liquid Glass: стекло, размытая обложка на фоне, обложки в высоком качестве без полос.
+- **Phantom** — оформление ECHOES на ПК: монохром, Inter, режимы LIVE и «Текст», панель очереди и новая навигация.
+  На iPad и в альбомной ориентации плеер раскладывается в две колонки.
+- **Стекло** в стиле Liquid Glass: стекло, размытая обложка на фоне, обложки в высоком качестве без полос.
   Можно выбрать цвет акцента, светлую тему или своё фото на фон из галереи.
 - **Эховамп** — весь интерфейс как Winamp 2 на ПК: ЖК-дисплей, спектр, плейлист, кнопки с фаской.
 - **MilkDrop** в Эховампе: 135 пресетов с волнами и обратной связью, как в ECHOES на ПК. По кнопке «ТЕКСТ»
@@ -157,7 +159,8 @@ YouTube Music, YouTube or SoundCloud. You can also download tracks inside the ap
 - Synced lyrics with smart search, manual sync and timing shift. Vinyl mode.
 - 10-band **equalizer** with 12 presets.
 - Liked songs, playlists with search, sorting and grid view, offline downloads, playlist import from ECHOES on PC.
-- Liquid Glass theme with a custom background. **Echoamp**, a full Winamp 2 skin with **MilkDrop**
+- **Phantom**, the desktop-inspired default with a monochrome palette, Inter, LIVE and Lyrics views, and a two-column player on wider screens.
+  Liquid Glass theme with a custom background. **Echoamp**, a full Winamp 2 skin with **MilkDrop**
   (135 presets, song lyrics flying over the visuals).
 - Russian and English UI.
 

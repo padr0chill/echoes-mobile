@@ -10,6 +10,7 @@ import 'services/audio.dart';
 import 'services/offline.dart';
 import 'services/square_cover.dart';
 import 'services/store.dart';
+import 'skins/phantom.dart';
 import 'skins/winamp.dart';
 import 'ui.dart';
 import 'i18n.dart';
@@ -30,11 +31,13 @@ class Cover extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = track;
     final radius = context.echoamp ? 0.0 : this.radius; // Эховамп — квадратные обложки
-    Widget ph() => Container(
-      color: Theme.of(context).cardColor,
-      alignment: Alignment.center,
-      child: Icon(Icons.music_note_rounded, size: size * 0.4, color: context.accent.withValues(alpha: 0.7)),
-    );
+    Widget ph() => context.phantom
+        ? PhantomArtworkPlaceholder(size: size, title: t?.title)
+        : Container(
+            color: Theme.of(context).cardColor,
+            alignment: Alignment.center,
+            child: Icon(Icons.music_note_rounded, size: size * 0.4, color: context.accent.withValues(alpha: 0.7)),
+          );
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: SizedBox(
@@ -78,6 +81,7 @@ class ScreenTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.echoamp) return WaBevel(child: WaTitleBar(title: text.toUpperCase()));
+    if (context.phantom) return Text(text, style: Phantom.heading, maxLines: 2, overflow: TextOverflow.ellipsis);
     return Text(text, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900));
   }
 }
@@ -110,14 +114,21 @@ class TrackTile extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: context.u(6)),
         child: InkWell(
-          borderRadius: BorderRadius.circular(context.r(16)),
+          borderRadius: BorderRadius.circular(context.r(context.phantom ? 10 : 16)),
           onTap: onTap,
           onLongPress: () => showTrackMenu(context, track, playlist: playlist),
-          child: Padding(
+          child: Container(
+            decoration: context.phantom && cur
+                ? BoxDecoration(
+                    color: const Color(0x19FFFFFF),
+                    border: Border.all(color: Phantom.line),
+                    borderRadius: BorderRadius.circular(context.r(10)),
+                  )
+                : null,
             padding: EdgeInsets.symmetric(horizontal: context.u(10), vertical: context.u(7)),
             child: Row(
               children: [
-                Cover(track: track, size: context.u(50), radius: context.u(8)),
+                Cover(track: track, size: context.u(context.phantom ? 44 : 50), radius: context.u(8)),
                 SizedBox(width: context.u(12)),
                 Expanded(
                   child: Column(
@@ -489,6 +500,65 @@ class MiniPlayer extends StatelessWidget {
       builder: (context, _, _) {
         final t = audio.current;
         if (t == null) return const SizedBox.shrink();
+        if (context.phantom) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(context.u(12), context.u(5), context.u(12), context.u(7)),
+            child: PhantomPanel(
+              solid: true,
+              radius: 14,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onOpen,
+                onVerticalDragEnd: (d) {
+                  if ((d.primaryVelocity ?? 0) < -200) onOpen();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 3, 6),
+                      child: Row(
+                        children: [
+                          Hero(
+                            tag: 'cover',
+                            child: Cover(track: t, size: context.u(44), radius: 8),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                ),
+                                Text(
+                                  t.artist,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 11, color: Phantom.secondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const PlayPauseButton(size: 40, filled: true),
+                          IconButton(
+                            tooltip: tr('Следующий трек'),
+                            icon: const Icon(Icons.skip_next_rounded),
+                            onPressed: audio.skipToNext,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const _ThinProgress(),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         return GestureDetector(
           onTap: onOpen,
           onVerticalDragEnd: (d) {
@@ -629,7 +699,12 @@ class SectionTitle extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            child: Text(
+              text,
+              style: context.phantom
+                  ? const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.22)
+                  : const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
           ),
           ?trailing,
         ],

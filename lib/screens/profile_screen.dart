@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../glass.dart';
 import '../services/store.dart';
+import '../skins/phantom.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'net_screen.dart';
@@ -28,16 +29,19 @@ class ProfileScreen extends StatelessWidget {
         builder: (context, _) {
           final top = st.topArtists(5);
           final maxS = top.isEmpty ? 1 : (st.artistSeconds[top.first] ?? 1);
+          Future<void> rename() async {
+            final n = await askText(context, tr('Ваше имя'), tr('Имя'), initial: st.name);
+            if (n != null) st.setName(n);
+          }
+
           return ListView(
-            padding: EdgeInsets.only(bottom: context.u(200)),
+            padding: EdgeInsets.only(bottom: context.pageEnd(200)),
             children: [
               Padding(
                 padding: EdgeInsets.fromLTRB(context.u(16), context.u(16), context.u(8), 0),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: Text(tr('Профиль'), style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
-                    ),
+                    Expanded(child: ScreenTitle(tr('Профиль'))),
                     IconButton(
                       tooltip: tr('Настройки'),
                       icon: const Icon(Icons.settings_rounded),
@@ -46,7 +50,7 @@ class ProfileScreen extends StatelessWidget {
                           builder: (_) => Ambient(
                             child: Scaffold(
                               backgroundColor: Colors.transparent,
-                              appBar: AppBar(),
+                              appBar: AppBar(backgroundColor: context.phantom ? Colors.transparent : null),
                               body: const SettingsScreen(),
                             ),
                           ),
@@ -57,37 +61,62 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: context.u(12)),
-              Center(
-                child: CircleAvatar(
-                  radius: context.u(46),
-                  backgroundColor: context.accent,
-                  child: Text(
-                    st.name.isEmpty ? '?' : st.name.characters.first.toUpperCase(),
-                    style: TextStyle(fontSize: context.u(40), fontWeight: FontWeight.w900, color: Colors.black),
+              if (context.phantom)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: context.u(16)),
+                  child: PhantomPanel(
+                    radius: 16,
+                    solid: true,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox.square(
+                          dimension: 48,
+                          child: PhantomArtworkPlaceholder(size: 48, title: st.name),
+                        ),
+                      ),
+                      title: Text(
+                        tr(st.name),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.4),
+                      ),
+                      trailing: const Icon(Icons.edit_outlined),
+                      onTap: rename,
+                    ),
                   ),
-                ),
-              ),
-              SizedBox(height: context.u(10)),
-              Center(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(context.r(12)),
-                  onTap: () async {
-                    final n = await askText(context, tr('Ваше имя'), tr('Имя'), initial: st.name);
-                    if (n != null) st.setName(n);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(tr(st.name), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                        const SizedBox(width: 6),
-                        Icon(Icons.edit_rounded, size: 18, color: context.accent),
-                      ],
+                )
+              else ...[
+                Center(
+                  child: CircleAvatar(
+                    radius: context.u(46),
+                    backgroundColor: context.accent,
+                    child: Text(
+                      st.name.isEmpty ? '?' : st.name.characters.first.toUpperCase(),
+                      style: TextStyle(fontSize: context.u(40), fontWeight: FontWeight.w900, color: Colors.black),
                     ),
                   ),
                 ),
-              ),
+                SizedBox(height: context.u(10)),
+                Center(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(context.r(12)),
+                    onTap: rename,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(tr(st.name), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          const SizedBox(width: 6),
+                          Icon(Icons.edit_rounded, size: 18, color: context.accent),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               SizedBox(height: context.u(16)),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: context.u(16)),
@@ -214,7 +243,11 @@ class _Stat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(context.u(12)),
-      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(context.r(20))),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(context.r(context.phantom ? 12 : 20)),
+        border: context.phantom ? Border.all(color: Phantom.line) : null,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,

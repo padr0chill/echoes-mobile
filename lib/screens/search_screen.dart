@@ -110,7 +110,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
     }
 
     return ListView(
-      padding: EdgeInsets.only(bottom: context.u(200)),
+      padding: EdgeInsets.only(bottom: context.pageEnd(200)),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         for (final it in _sugItems)
@@ -236,6 +236,11 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
       bottom: false,
       child: Column(
         children: [
+          if (context.phantom)
+            Padding(
+              padding: EdgeInsets.fromLTRB(context.u(16), context.u(14), context.u(16), 0),
+              child: Align(alignment: Alignment.centerLeft, child: ScreenTitle(tr('Поиск'))),
+            ),
           Padding(
             padding: EdgeInsets.fromLTRB(context.u(16), context.u(12), context.u(16), context.u(6)),
             child: TextField(
@@ -260,10 +265,12 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                       ),
                 filled: true,
                 fillColor: Theme.of(context).cardColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(context.r(28)),
-                  borderSide: BorderSide.none,
-                ),
+                border: context.phantom
+                    ? null
+                    : OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(context.r(28)),
+                        borderSide: BorderSide.none,
+                      ),
                 contentPadding: EdgeInsets.symmetric(vertical: context.u(12)),
               ),
               onChanged: _onType,
@@ -300,7 +307,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                 ? _suggestions(context)
                 : _results.isNotEmpty || _albums.isNotEmpty || _artists.isNotEmpty
                 ? ListView.builder(
-                    padding: EdgeInsets.only(bottom: context.u(200)),
+                    padding: EdgeInsets.only(bottom: context.pageEnd(200)),
                     itemCount: _headWidgets().length + _results.length,
                     itemBuilder: (context, i) {
                       final head = _headWidgets();
@@ -332,7 +339,7 @@ class _SearchScreenState extends State<SearchScreen> with AutomaticKeepAliveClie
                               _search(q);
                             },
                           ),
-                        if (st.searches.isEmpty && _err == null)
+                        if (!context.phantom && st.searches.isEmpty && _err == null)
                           Padding(
                             padding: EdgeInsets.all(context.u(32)),
                             child: Column(

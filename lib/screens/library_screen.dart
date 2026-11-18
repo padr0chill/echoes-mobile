@@ -9,6 +9,7 @@ import '../services/offline.dart';
 import '../services/square_cover.dart';
 import '../services/store.dart';
 import '../services/text_match.dart';
+import '../skins/phantom.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
@@ -252,17 +253,38 @@ class _LibraryScreenState extends State<LibraryScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(context.u(16), context.u(4), context.u(16), 0),
-                  child: Wrap(
-                    spacing: context.u(8),
-                    children: [
-                      for (final f in [('pl', tr('Плейлисты')), ('ar', tr('Исполнители'))])
-                        ChoiceChip(
-                          label: Text(f.$2),
-                          selected: _filter == f.$1,
-                          onSelected: (v) => setState(() => _filter = v ? f.$1 : null),
+                  child: context.phantom
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<String>(
+                            showSelectedIcon: false,
+                            segments: [
+                              ButtonSegment(value: 'all', label: Text(tr('Все'), maxLines: 1)),
+                              ButtonSegment(
+                                value: 'pl',
+                                label: Text(tr('Плейлисты'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                              ButtonSegment(
+                                value: 'ar',
+                                label: Text(tr('Исполнители'), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                            selected: {_filter ?? 'all'},
+                            onSelectionChanged: (values) =>
+                                setState(() => _filter = values.first == 'all' ? null : values.first),
+                          ),
+                        )
+                      : Wrap(
+                          spacing: context.u(8),
+                          children: [
+                            for (final f in [('pl', tr('Плейлисты')), ('ar', tr('Исполнители'))])
+                              ChoiceChip(
+                                label: Text(f.$2),
+                                selected: _filter == f.$1,
+                                onSelected: (v) => setState(() => _filter = v ? f.$1 : null),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
                 ),
               ),
               // сортировка и вид
@@ -344,7 +366,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       TrackTile(track: st.history[i], onTap: () => audio.playList(st.history, i)),
                 ),
               ],
-              SliverToBoxAdapter(child: SizedBox(height: context.u(200))),
+              SliverToBoxAdapter(child: SizedBox(height: context.pageEnd(200))),
             ],
           );
         },
@@ -379,7 +401,7 @@ class _ListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final s = context.u(64);
+    final s = context.u(context.phantom ? 50 : 64);
     return InkWell(
       onTap: item.onTap,
       onLongPress: item.onLong,
@@ -479,10 +501,13 @@ class _Gradient extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
+        border: context.phantom ? Border.all(color: Phantom.line) : null,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: green
+          colors: context.phantom
+              ? const [Phantom.raised, Phantom.background]
+              : green
               ? const [Color(0xFF0E7C4A), Color(0xFF7BE0A8)]
               : [HSLColor.fromColor(a).withLightness(0.3).toColor(), a, const Color(0xFFF3F3F3)],
         ),
@@ -764,7 +789,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
                   final cols = (box.maxWidth / context.u(180)).floor().clamp(2, 6);
                   final rows = (shown.length + cols - 1) ~/ cols;
                   return ListView.builder(
-                    padding: EdgeInsets.only(bottom: context.u(200)),
+                    padding: EdgeInsets.only(bottom: context.pageEnd(200)),
                     itemCount: head.length + rows,
                     itemBuilder: (context, k) {
                       if (k < head.length) return head[k];
@@ -795,7 +820,7 @@ class _TrackListScreenState extends State<TrackListScreen> {
               );
             }
             return ListView.builder(
-              padding: EdgeInsets.only(bottom: context.u(200)),
+              padding: EdgeInsets.only(bottom: context.pageEnd(200)),
               itemCount: head.length + shown.length,
               itemBuilder: (context, k) {
                 if (k < head.length) return head[k];

@@ -1,7 +1,7 @@
 name: echoes_mobile
 description: ECHOES mobile — музыкальный плеер для iPhone и Android (YouTube Music, SoundCloud, загрузки).
 publish_to: 'none'
-version: 0.2.0+1
+version: 0.3.0+1
 
 environment:
   sdk: ^3.12.0
@@ -37,6 +37,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/phantom/background.jpg
+    - assets/phantom/Inter-OFL.txt
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/phantom/Inter-latin.ttf
+    - family: Inter Cyrillic
+      fonts:
+        - asset: assets/phantom/Inter-cyrillic.ttf
   # «Моя волна» — туманность, как на ПК, считается на видеокарте
   shaders:
     - shaders/nebula.frag

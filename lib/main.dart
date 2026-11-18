@@ -22,6 +22,7 @@ import 'services/sc.dart';
 import 'services/square_cover.dart';
 import 'services/store.dart';
 import 'skins/milkdrop.dart';
+import 'skins/phantom.dart';
 import 'skins/winamp.dart';
 import 'ui.dart';
 import 'widgets.dart';
@@ -89,7 +90,7 @@ class EchoesApp extends StatelessWidget {
         return MaterialApp(
           title: 'ECHOES',
           debugShowCheckedModeBanner: false,
-          theme: buildTheme(st.accent, st.light, winamp: st.winamp),
+          theme: buildTheme(st.accent, st.light, winamp: st.winamp, phantom: st.phantom),
           // текст растёт вместе с экраном (iPad), системный «крупный шрифт» — не больше ×1.3
           builder: (context, child) {
             final mq = MediaQuery.of(context);
@@ -99,7 +100,7 @@ class EchoesApp extends StatelessWidget {
             return MediaQuery(
               data: mq.copyWith(textScaler: TextScaler.linear(sys * k)),
               child: AnnotatedRegion<SystemUiOverlayStyle>(
-                value: st.light && !st.winamp ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+                value: st.light && st.skin == 'glass' ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
                 child: child!,
               ),
             );
@@ -224,6 +225,21 @@ class _ShellState extends State<Shell> {
       (Icons.library_music_rounded, tr('Моя музыка')),
       (Icons.person_rounded, tr('Профиль')),
     ];
+    if (context.phantom && !context.wide) {
+      return Ambient(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: body,
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              mini,
+              GlassTabBar(items: items, index: _tab, onTap: _selectTab),
+            ],
+          ),
+        ),
+      );
+    }
     if (context.wide) {
       // невысокий экран (телефон боком) — только значки, без подписей и логотипа
       final low = MediaQuery.sizeOf(context).height < 560;
@@ -264,8 +280,17 @@ class _ShellState extends State<Shell> {
                     constraints: const BoxConstraints(maxWidth: 820),
                     child: Stack(
                       children: [
-                        Positioned.fill(child: body),
-                        Positioned(left: 0, right: 0, bottom: 0, child: SafeArea(top: false, child: mini)),
+                        if (context.phantom)
+                          Column(
+                            children: [
+                              Expanded(child: body),
+                              SafeArea(top: false, child: mini),
+                            ],
+                          )
+                        else ...[
+                          Positioned.fill(child: body),
+                          Positioned(left: 0, right: 0, bottom: 0, child: SafeArea(top: false, child: mini)),
+                        ],
                       ],
                     ),
                   ),
@@ -314,6 +339,80 @@ class GlassTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (context.echoamp) return _EchoampTabBar(items: items, index: index, onTap: onTap);
+    if (context.phantom) {
+      return Material(
+        color: Phantom.background,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Phantom.line)),
+          ),
+          child: SafeArea(
+            top: false,
+            minimum: const EdgeInsets.only(bottom: 4),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(6, 5, 6, 2),
+              child: Row(
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    Expanded(
+                      child: Semantics(
+                        selected: i == index,
+                        button: true,
+                        label: items[i].$2,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => onTap(i),
+                          child: SizedBox(
+                            height: context.u(54).clamp(48, 60),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 2),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedContainer(
+                                    duration: MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 220),
+                                    curve: Phantom.ease,
+                                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: i == index ? Phantom.raised : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(100),
+                                    ),
+                                    child: Icon(
+                                      items[i].$1,
+                                      size: 20,
+                                      color: i == index ? Phantom.paper : Phantom.secondary,
+                                    ),
+                                  ),
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        items[i].$2,
+                                        maxLines: 1,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: i == index ? Phantom.paper : Phantom.secondary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final bottom = MediaQuery.paddingOf(context).bottom;
     final h = context.u(62);
     return Padding(

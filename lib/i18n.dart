@@ -34,6 +34,10 @@ String tr(String ru, [List<Object?> args = const []]) {
 final _one = RegExp(r'(?<![\d.,])1 (track|playlist|follower)s\b');
 
 const _en = <String, String>{
+  'Стекло': 'Glass',
+  'Текст': 'Lyrics',
+  'Настроения': 'Moods',
+  'Следующий трек': 'Next track',
   'Публичная лента и профиль с ПК': 'Public feed and profile from PC',
   'Не удалось открыть ключ ECHOES.NET': 'Could not open the ECHOES.NET key',
   'Не удалось сохранить ключ ECHOES.NET': 'Could not save the ECHOES.NET key',
@@ -51,10 +55,11 @@ const _en = <String, String>{
   'Код скопирован': 'Code copied',
   'Обновить профиль': 'Refresh profile',
   'Выйти': 'Sign out',
-  'Войдите, чтобы открыть профиль с ПК и писать в ECHOES.NET.': 'Sign in to open your PC profile and post on ECHOES.NET.',
+  'Войдите, чтобы открыть профиль с ПК и писать в ECHOES.NET.':
+      'Sign in to open your PC profile and post on ECHOES.NET.',
   'Войти с ключом ПК': 'Sign in with your PC key',
   'На ПК откройте %USERPROFILE%\\Echoes\\net. Перенесите identity.key на iPhone или вставьте значение seed из файла. Храните ключ в секрете.':
-    'On your PC, open %USERPROFILE%\\Echoes\\net. Transfer identity.key to your iPhone or paste the seed from the file. Keep the key private.',
+      'On your PC, open %USERPROFILE%\\Echoes\\net. Transfer identity.key to your iPhone or paste the seed from the file. Keep the key private.',
   'Выбрать identity.key': 'Choose identity.key',
   'Публичный профиль пока не найден': 'Public profile not found yet',
   'Добавить в «Мою музыку»': 'Add to My Music',

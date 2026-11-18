@@ -6,6 +6,7 @@ import '../services/audio.dart';
 import '../services/sc.dart';
 import '../services/ytm_artist.dart';
 import '../ui.dart';
+import '../skins/phantom.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
 import '../i18n.dart';
@@ -129,58 +130,110 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 final list = snap.data ?? const <Track>[];
                 final head = <Widget>[
                   SizedBox(height: MediaQuery.paddingOf(context).top + context.u(40)),
-                  Center(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(context.r(20)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.4),
-                            blurRadius: 40,
-                            offset: const Offset(0, 16),
+                  if (context.phantom)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      child: PhantomPanel(
+                        radius: 18,
+                        padding: const EdgeInsets.all(12),
+                        solid: true,
+                        child: Row(
+                          children: [
+                            AlbumArt(album: a, size: context.u(100), radius: 10),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(a.kindLabel, style: Phantom.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    a.title,
+                                    style: Phantom.heading.copyWith(fontSize: 22),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  GestureDetector(
+                                    onTap: () => openArtist(
+                                      context,
+                                      Track(id: '', title: '', artist: a.artist, artistId: a.artistId),
+                                    ),
+                                    child: Text(
+                                      a.artist,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Phantom.secondary),
+                                    ),
+                                  ),
+                                  Text(
+                                    [
+                                      if (a.year != null) '${a.year}',
+                                      tr('{0} тр.', [a.count > 0 ? a.count : list.length]),
+                                    ].join(' · '),
+                                    style: Phantom.data,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else ...[
+                    Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(context.r(20)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.4),
+                              blurRadius: 40,
+                              offset: const Offset(0, 16),
+                            ),
+                          ],
+                        ),
+                        child: AlbumArt(album: a, size: size, radius: context.u(20)),
+                      ),
+                    ),
+                    SizedBox(height: context.u(16)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: context.u(24)),
+                      child: Text(
+                        a.title,
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, height: 1.15),
+                      ),
+                    ),
+                    SizedBox(height: context.u(4)),
+                    Center(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(context.r(12)),
+                        onTap: () => openArtist(
+                          context,
+                          Track(id: '', title: '', artist: a.artist, seconds: 0, artistId: a.artistId),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(2)),
+                          child: Text(
+                            a.artist,
+                            style: TextStyle(color: context.accent, fontSize: 16, fontWeight: FontWeight.w700),
                           ),
-                        ],
-                      ),
-                      child: AlbumArt(album: a, size: size, radius: context.u(20)),
-                    ),
-                  ),
-                  SizedBox(height: context.u(16)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: context.u(24)),
-                    child: Text(
-                      a.title,
-                      textAlign: TextAlign.center,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, height: 1.15),
-                    ),
-                  ),
-                  SizedBox(height: context.u(4)),
-                  Center(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(context.r(12)),
-                      onTap: () => openArtist(
-                        context,
-                        Track(id: '', title: '', artist: a.artist, seconds: 0, artistId: a.artistId),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: context.u(8), vertical: context.u(2)),
-                        child: Text(
-                          a.artist,
-                          style: TextStyle(color: context.accent, fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
-                  ),
-                  Text(
-                    [
-                      a.kindLabel,
-                      if (a.year != null) '${a.year}',
-                      tr('{0} тр.', [a.count > 0 ? a.count : list.length]),
-                    ].join(' · '),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: dim),
-                  ),
+                    Text(
+                      [
+                        a.kindLabel,
+                        if (a.year != null) '${a.year}',
+                        tr('{0} тр.', [a.count > 0 ? a.count : list.length]),
+                      ].join(' · '),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: dim),
+                    ),
+                  ],
                   SizedBox(height: context.u(16)),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: context.u(20)),
@@ -259,7 +312,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   );
                 }
                 return ListView.builder(
-                  padding: EdgeInsets.only(bottom: context.u(200)), // место под мини-плеер и вкладки
+                  padding: EdgeInsets.only(bottom: context.pageEnd(200)),
                   itemCount: head.length + (tail != null ? 1 : list.length),
                   itemBuilder: (context, i) {
                     if (i < head.length) return head[i];

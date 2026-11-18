@@ -36,7 +36,7 @@ class Store extends ChangeNotifier {
   bool light = false;
 
   // оформление
-  String skin = 'glass'; // 'glass' — обычная (жидкое стекло), 'winamp' — как Winamp 2 на ПК
+  String skin = 'phantom';
   String lang = 'auto'; // язык интерфейса: 'auto' (как на iPhone), 'ru', 'en'
   double crossfade = 0; // плавный переход между треками, секунды (0 — выкл)
   bool vinyl = false; // в плеере вместо обложки — крутящийся винил с текстом песни под ним
@@ -48,6 +48,7 @@ class Store extends ChangeNotifier {
   double bgBlurAmount = 1; // сила размытия фона 0…1
 
   bool get winamp => skin == 'winamp';
+  bool get phantom => skin == 'phantom';
 
   // вид плейлистов: порядок и сетка/список
   String playlistSort = 'order'; // order — как добавлены, recent — сначала новые, title, artist, duration
@@ -70,7 +71,11 @@ class Store extends ChangeNotifier {
   final Map<String, int> artistSeconds = {}; // исполнитель → секунды
   final Set<String> listenedIds = {}; // разные треки (для «уникальных»)
 
-  Color get accent => winamp ? const Color(0xFF00E000) : accents[accentIndex.clamp(0, accents.length - 1)];
+  Color get accent => switch (skin) {
+    'phantom' => const Color(0xFFF5F5F5),
+    'winamp' => const Color(0xFF00E000),
+    _ => accents[accentIndex.clamp(0, accents.length - 1)],
+  };
 
   Future<void> load() async {
     _p = await SharedPreferences.getInstance();
@@ -95,7 +100,11 @@ class Store extends ChangeNotifier {
     accentIndex = _int('accent') ?? 0;
     economy = _bool('economy') ?? false;
     light = _bool('light') ?? false;
-    skin = _str('skin') ?? 'glass';
+    final savedSkin = _str('appearance_skin');
+    skin = switch (savedSkin) {
+      'glass' || 'winamp' || 'phantom' => savedSkin!,
+      _ => _str('skin') == 'winamp' ? 'winamp' : 'phantom',
+    };
     lang = appLangSetting = _str('lang') ?? appLangSetting;
     vinyl = _bool('vinyl') ?? false;
     crossfade = _dbl('xfade') ?? 0;
@@ -231,7 +240,7 @@ class Store extends ChangeNotifier {
     _p.setInt('accent', accentIndex);
     _p.setBool('economy', economy);
     _p.setBool('light', light);
-    _p.setString('skin', skin);
+    _p.setString('appearance_skin', skin);
     _p.setString('lang', lang);
     _p.setBool('vinyl', vinyl);
     _p.setDouble('xfade', crossfade);

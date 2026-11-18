@@ -57,8 +57,14 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 600));
         expect(find.byType(PlayerScreen), findsOneWidget);
+        expect(find.text('LIVE'), findsOneWidget);
         await tester.tap(find.byTooltip('Текст песни'));
         await tester.pump(const Duration(milliseconds: 300));
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byTooltip('Очередь'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.text('Очередь'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }

@@ -11,11 +11,13 @@ import '../nebula.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../skins/milkdrop.dart';
+import '../skins/phantom.dart';
 import '../services/store.dart';
 import '../services/wave.dart';
 import '../ui.dart';
 import '../widgets.dart';
 import 'artist_screen.dart';
+import 'net_screen.dart';
 import '../i18n.dart';
 
 /// «Моя волна» в духе Яндекс Музыки: живое «пламя» на весь экран, по центру — «▶ Моя волна»
@@ -174,6 +176,9 @@ class WaveScreen extends StatelessWidget {
       builder: (context, _) {
         final active = w.active;
         final t = active ? audio.current : null;
+        if (context.phantom) {
+          return _PhantomWave(wave: w, track: t, onTune: () => _tune(context));
+        }
         final bottom = MediaQuery.paddingOf(context).bottom;
         return Stack(
           children: [
@@ -261,11 +266,153 @@ class WaveScreen extends StatelessWidget {
   }
 }
 
+class _PhantomWave extends StatelessWidget {
+  const _PhantomWave({required this.wave, required this.track, required this.onTune});
+  final Wave wave;
+  final Track? track;
+  final VoidCallback onTune;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    bottom: false,
+    child: LayoutBuilder(
+      builder: (context, box) {
+        final heroHeight = (box.maxHeight * .57).clamp(205.0, 410.0);
+        return ListView(
+          padding: EdgeInsets.fromLTRB(context.u(16), 6, context.u(16), context.pageEnd(24)),
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Row(
+                    children: [
+                      Icon(Icons.graphic_eq_rounded, color: Phantom.paper, size: 21),
+                      SizedBox(width: 7),
+                      Flexible(
+                        child: Text(
+                          'ECHOES',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'ECHOES.NET',
+                  icon: const Icon(Icons.public),
+                  onPressed: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const NetScreen())),
+                ),
+                IconButton(
+                  tooltip: tr('Поиск'),
+                  icon: const Icon(Icons.search_rounded),
+                  onPressed: () => openTab.value = 1,
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            PhantomPanel(
+              radius: 22,
+              solid: true,
+              child: SizedBox(
+                height: heroHeight,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (!MediaQuery.disableAnimationsOf(context))
+                      ExcludeSemantics(
+                        child: Opacity(
+                          opacity: .46,
+                          child: ColorFiltered(
+                            colorFilter: Phantom.monochrome,
+                            child: _Flame(colors: Nebula.forMood(wave.active ? wave.mood : null), track: track),
+                          ),
+                        ),
+                      ),
+                    const PhantomRings(emphasis: .68),
+                    Positioned(
+                      top: 15,
+                      left: 15,
+                      right: 15,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          tr('Моя волна'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Phantom.heading.copyWith(fontSize: 26),
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: _Title(active: wave.active, loading: wave.loading, compact: true),
+                    ),
+                    Positioned(
+                      bottom: 12,
+                      left: 12,
+                      right: 12,
+                      child: Row(
+                        children: [
+                          if (track case final current?)
+                            Expanded(
+                              child: Text(
+                                current.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w600, color: Phantom.paper),
+                              ),
+                            )
+                          else
+                            const Spacer(),
+                          IconButton.filledTonal(
+                            tooltip: tr('Настроить волну'),
+                            onPressed: onTune,
+                            icon: const Icon(Icons.tune_rounded),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (wave.error case final error?)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(error, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+            const SizedBox(height: 15),
+            Text(tr('Настроения'), style: Phantom.label),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 7,
+              runSpacing: 5,
+              children: [
+                for (final entry in WaveScreen._moods.entries)
+                  ChoiceChip(
+                    label: Text(tr(entry.key)),
+                    avatar: Icon(entry.value.$1, size: 15),
+                    showCheckmark: false,
+                    selected: wave.active && wave.mood == entry.key,
+                    onSelected: wave.loading ? null : (_) => wave.start(mood: entry.key),
+                  ),
+              ],
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
 /// «▶ Моя волна» — крупно, по центру; нажатие запускает волну или ставит на паузу.
 class _Title extends StatelessWidget {
   final bool active;
   final bool loading;
-  const _Title({required this.active, required this.loading});
+  final bool compact;
+  const _Title({required this.active, required this.loading, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -274,19 +421,41 @@ class _Title extends StatelessWidget {
       stream: audio.player.playingStream,
       builder: (context, snap) {
         final playing = active && (snap.data ?? false);
+        void toggle() {
+          if (w.loading) return;
+          if (active) {
+            playing ? audio.pause() : audio.play();
+          } else {
+            w.start();
+          }
+        }
+
+        if (compact) {
+          final icon = loading
+              ? const SizedBox.square(
+                  dimension: 23,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Phantom.background),
+                )
+              : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 30);
+          return IconButton(
+            tooltip: tr(playing ? 'Пауза' : 'Запустить волну'),
+            onPressed: loading ? null : toggle,
+            style: IconButton.styleFrom(
+              backgroundColor: Phantom.paper,
+              foregroundColor: Phantom.background,
+              disabledBackgroundColor: Phantom.paper,
+              minimumSize: const Size.square(64),
+              shape: const CircleBorder(),
+            ),
+            icon: icon,
+          );
+        }
         return Semantics(
           button: true,
           label: playing ? tr('Пауза') : tr('Запустить волну'),
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (w.loading) return;
-              if (active) {
-                playing ? audio.pause() : audio.play();
-              } else {
-                w.start();
-              }
-            },
+            onTap: toggle,
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: context.u(16), vertical: context.u(8)),
               child: FittedBox(

@@ -13,6 +13,7 @@ import '../services/text_match.dart';
 import '../services/wave.dart';
 import '../services/ytm_artist.dart';
 import '../ui.dart';
+import '../skins/phantom.dart';
 import '../widgets.dart';
 import 'album_screen.dart';
 import 'library_screen.dart';
@@ -289,82 +290,140 @@ class _ArtistScreenState extends State<ArtistScreen> {
           controller: _scroll,
           slivers: [
             // шапка: фото во всю ширину, снизу — имя крупно (как в Spotify)
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: headH,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (d.image != null)
-                      Image.network(
-                        d.image!,
-                        fit: BoxFit.cover,
-                        alignment: const Alignment(0, -0.3),
-                        errorBuilder: (_, _, _) => const SizedBox(),
-                      )
-                    else
-                      Container(color: context.accent.withValues(alpha: 0.25)),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0, 0.45, 1],
-                          colors: [
-                            Colors.black.withValues(alpha: 0.25),
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.75),
+            if (context.phantom)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, top + context.u(52), 16, 2),
+                  child: PhantomPanel(
+                    solid: true,
+                    radius: 18,
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: SizedBox.square(
+                            dimension: context.u(98),
+                            child: d.image == null
+                                ? PhantomArtworkPlaceholder(size: context.u(98), title: d.name)
+                                : Image.network(
+                                    d.image!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) =>
+                                        PhantomArtworkPlaceholder(size: context.u(98), title: d.name),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                d.name,
+                                style: Phantom.heading.copyWith(fontSize: 24),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (d.verified)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.verified_outlined, size: 15, color: Phantom.secondary),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(tr('Официальный исполнитель'), style: Phantom.data, maxLines: 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: headH,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (d.image != null)
+                        Image.network(
+                          d.image!,
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(0, -0.3),
+                          errorBuilder: (_, _, _) => const SizedBox(),
+                        )
+                      else
+                        Container(color: context.accent.withValues(alpha: 0.25)),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            stops: const [0, 0.45, 1],
+                            colors: [
+                              Colors.black.withValues(alpha: 0.25),
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.75),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: context.u(18),
+                        right: context.u(18),
+                        bottom: context.u(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                d.name,
+                                maxLines: 1,
+                                style: const TextStyle(
+                                  fontSize: 54,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.0,
+                                  color: Colors.white,
+                                  letterSpacing: -1.5,
+                                  shadows: [Shadow(color: Colors.black54, blurRadius: 18)],
+                                ),
+                              ),
+                            ),
+                            if (d.verified) ...[
+                              SizedBox(height: context.u(6)),
+                              Row(
+                                children: [
+                                  Icon(Icons.verified_rounded, color: context.accent, size: context.u(18)),
+                                  SizedBox(width: context.u(6)),
+                                  Text(
+                                    tr('Официальный исполнитель'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                    ),
-                    Positioned(
-                      left: context.u(18),
-                      right: context.u(18),
-                      bottom: context.u(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              d.name,
-                              maxLines: 1,
-                              style: const TextStyle(
-                                fontSize: 54,
-                                fontWeight: FontWeight.w900,
-                                height: 1.0,
-                                color: Colors.white,
-                                letterSpacing: -1.5,
-                                shadows: [Shadow(color: Colors.black54, blurRadius: 18)],
-                              ),
-                            ),
-                          ),
-                          if (d.verified) ...[
-                            SizedBox(height: context.u(6)),
-                            Row(
-                              children: [
-                                Icon(Icons.verified_rounded, color: context.accent, size: context.u(18)),
-                                SizedBox(width: context.u(6)),
-                                Text(
-                                  tr('Официальный исполнитель'),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(context.u(18), context.u(12), context.u(18), 0),
@@ -634,7 +693,7 @@ class _ArtistScreenState extends State<ArtistScreen> {
                   ),
                 ),
               ),
-            SliverToBoxAdapter(child: SizedBox(height: context.u(200))), // место под мини-плеер и вкладки
+            SliverToBoxAdapter(child: SizedBox(height: context.pageEnd(200))),
           ],
         ),
         // сверху: кнопка «назад»; при прокрутке — полоса с именем (стекло)

@@ -10,6 +10,7 @@ import '../widgets.dart';
 import 'artist_screen.dart';
 import '../i18n.dart';
 import '../services/log.dart';
+import '../skins/phantom.dart';
 
 class _Section {
   final String title;
@@ -118,13 +119,13 @@ class _ForYouScreenState extends State<ForYouScreen> with AutomaticKeepAliveClie
               );
             }
             return ListView(
-              padding: EdgeInsets.only(bottom: context.u(200)),
+              padding: EdgeInsets.only(bottom: context.pageEnd(200)),
               children: [
                 head,
                 for (final s in snap.data!) ...[
                   SectionTitle(s.title),
                   SizedBox(
-                    height: context.u(196),
+                    height: context.u(context.phantom ? 211 : 196),
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       padding: EdgeInsets.symmetric(horizontal: context.u(16)),
@@ -151,36 +152,58 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final w = context.u(140);
+    final art = Cover(track: track, size: context.phantom ? w - 14 : w, radius: context.u(10));
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        GestureDetector(
+          onTap: () => openArtist(context, track),
+          child: Text(
+            track.artist,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
     return GestureDetector(
       onTap: onTap,
       onLongPress: () => showTrackMenu(context, track),
       child: SizedBox(
         width: w,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Cover(track: track, size: w, radius: context.u(12)),
-            SizedBox(height: context.u(6)),
-            Text(
-              track.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-            GestureDetector(
-              onTap: () => openArtist(context, track),
-              child: Text(
-                track.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).textTheme.bodySmall?.color?.withValues(alpha: 0.6),
+        child: context.phantom
+            ? Align(
+                alignment: Alignment.topCenter,
+                child: PhantomPanel(
+                  radius: 15,
+                  padding: const EdgeInsets.all(7),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Center(child: art),
+                      const SizedBox(height: 6),
+                      info,
+                    ],
+                  ),
                 ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  art,
+                  SizedBox(height: context.u(6)),
+                  info,
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

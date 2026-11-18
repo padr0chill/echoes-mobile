@@ -10,6 +10,9 @@ import '../services/audio.dart';
 import '../services/echoes_net.dart';
 import '../services/net_protocol.dart';
 import '../services/store.dart';
+import '../skins/phantom.dart';
+import '../ui.dart';
+import '../widgets.dart';
 
 class NetScreen extends StatefulWidget {
   const NetScreen({super.key, this.net = const EchoesNet()});
@@ -151,17 +154,34 @@ class _NetScreenState extends State<NetScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tabs = TabBar(
+      dividerHeight: context.phantom ? 0 : null,
+      indicatorSize: context.phantom ? TabBarIndicatorSize.tab : null,
+      indicator: context.phantom
+          ? BoxDecoration(
+              color: const Color(0xFF333333),
+              borderRadius: BorderRadius.circular(32),
+            )
+          : null,
+      tabs: [
+        Tab(text: tr('Лента')),
+        Tab(text: tr('Профиль')),
+      ],
+    );
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('ECHOES.NET'),
-          bottom: TabBar(
-            tabs: [
-              Tab(text: tr('Лента')),
-              Tab(text: tr('Профиль')),
-            ],
-          ),
+          bottom: context.phantom
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(60),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+                    child: PhantomPanel(radius: 32, solid: true, child: tabs),
+                  ),
+                )
+              : tabs,
         ),
         body: TabBarView(
           children: [
@@ -476,11 +496,20 @@ class _NoteCard extends StatelessWidget {
     final date = MaterialLocalizations.of(context).formatShortDate(note.date);
     final artist = name == null || name!.isEmpty ? note.shortAuthor : name!;
     return Card(
+      margin: context.phantom ? const EdgeInsets.only(bottom: 9) : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+            leading: context.phantom
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox.square(
+                      dimension: 36,
+                      child: PhantomArtworkPlaceholder(size: 36, title: name),
+                    ),
+                  )
+                : const CircleAvatar(child: Icon(Icons.person_outline)),
             title: Text(artist),
             subtitle: Text(date),
             onTap: onAuthor,
@@ -492,7 +521,9 @@ class _NoteCard extends StatelessWidget {
             ),
           if (note.track case final track?)
             ListTile(
-              leading: const Icon(Icons.play_circle_outline),
+              leading: context.phantom
+                  ? Cover(track: track, size: 38, radius: 7)
+                  : const Icon(Icons.play_circle_outline),
               title: Text(track.title),
               subtitle: Text(track.artist),
               onTap: () => audio.playList([track], 0),

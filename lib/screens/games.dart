@@ -12,6 +12,7 @@ import '../services/audio.dart';
 import '../services/store.dart';
 import '../services/ytm_artist.dart';
 import '../ui.dart';
+import '../skins/phantom.dart';
 import '../widgets.dart';
 
 /// Мини-игры по плейлисту (меню «…» плейлиста).
@@ -226,7 +227,7 @@ class _SnakeGameState extends State<SnakeGame> {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: _red,
+        backgroundColor: context.phantom ? Phantom.background : _red,
         // управление — только свайпами по всему экрану: поворот срабатывает, как только палец сдвинулся
         // на ~18 px (не нужно отпускать), в одном жесте можно повернуть несколько раз
         body: GestureDetector(
@@ -291,7 +292,8 @@ class _SnakeGameState extends State<SnakeGame> {
                             final glide = Duration(milliseconds: _started && !_over ? _tickMs : 0);
                             return Container(
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.10),
+                                color: context.phantom ? Phantom.surface : Colors.black.withValues(alpha: 0.10),
+                                border: context.phantom ? Border.all(color: Phantom.line) : null,
                                 borderRadius: BorderRadius.circular(context.r(10)),
                               ),
                               child: Stack(
@@ -452,7 +454,10 @@ class _RoundBtn extends StatelessWidget {
       child: SizedBox(
         width: context.u(42),
         height: context.u(42),
-        child: Icon(icon, color: filled ? const Color(0xFFE22134) : Colors.white),
+        child: Icon(
+          icon,
+          color: filled ? (context.phantom ? Phantom.background : const Color(0xFFE22134)) : Colors.white,
+        ),
       ),
     ),
   );
@@ -476,7 +481,9 @@ class _Head extends StatelessWidget {
       child: AnimatedRotation(
         turns: turns,
         duration: const Duration(milliseconds: 120),
-        child: const FittedBox(child: Icon(Icons.navigation_rounded, color: Color(0xFFE22134))),
+        child: FittedBox(
+          child: Icon(Icons.navigation_rounded, color: context.phantom ? Phantom.background : const Color(0xFFE22134)),
+        ),
       ),
     );
   }

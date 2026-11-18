@@ -4,7 +4,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'blurred_cover.dart';
+import 'models.dart';
 import 'services/audio.dart';
+import 'skins/phantom.dart';
 import 'skins/winamp.dart';
 import 'services/store.dart';
 import 'ui.dart';
@@ -35,6 +37,15 @@ class Glass extends StatelessWidget {
     // тема Winamp: плоская панель с фаской, без размытия (дёшево)
     if (Store.instance.winamp) {
       return WaBevel(padding: padding, child: child);
+    }
+    if (context.phantom) {
+      return PhantomPanel(
+        radius: radius.clamp(0, 26),
+        padding: padding,
+        selected: tint >= 1.5,
+        solid: tint >= 1.4,
+        child: child,
+      );
     }
     final light = Store.instance.light;
     final r = BorderRadius.circular(radius);
@@ -146,6 +157,15 @@ class Ambient extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final st = Store.instance;
+    if (st.phantom) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(child: PhantomBackdrop(image: image)),
+          child,
+        ],
+      );
+    }
     // Winamp — ровный тёмный фон, без картинок
     if (st.winamp) {
       return Stack(
@@ -229,6 +249,70 @@ class Ambient extends StatelessWidget {
         ),
         child,
       ],
+    );
+  }
+}
+
+class PhantomBackdrop extends StatelessWidget {
+  const PhantomBackdrop({super.key, this.image, this.track});
+  final String? image;
+  final Track? track;
+
+  @override
+  Widget build(BuildContext context) {
+    final st = Store.instance;
+    return RepaintBoundary(
+      child: ValueListenableBuilder<int>(
+        valueListenable: audio.trackKey,
+        builder: (context, _, _) {
+          final current = track ?? audio.current;
+          final custom = image == null ? st.bgPath : null;
+          final file = custom == null ? null : File(custom);
+          final src = image ?? current?.thumb;
+          final ImageProvider? art = file != null && file.existsSync()
+              ? FileImage(file)
+              : current != null && Cover.debugImage != null
+              ? Cover.debugImage!(current)
+              : src == null
+              ? null
+              : NetworkImage(src);
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              const ColoredBox(color: Phantom.background),
+              Opacity(
+                opacity: .33,
+                child: ColorFiltered(
+                  colorFilter: Phantom.monochrome,
+                  child: Image.asset('assets/phantom/background.jpg', fit: BoxFit.cover, excludeFromSemantics: true),
+                ),
+              ),
+              if (art != null)
+                Opacity(
+                  opacity: .40,
+                  child: ColorFiltered(
+                    colorFilter: Phantom.monochrome,
+                    child: BlurredCover(
+                      image: art,
+                      cacheKey: custom ?? src ?? current?.id ?? '',
+                      strength: st.bgBlurAmount,
+                    ),
+                  ),
+                ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x34050505), Color(0xD9050505)],
+                    stops: [.08, 1],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

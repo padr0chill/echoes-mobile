@@ -7,6 +7,7 @@ import '../glass.dart';
 import '../models.dart';
 import '../services/audio.dart';
 import '../services/lyrics.dart';
+import '../skins/phantom.dart';
 import '../ui.dart';
 import '../i18n.dart';
 
@@ -236,7 +237,7 @@ class _LyricsSyncScreenState extends State<LyricsSyncScreen> {
   Widget build(BuildContext context) {
     final dim = Colors.white.withValues(alpha: 0.45);
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0E12),
+      backgroundColor: context.phantom ? Phantom.background : const Color(0xFF0E0E12),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 import 'services/store.dart';
+import 'skins/phantom.dart';
 
 /// Масштаб интерфейса от ширины экрана: iPhone SE … Pro Max … iPad — одни и те же пропорции.
 /// Базовая ширина — 390 (iPhone 12–15). Отступы и размеры умножаются на k, текст — через textScaler.
@@ -21,6 +22,9 @@ extension UiScale on BuildContext {
 
   /// Тема «Эховамп» (Winamp): всё квадратное, с фасками.
   bool get echoamp => Store.instance.winamp;
+  bool get phantom => Store.instance.phantom;
+
+  double pageEnd(double legacy) => u(phantom ? 24 : legacy);
 
   /// Скругление: в Эховампе — 0 (углы прямые, как в Winamp).
   double r(double v) => echoamp ? 0 : u(v);
@@ -183,8 +187,9 @@ ThemeData _echoampTheme() {
   );
 }
 
-ThemeData buildTheme(Color accent, bool light, {bool winamp = false}) {
+ThemeData buildTheme(Color accent, bool light, {bool winamp = false, bool phantom = false}) {
   if (winamp) return _echoampTheme();
+  if (phantom) return Phantom.theme();
   final base = light ? ThemeData.light(useMaterial3: true) : ThemeData.dark(useMaterial3: true);
   final bg = winamp ? const Color(0xFF1B1B29) : (light ? const Color(0xFFF4F3F0) : const Color(0xFF0E0E10));
   // карточки — полупрозрачные (стекло без размытия: дёшево даже в длинных списках); в Winamp — плоские серые
