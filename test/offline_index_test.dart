@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:echoes_mobile/models.dart';
+import 'package:echoes_mobile/services/audio_zip.dart';
 import 'package:echoes_mobile/services/offline.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -31,6 +34,7 @@ void main() {
   setUp(() {
     root = Directory.systemTemp.createTempSync('echoes_off_');
     off = Directory('${root.path}/offline')..createSync();
+    Directory('${root.path}/tmp').createSync();
     PathProviderPlatform.instance = _Paths(root.path);
     o.resetForTest();
   });
@@ -39,6 +43,51 @@ void main() {
 
   void file(String name) => File('${off.path}/$name').writeAsStringSync('abc');
   void index(Object j) => File('${off.path}/index.json').writeAsStringSync(jsonEncode(j));
+
+  test('ZIP import uses supplied tags and skips duplicate audio on a retry', () async {
+    const entry = 'Music/Name - With - Separators.mp3';
+    final archive = Archive()
+      ..add(ArchiveFile.string(entry, 'audio payload'))
+      ..add(ArchiveFile.string('copies/Duplicate.mp3', 'audio payload'))
+      ..add(ArchiveFile.string('../ignored.mp3', 'bad path'))
+      ..add(ArchiveFile.string('notes.txt', 'notes'))
+      ..add(
+        ArchiveFile.string(
+          transferManifest,
+          jsonEncode({
+            'format': 'echoes-offline-tracks',
+            'version': 1,
+            'tracks': [
+              {'file': entry, 'artist': 'Artist - Name', 'title': 'Трек', 'duration': 61.3},
+            ],
+          }),
+        ),
+      );
+    final zip = File('${root.path}/music.zip')..writeAsBytesSync(ZipEncoder().encodeBytes(archive));
+    final result = await o.importZip(XFile(zip.path));
+    expect(result, (added: 1, duplicates: 1));
+    final track = o.localTracks.single;
+    expect(track.artist, 'Artist - Name');
+    expect(track.title, 'Трек');
+    expect(track.seconds, 61);
+    expect(o.fileFor(track)?.readAsStringSync(), 'audio payload');
+
+    o.resetForTest();
+    await o.load();
+    expect(o.localTracks.single.id, track.id);
+    expect(await o.importZip(XFile(zip.path)), (added: 0, duplicates: 2));
+  });
+
+  test('a damaged ZIP leaves the library and files intact', () async {
+    final archive = Archive()
+      ..add(ArchiveFile.string('Artist - Track.mp3', 'valid audio'))
+      ..add(ArchiveFile.string('Artist - Empty.mp3', ''));
+    final zip = File('${root.path}/bad.zip')..writeAsBytesSync(ZipEncoder().encodeBytes(archive));
+    await expectLater(o.importZip(XFile(zip.path)), throwsFormatException);
+    expect(o.localTracks, isEmpty);
+    expect(off.listSync(), isEmpty);
+    expect(Directory('${root.path}/tmp').listSync(), isEmpty);
+  });
 
   group('T03: имена файлов', () {
     test('кириллица не склеивается в одно имя', () {

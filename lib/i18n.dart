@@ -34,6 +34,11 @@ String tr(String ru, [List<Object?> args = const []]) {
 final _one = RegExp(r'(?<![\d.,])1 (track|playlist|follower)s\b');
 
 const _en = <String, String>{
+  'Добавить ZIP с аудио': 'Add audio ZIP',
+  'Импортирую ZIP…': 'Importing ZIP…',
+  'В ZIP нет поддерживаемых аудиофайлов': 'No supported audio files in the ZIP',
+  'Добавлено: {0}. Повторов пропущено: {1}': 'Added: {0}. Duplicates skipped: {1}',
+  'Не удалось импортировать ZIP: {0}': 'Could not import ZIP: {0}',
   'Стекло': 'Glass',
   'Текст': 'Lyrics',
   'Настроения': 'Moods',

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../models.dart';
+import 'audio_zip.dart';
 import 'sc.dart';
 import 'yt.dart';
 import '../i18n.dart';
@@ -113,12 +114,13 @@ class Offline extends ChangeNotifier {
 
   /// Запись индекса атомарно: сначала во временный файл, потом переименование — обрыв посередине
   /// (приложение закрыли во время загрузки) не оставляет пустой или обрезанный index.json.
-  void _saveIndex() {
+  void _saveIndex([Map<String, (String, int, Track)>? entries]) {
     if (_dir == null) return;
     final tmp = File('${_dir!.path}/index.json.tmp');
     tmp.writeAsStringSync(
       jsonEncode({
-        for (final e in _items.entries) e.key: {'f': e.value.$1, 'b': e.value.$2, 't': e.value.$3.toJson()},
+        for (final e in (entries ?? _items).entries)
+          e.key: {'f': e.value.$1, 'b': e.value.$2, 't': e.value.$3.toJson()},
       }),
       flush: true,
     );
@@ -152,25 +154,82 @@ class Offline extends ChangeNotifier {
     for (final x in files) {
       final name = x.name;
       final dot = name.lastIndexOf('.');
-      final base = (dot > 0 ? name.substring(0, dot) : name).replaceAll('_', ' ').trim();
       final ext = dot > 0 ? name.substring(dot + 1).toLowerCase() : 'mp3';
       final id = 'local:${DateTime.now().microsecondsSinceEpoch}';
       final fname = '${_safe(id)}.$ext';
       final dst = '${d.path}/$fname';
       await x.saveTo(dst);
-      var artist = '', title = base;
-      final i = base.indexOf(' - ');
-      if (i > 0) {
-        artist = base.substring(0, i).trim();
-        title = base.substring(i + 3).trim();
-      }
-      final t = Track(id: id, title: title.isEmpty ? name : title, artist: artist);
+      final t = _localTrack(id, name);
       _items[id] = (fname, File(dst).lengthSync(), t);
       out.add(t);
     }
     _saveIndex();
     notifyListeners();
     return out;
+  }
+
+  Future<({int added, int duplicates})> importZip(XFile file) async {
+    final folder = await _folder();
+    final temp = await getTemporaryDirectory();
+    final staging = await temp.createTemp('echoes_zip_');
+    final promoted = <File>[];
+    try {
+      final batch = await compute(unpackAudioZip, (file.path, staging.path));
+      final changes = <String, (String, int, Track)>{};
+      var duplicates = batch.duplicates;
+      for (final audio in batch.tracks) {
+        final id = 'local:zip-${audio.hash}';
+        final track = _localTrack(
+          id,
+          audio.name,
+          artist: audio.artist,
+          title: audio.title,
+          seconds: audio.seconds ?? 0,
+        );
+        if (fileFor(track) != null) {
+          duplicates++;
+          continue;
+        }
+        final name = 'zip-${audio.hash}.${audio.extension}';
+        final dest = File(audio.path).renameSync('${folder.path}/$name');
+        promoted.add(dest);
+        changes[id] = (name, audio.bytes, track);
+      }
+      if (changes.isNotEmpty) {
+        _saveIndex({..._items, ...changes});
+        _items.addAll(changes);
+        notifyListeners();
+      }
+      return (added: changes.length, duplicates: duplicates);
+    } catch (_) {
+      for (final file in promoted) {
+        try {
+          file.deleteSync();
+        } on FileSystemException catch (e) {
+          log.w('offline.zip.cleanup', e);
+        }
+      }
+      rethrow;
+    } finally {
+      try {
+        await staging.delete(recursive: true);
+      } on FileSystemException catch (e) {
+        log.w('offline.zip.staging', e);
+      }
+    }
+  }
+
+  Track _localTrack(String id, String name, {String? artist, String? title, int seconds = 0}) {
+    final dot = name.lastIndexOf('.');
+    final base = (dot > 0 ? name.substring(0, dot) : name).replaceAll('_', ' ').trim();
+    final divider = base.indexOf(' - ');
+    final filenameTitle = divider > 0 ? base.substring(divider + 3).trim() : base;
+    return Track(
+      id: id,
+      title: title ?? (filenameTitle.isEmpty ? name : filenameTitle),
+      artist: artist ?? (divider > 0 ? base.substring(0, divider).trim() : ''),
+      seconds: seconds,
+    );
   }
 
   /// Файл трека, если он скачан.

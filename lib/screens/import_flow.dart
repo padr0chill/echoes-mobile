@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../glass.dart';
 import '../services/importer.dart';
+import '../services/offline.dart';
 import '../services/store.dart';
 import '../ui.dart';
 import '../i18n.dart';
@@ -128,5 +129,54 @@ Future<void> importFromPc(BuildContext context) async {
 }
 
 String _pl(int n) => plural(n, 'плейлист', 'плейлиста', 'плейлистов', 'playlist', 'playlists');
+
+Future<void> importAudioZip(BuildContext context) async {
+  final XFile? file;
+  try {
+    file = await openFile(
+      acceptedTypeGroups: defaultTargetPlatform == TargetPlatform.android
+          ? const []
+          : const [
+              XTypeGroup(label: 'ZIP', extensions: ['zip'], uniformTypeIdentifiers: ['com.pkware.zip-archive']),
+            ],
+    );
+  } catch (e) {
+    if (context.mounted) _toast(context, tr('Не удалось открыть «Файлы»: {0}', [e]));
+    return;
+  }
+  if (file == null || !context.mounted) return;
+
+  final messenger = ScaffoldMessenger.of(context);
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final dialog = DialogRoute<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(width: 16),
+            Expanded(child: Text(tr('Импортирую ZIP…'))),
+          ],
+        ),
+      ),
+    ),
+  );
+  navigator.push(dialog);
+  String message;
+  try {
+    final result = await Offline.instance.importZip(file);
+    message = result.added == 0 && result.duplicates == 0
+        ? tr('В ZIP нет поддерживаемых аудиофайлов')
+        : tr('Добавлено: {0}. Повторов пропущено: {1}', [result.added, result.duplicates]);
+  } catch (e) {
+    message = tr('Не удалось импортировать ZIP: {0}', [e]);
+  } finally {
+    if (navigator.mounted && dialog.isActive) navigator.removeRoute(dialog);
+  }
+  if (messenger.mounted) messenger.showSnackBar(SnackBar(content: Text(message)));
+}
 
 void _toast(BuildContext context, String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));

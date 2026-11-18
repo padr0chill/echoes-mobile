@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../glass.dart';
 import '../models.dart';
+import '../services/audio_zip.dart';
 import '../services/audio.dart';
 import '../services/offline.dart';
 import '../services/square_cover.dart';
@@ -82,6 +83,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
               subtitle: Text(tr('Плейлисты из ECHOES на компьютере')),
               onTap: () => Navigator.pop(ctx, 'import'),
             ),
+            ListTile(
+              leading: const Icon(Icons.folder_zip_outlined),
+              title: Text(tr('Добавить ZIP с аудио')),
+              onTap: () => Navigator.pop(ctx, 'zip'),
+            ),
           ],
         ),
       ),
@@ -94,6 +100,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
       importFromPc(context);
     } else if (v == 'files') {
       await _addFiles(context);
+    } else if (v == 'zip') {
+      await importAudioZip(context);
     }
   }
 
@@ -106,7 +114,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : [
                 XTypeGroup(
                   label: tr('Аудио'),
-                  extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'aiff', 'aif', 'caf', 'alac'],
+                  extensions: localAudioExtensions,
                   uniformTypeIdentifiers: ['public.audio'],
                 ),
               ],
